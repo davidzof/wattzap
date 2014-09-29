@@ -111,9 +111,10 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 		// Bytes 6 and 7: speed rotation count.
 		int sR = data[6] + (data[7] << 8);
 
-		//System.out.println("tC " + tC + " cR " + cR + " tS " + tS + " sR " + sR
+		System.out.println("tC " + tC + " cR " + cR + " tS " + tS + " sR " + sR
 		//		+ " lastTs " + lastTs + " lastTc " + lastTc + " sRR " + sRR
-		//		+ " cRR " + cRR);
+		//		+ " cRR " + cRR
+                );
 
 		if (lastTs == -1) {
 			// first time through, initialize counters and return
@@ -136,30 +137,22 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 			}
 		}
 
-		int tD; // time delta
-		if (tS < lastTs) {
-			// we have rolled over
-			//System.out.println("rollover");
-			tD = tS + (65536 - lastTs);
-			if (tD > 5000) {
-				// Time delta more than 5 seconds is almost certainly bogus,
-				// just drop it
-				return;
-			}
-		} else {
-			tD = tS - lastTs;
-		}
+		int tD = tS - lastTs; // time delta
+                if (tD < 0) {
+                    tD += 65536;
+                }
+                if (tD > 10000) {
+                    System.out.println("Not updated within " + (tD / 1000) + "s");
+                }
 
-		int sRD; // speed rotation delta
-		if (sR < sRR) {
-			// we have rolled over
-			sRD = sR + (65536 - sRR);
-		} else {
-			sRD = sR - sRR;
-		}
+		int sRD = sR - sRR; // speed rotation delta
+                if (sRD < 0) {
+                    sRD += 65536;
+                }
 
 		//System.out.println(" sRD " + sRD + " tD " + tD);
 		double distanceKM = 0;
+                // rotation time detected
 		if (tD > 0) {
 			// We have a time value and rotation value, lets calculate the
 			// speed
@@ -169,8 +162,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 
 			double speed = distanceKM / (timeS / (3600));
 			int powerWatts = power.getPower(speed, resistance);
-			// System.out.println("Speed " + speed + " distanceKM " + distanceKM
-			// + " timeS " + timeS);
+			System.out.println("Wheel speed " + speed + "km/h, power " + powerWatts + "W");
 
 			t.setPower(powerWatts);
 

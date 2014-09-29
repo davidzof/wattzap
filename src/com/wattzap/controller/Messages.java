@@ -17,10 +17,35 @@ package com.wattzap.controller;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 12 November 2013
  */
 public enum Messages {
-	SPEEDCADENCE, HEARTRATE, TRAININGITEM, START, STOP, STARTPOS, TRAINING, CLOSE, GPXLOAD;
+    // any value in the config properties was changed (simple value, sensor,
+    // subsystem, default source, trainer, etc).
+    // data: ???
+    CONFIG_CHANGED,
+    // subsystem opened or closed. Reconfiguration is allowed only when stopped
+    // so before changing configuration it must be stopped.
+    // data: subsytem object
+    SUBSYSTEM, SUBSYSTEM_REMOVED,
+    // sensor handler started, reconfigured or stoped
+    // data: handler object
+    HANDLER, HANDLER_REMOVED,
+
+    // rename to telemetry and remove heartrate
+    // data: well-filled telemetry
+    SPEEDCADENCE, HEARTRATE,
+
+    // first and last message of the training? Save on stop?
+    START, STOP,
+
+    TRAININGITEM, TRAINING,
+
+    // position within the video
+    // data: (double) position
+    STARTPOS,
+
+    CLOSE, GPXLOAD;
 }

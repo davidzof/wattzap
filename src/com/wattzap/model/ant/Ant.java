@@ -38,16 +38,20 @@ import org.cowboycoders.ant.messages.responses.ChannelIdResponse;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.SensorSubsystem;
+import com.wattzap.model.SensorSubsystemTypeEnum;
 import com.wattzap.model.UserPreferences;
 
 /**
  * Gets data from Ant device and calculates speed, distance, cadence etc.
- * 
+ *
  * @author David George
  * @date 30 May 2013
  */
-public class Ant implements MessageCallback {
-	private Channel scChannel = null;
+public class Ant implements MessageCallback, SensorSubsystem {
+    private boolean running;
+
+    private Channel scChannel = null;
 	private Channel hrChannel = null;
 
 	private Node node = null;
@@ -67,9 +71,9 @@ public class Ant implements MessageCallback {
 	/*
 	 * This should match the device you are connecting with. Some devices are
 	 * put into pairing mode (which sets this bit).
-	 * 
+	 *
 	 * Note: Many ANT+ sport devices do not set this bit (eg. HRM strap).
-	 * 
+	 *
 	 * See ANT+ docs.
 	 */
 	private static final boolean PAIRING_FLAG = false;
@@ -77,7 +81,7 @@ public class Ant implements MessageCallback {
 	/*
 	 * Should match device transmission id (0-255). Special rules apply for
 	 * shared channels. See ANT+ protocol.
-	 * 
+	 *
 	 * 0: wildcard, matches any value (slave only)
 	 */
 	private static final int HRM_TRANSMISSION_TYPE = 1;
@@ -91,7 +95,7 @@ public class Ant implements MessageCallback {
 	/*
 	 * You should make a note of the device id and use it in preference to the
 	 * wild card to pair to a specific device.
-	 * 
+	 *
 	 * 0: wild card, matches all device ids any other number: match specific
 	 * device id
 	 */
@@ -102,11 +106,12 @@ public class Ant implements MessageCallback {
 
 	public Ant(BroadcastListener<BroadcastDataMessage> scListener,
 			BroadcastListener<BroadcastDataMessage> hrmListener) {
+        running = false;
 		// optional: enable console logging with Level = LOG_LEVEL
 		setupLogging();
 		/*
 		 * Choose driver: AndroidAntTransceiver or AntTransceiver
-		 * 
+		 *
 		 * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
 		 * sticks plugged in 0: first usb ant-stick
 		 */
@@ -124,10 +129,13 @@ public class Ant implements MessageCallback {
 		// ANT+ key
 		key = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
 		key.setName("N:ANT+");
+
+        // new subsystem was added
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 	}
 
 	public void register() {
-		MessageBus.INSTANCE.register(Messages.START, this);
+        MessageBus.INSTANCE.register(Messages.START, this);
 		MessageBus.INSTANCE.register(Messages.STOP, this);
 	}
 
@@ -223,6 +231,7 @@ public class Ant implements MessageCallback {
 			// cleans up : gives up control of usb device etc.
 			node.stop();
 		}
+        running = false;
 	}
 
 	public void open(int scID, int hrmID) {
@@ -306,9 +315,15 @@ public class Ant implements MessageCallback {
 
 		// start listening
 		hrChannel.open();
+        running = true;
 	}
 
-	@Override
+    @Override
+    public void open() {
+        open(userPrefs.getSCId(), userPrefs.getHRMId());
+    }
+
+    @Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
 		case STOP:
@@ -319,4 +334,15 @@ public class Ant implements MessageCallback {
 			break;
 		}
 	}
+
+    @Override
+    public SensorSubsystemTypeEnum getType() {
+        return SensorSubsystemTypeEnum.ANT;
+    }
+
+    @Override
+    public boolean isOpen() {
+        return running;
+    }
+
 }

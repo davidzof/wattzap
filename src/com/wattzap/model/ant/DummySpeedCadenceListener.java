@@ -113,7 +113,7 @@ public class DummySpeedCadenceListener extends Thread implements
 						BigDecimal bd = new BigDecimal(speed).setScale(2,
 								RoundingMode.HALF_UP);
 
-						t.setVirtualSpeed(bd.intValue());
+						t.setWheelSpeed(bd.intValue());
 
 						// we need to now calculate video speed but we need to
 						// display real speed
@@ -142,7 +142,7 @@ public class DummySpeedCadenceListener extends Thread implements
 							BigDecimal bd = new BigDecimal(speed).setScale(2,
 									RoundingMode.HALF_UP);
 
-							t.setVirtualSpeed(bd.intValue());
+							t.setWheelSpeed(bd.intValue());
 							t.setResistance(UserPreferences.INSTANCE.getResistance());
 						}
 					}

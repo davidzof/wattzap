@@ -21,7 +21,7 @@ import java.util.Map;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 12 November 2013
  */
@@ -45,8 +45,12 @@ public enum MessageBus {
 		listeners.add(o);
 	}
 
-	public void unregister() {
-	};
+	public void unregister(MessageCallback o) {
+        // TODO remove references!!! MLK jak nic
+    }
+    public boolean isRegisterd(Messages m, MessageCallback o) {
+        return false;
+    }
 
 	public void send(Messages m, Object o) {
 		HashSet<MessageCallback> listeners = objects.get(m);

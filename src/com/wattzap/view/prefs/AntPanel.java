@@ -38,7 +38,7 @@ import com.wattzap.model.dto.Telemetry;
 
 /**
  * Pairs ANT devices
- * 
+ *
  * @author David George
  * @date 25th August 2013
  */
@@ -160,7 +160,7 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 		} else {
 			status.setText("Pairing complete...");
 			// MessageBus.INSTANCE.send(Messages.STOP, null);
-			MessageBus.INSTANCE.unregister();
+			// MessageBus.INSTANCE.unregister();
 			hrmID = antDevice.getHRMChannelId();
 			hrmIdField.setText("" + hrmID);
 			scID = antDevice.getSCChannelId();

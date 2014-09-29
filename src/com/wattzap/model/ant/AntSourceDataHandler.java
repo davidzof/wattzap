@@ -32,56 +32,79 @@ import org.cowboycoders.ant.messages.data.BroadcastDataMessage;
 public abstract class AntSourceDataHandler extends SourceDataHandlerAbstract
     implements BroadcastListener<BroadcastDataMessage>
 {
-    private final int sensorType;
+    /* sensorId might be changed when paired */
     private int sensorId;
     private Channel channel = null;
+    private AntSensorSubsystem subsystem = null;
 
-    public AntSourceDataHandler(int sensorType, int sensorId) {
-        this.sensorType = sensorType;
+    public AntSourceDataHandler(int sensorId) {
         this.sensorId = sensorId;
 
         // handler not initialized yet
         lastMessageTime = 0;
         // notify TelemetryProvider about new handler
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        // will receive SUBSYSTEM notification in a second
     }
 
-    abstract public void storeValues(int[] data);
+    // default sensor configuration
+    abstract public String getSensorName();
+    abstract public int getSensorType();
+    abstract public int getSensorFrequency();
+    abstract public int getSensorPeriod();
+
+    // handling received message data
+    abstract public void storeReceivedData(int[] data);
 
     @Override
 	public void receiveMessage(BroadcastDataMessage message) {
         boolean reportNew = (lastMessageTime == 0);
         lastMessageTime = System.currentTimeMillis();
+
         if (reportNew) {
             MessageBus.INSTANCE.send(Messages.HANDLER, this);
             if (sensorId == 0) {
                 // change configuration of sensor: it must be done automatically!
+                /*
                 propertyPage.removeSensor(getName());
-                sensorId = 1234;
+                */
+                sensorId = subsystem.getChannelId(channel);
+                /*
                 propertyPage.addSensor(getName(), sensorId);
+                */
                 MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
             }
         }
 
         int[] data = message.getUnsignedData();
-        storeValues(data);
+        storeReceivedData(data);
     }
 
 
 	@Override
 	public void callback(Messages message, Object o) {
-        AntSensorSubsystem subsystem;
 		switch (message) {
             case CONFIG_CHANGED:
-                // get from properties..
+                // get the properties..
                 break;
+
             case SUBSYSTEM:
-                if (((SensorSubsystem) o).getType()== SensorSubsystemTypeEnum.ANT) {
+                if (((SensorSubsystem) o).getType() == SensorSubsystemTypeEnum.ANT) {
                     subsystem = (AntSensorSubsystem) o;
                     if (subsystem.isOpen()) {
-                        channel = subsystem.createChannel(sensorType, sensorId);
+                        channel = subsystem.createChannel(sensorId, this);
                     }
                 }
+                break;
+
+            case SUBSYSTEM_REMOVED:
+                if (o == subsystem) {
+                    subsystem.closeChannel(channel);
+                    channel = null;
+                    // not paired anymore..
+                    lastMessageTime = 0;
+                }
+                break;
         }
     }
 }

@@ -15,6 +15,8 @@
 */
 package com.wattzap.model.ant;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.cowboycoders.ant.events.BroadcastListener;
 import org.cowboycoders.ant.messages.data.BroadcastDataMessage;
 
@@ -38,6 +40,8 @@ import com.wattzap.model.power.Power;
 public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 		implements BroadcastListener<BroadcastDataMessage>, MessageCallback {
 
+	private final static Logger logger = LogManager.getLogger("ASCL");
+	
 	private static int lastTs = -1;
 	private static int lastTc = -1;
 	private static int sRR = 0; // previous speed rotation measurement
@@ -111,10 +115,9 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 		// Bytes 6 and 7: speed rotation count.
 		int sR = data[6] + (data[7] << 8);
 
-		System.out.println("tC " + tC + " cR " + cR + " tS " + tS + " sR " + sR
-		//		+ " lastTs " + lastTs + " lastTc " + lastTc + " sRR " + sRR
-		//		+ " cRR " + cRR
-                );
+		logger.debug("tC " + tC + " cR " + cR + " tS " + tS + " sR " + sR
+				+ " lastTs " + lastTs + " lastTc " + lastTc + " sRR " + sRR
+				+ " cRR " + cRR);
 
 		if (lastTs == -1) {
 			// first time through, initialize counters and return
@@ -152,7 +155,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 
 		//System.out.println(" sRD " + sRD + " tD " + tD);
 		double distanceKM = 0;
-                // rotation time detected
+        // rotation time detected
 		if (tD > 0) {
 			// We have a time value and rotation value, lets calculate the
 			// speed
@@ -199,11 +202,13 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 
 			sCount = 0;
 		} else if (sCount < 6) {
-			// speed reading is zero, ignore the first 12 of these as sometimes
+			// speed reading is zero, ignore the first 6 of these as sometimes
 			// readings don't change with every message
 			sCount++;
 			// System.out.println("ACSL sCount " + sCount);
 			t.setSpeed(-1.0);
+		} else {
+			t.setSpeed(0.0);
 		}
 
 		t.setDistance(distance);
@@ -276,7 +281,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 			}
 
 			distance += distanceKM;
-			//System.out.println(t);
+			logger.debug("Sending " + t);
 			MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
 
 		}

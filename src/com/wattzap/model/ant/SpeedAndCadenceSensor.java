@@ -25,7 +25,7 @@ import org.apache.log4j.Logger;
  *
  * @author Jarek
  */
-public class SpeedAndCadenceSourceDataHandler extends AntSourceDataHandler {
+public class SpeedAndCadenceSensor extends AntSensor {
 
 	private final static Logger logger = LogManager.getLogger("ASCL");
 
@@ -67,6 +67,7 @@ public class SpeedAndCadenceSourceDataHandler extends AntSourceDataHandler {
 
     @Override
     public void storeReceivedData(long time, int[] data) {
+        logger.debug("Message received");
         // Bytes 0 and 1: TTTT tick number [1024/s] when the last crank revolution
         // was detected
 		int cT = data[0] + (data[1] << 8);
@@ -141,5 +142,4 @@ public class SpeedAndCadenceSourceDataHandler extends AntSourceDataHandler {
                 return false;
         }
     }
-
 }

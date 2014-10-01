@@ -25,7 +25,7 @@ import com.wattzap.model.power.Power;
  *
  * @author Jarek
  */
-public class DefaultSourceDataHandler extends TelemetrySourceDataHandler {
+public class DefaultSourceDataHandler extends TelemetryProcessor {
 
     @Override
     public String getPrettyName() {
@@ -74,7 +74,7 @@ public class DefaultSourceDataHandler extends TelemetrySourceDataHandler {
     }
 
     @Override
-    public void setTelemetryData(Telemetry t) {
+    public void storeTelemetryData(Telemetry t) {
         // We have a time value and rotation value, lets calculate the speed
         int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
         setValue(SourceDataEnum.POWER, powerWatts);

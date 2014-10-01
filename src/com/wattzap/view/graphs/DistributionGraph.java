@@ -105,9 +105,11 @@ public class DistributionGraph extends JPanel {
 		setLayout(new BorderLayout());
 		add(chartPanel, BorderLayout.CENTER);
 
+        /* MISSING
         BucketPanel bucketPanel = new BucketPanel(this, scale);
 		add(bucketPanel, BorderLayout.SOUTH);
-
+        */
+        
 		setBackground(Color.black);
 		chartPanel.revalidate();
 		setVisible(true);

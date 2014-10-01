@@ -17,6 +17,7 @@
 package com.wattzap.model;
 
 import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
 
@@ -24,8 +25,10 @@ import com.wattzap.model.dto.Telemetry;
  *
  * @author Jarek
  */
-public abstract class TelemetrySourceDataHandler extends SourceDataHandlerAbstract {
-
+public abstract class TelemetryProcessor
+    extends SourceDataProcessor
+    implements MessageCallback
+{
     public void initialize() {
 		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
@@ -39,7 +42,7 @@ public abstract class TelemetrySourceDataHandler extends SourceDataHandlerAbstra
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
 
-    public abstract void setTelemetryData(Telemetry t);
+    public abstract void storeTelemetryData(Telemetry t);
 
     public abstract void configChanged(UserPreferences pref);
 
@@ -47,7 +50,7 @@ public abstract class TelemetrySourceDataHandler extends SourceDataHandlerAbstra
     public void callback(Messages m, Object o) {
         switch (m) {
             case SPEEDCADENCE:
-                setTelemetryData((Telemetry) o);
+                storeTelemetryData((Telemetry) o);
                 break;
             case CONFIG_CHANGED:
                 configChanged(UserPreferences.INSTANCE);

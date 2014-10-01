@@ -20,14 +20,16 @@ package com.wattzap.model;
  *
  * @author Jarek
  */
-public abstract class SourceDataHandlerAbstract implements SourceDataHandlerIntf {
+public abstract class SourceDataProcessor
+    implements SourceDataProcessorIntf
+{
     protected final double[] values = new double[SourceDataEnum.values().length];
     protected final long[] modifications = new long[SourceDataEnum.values().length];
 
     // handler doesn't provide connectivity information.
     protected long lastMessageTime = -1;
 
-    public SourceDataHandlerAbstract() {
+    public SourceDataProcessor() {
         // initialize all values to not modified
         for (int i = 0; i < modifications.length; i++) {
             modifications[i] = 0;

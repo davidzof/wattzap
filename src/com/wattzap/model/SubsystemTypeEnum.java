@@ -20,11 +20,6 @@ package com.wattzap.model;
  *
  * @author Jarek
  */
-public interface SensorSubsystemIntf {
-    SensorSubsystemTypeEnum getType();
-
-    void open();
-    void close();
-
-    boolean isOpen();
+public enum SubsystemTypeEnum {
+    ANT
 }

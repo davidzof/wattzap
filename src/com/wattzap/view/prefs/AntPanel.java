@@ -32,7 +32,7 @@ import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.ant.AdvancedSpeedCadenceListener;
-import com.wattzap.model.ant.Ant;
+import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.model.ant.HeartRateListener;
 import com.wattzap.model.dto.Telemetry;
 
@@ -49,7 +49,7 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 	private JLabel speedLabel;
 	private JLabel hrm;
 	private JLabel status;
-	private Ant antDevice;
+	private AntSubsystem antDevice;
 	private int hrmID;
 	private int scID;
 	JCheckBox antUSBM;

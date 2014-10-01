@@ -47,9 +47,9 @@ import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.ant.Ant;
+import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.model.ant.DummySpeedCadenceListener;
-import com.wattzap.model.ant.SpeedAndCadenceSourceDataHandler;
+import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.AntOdometer;
 import com.wattzap.view.ControlPanel;
@@ -136,8 +136,8 @@ public class Main implements Runnable {
 		JPanel odo = null;
 		try {
             new TelemetryProvider().initialize();
-			new Ant().initialize();
-            new SpeedAndCadenceSourceDataHandler().initialize();
+			new AntSubsystem().initialize();
+            new SpeedAndCadenceSensor().initialize();
 			odo = new AntOdometer();
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(frame, "ANT+ " + e.getMessage(),

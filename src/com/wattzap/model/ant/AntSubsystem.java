@@ -36,7 +36,7 @@ import org.cowboycoders.ant.messages.responses.ChannelIdResponse;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.SensorSubsystemTypeEnum;
+import com.wattzap.model.SubsystemTypeEnum;
 import com.wattzap.model.UserPreferences;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +47,7 @@ import java.util.List;
  * @author David George
  * @date 30 May 2013
  */
-public class Ant implements MessageCallback, AntSensorSubsystemIntf {
+public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	private static Logger logger = LogManager.getLogger("Ant");
 	public static final Level LOG_LEVEL = Level.SEVERE;
 
@@ -80,7 +80,7 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
     private UserPreferences userPrefs = UserPreferences.INSTANCE;
 
 
-	public Ant() {
+	public AntSubsystem() {
         running = false;
 	}
 
@@ -108,8 +108,13 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
         key = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
         key.setName("N:ANT+");
 
+        logger.debug("ANT connection created");
+
         // new subsystem was added
+        running = false;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+
+        logger.debug("All SUBSYSTEM listeners notified");
 
         // optional: enable console logging with Level = LOG_LEVEL
         setupLogging();
@@ -133,6 +138,7 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
 
 	@Override
     public int getChannelId(Channel channel) {
+        logger.debug("Getting channel ID...");
 		// build request
 		ChannelRequestMessage msg = new ChannelRequestMessage(
 				channel.getNumber(), Request.CHANNEL_ID);
@@ -157,9 +163,10 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
              * System.out.println();
 			 */
 
+            logger.debug("Channel with id=" + response.getDeviceNumber());
             return response.getDeviceNumber();
 		} catch (Exception e) {
-			logger.error(e.getLocalizedMessage());
+			logger.error("exception " + e.getLocalizedMessage());
 		}
 
 		return 0;
@@ -167,41 +174,61 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
 
 	public void close() {
         if (!running) {
+            logger.error("ANT Subsystem not started");
             return;
         }
 
-        while (channels.size() != 0) {
+        // notify all about subsystem stopped
+        running = false;
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+
+        // clean up all channels.. if any left
+        if (!channels.isEmpty()) {
+            logger.error("Not all ANT sensors were stopped, " + channels.size() + " left");
+        }
+        while (!channels.isEmpty()) {
             closeChannel(channels.get(0));
         }
 
         // cleans up : gives up control of usb device etc.
         node.stop();
-        running = false;
-
-        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+        logger.debug("ANT subsystem stopped");
     }
 
 	@Override
     public void open() {
+        if (running) {
+            logger.error("ANT Subsystem already started");
+            return;
+        }
 		/* must be called before any configuration takes place */
+        logger.debug("node start");
 		node.start();
 
 		/* sends reset request : resets channels to default state */
+        logger.debug("node reset");
 		node.reset();
 
-		// specs say wait 500ms after reset before sending any more host
+		logger.debug("wait a second");
+        // specs say wait 500ms after reset before sending any more host
 		// commands
 		try {
 			Thread.sleep(500);
 		} catch (InterruptedException ex) {
 
 		}
-
 		// sets network key of network zero
+        logger.debug("set network key");
 		node.setNetworkKey(0, key);
+
+        logger.debug("ANT subsystem started");
+
+        // notify all handlers about subsystem ready
         running = true;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
-	}
+
+        logger.debug("All sensors notified");
+    }
 
     @Override
 	public void callback(Messages message, Object o) {
@@ -211,18 +238,21 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
                     // close if disabled
                 }
                 break;
-            case STOP:
-                close();
-                break;
+
             case START:
+                logger.debug("ANT Subsystem starting");
                 open();
+                break;
+            case STOP:
+                logger.debug("ANT Subsystem stopping");
+                close();
                 break;
 		}
 	}
 
     @Override
-    public SensorSubsystemTypeEnum getType() {
-        return SensorSubsystemTypeEnum.ANT;
+    public SubsystemTypeEnum getType() {
+        return SubsystemTypeEnum.ANT;
     }
 
     @Override
@@ -231,9 +261,11 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
     }
 
     @Override
-    public Channel createChannel(int sensorId, AntSourceDataHandler sensorHandler) {
+    public Channel createChannel(int sensorId, AntSensor sensorHandler) {
+        logger.debug("Create channel " + sensorId);
         // subsystem is closed.. cannot create new channel
         if (!isOpen()) {
+            logger.error("Cannot create channel, subsystem disabled");
             return null;
         }
 
@@ -261,7 +293,12 @@ public class Ant implements MessageCallback, AntSensorSubsystemIntf {
     @Override
     public void closeChannel(Channel channel) {
         // if subsystem disabled, all channels were already freed
-        if ((!isOpen()) || (channel == null)) {
+        if (!isOpen()) {
+            logger.error("Subsystem is not running, channel canot exist");
+            return;
+        }
+        if (channel == null) {
+            logger.error("Null channel given to close?");
             return;
         }
 

@@ -16,15 +16,13 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.controller.Messages;
-
 /**
  *
  * @author Jarek
  */
-class SourceDataHandlerDummy extends SourceDataHandlerAbstract {
+class DummyProcessor extends SourceDataProcessor {
 
-    public SourceDataHandlerDummy() {
+    public DummyProcessor() {
         super();
         values[SourceDataEnum.LATITUDE.ordinal()] = 181.0;
         values[SourceDataEnum.LONGITUDE.ordinal()] = 91.0;
@@ -47,15 +45,9 @@ class SourceDataHandlerDummy extends SourceDataHandlerAbstract {
 
     @Override
     public void initialize() {
-        // dumy handler, just for handling requested values..
     }
 
     @Override
     public void release() {
-    }
-
-    @Override
-    public void callback(Messages m, Object o) {
-        // doesn't register anything
     }
  }

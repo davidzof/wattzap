@@ -37,12 +37,12 @@ public class TelemetryProvider implements MessageCallback
 	private final Logger logger = LogManager.getLogger("Telemetry");
 
     // existing sensor subsystems, currently only single ANT+..
-    private final List<SensorSubsystemIntf> subsystems = new ArrayList<>();
+    private final List<SubsystemIntf> subsystems = new ArrayList<>();
 
     // list of handlers for source data (read from subsystems, or computed on telemetry..)
-    private final List<SourceDataHandlerIntf> handlers = new ArrayList<>();
-    private final Map<SourceDataEnum, SourceDataHandlerIntf> selectedHandlers = new HashMap<>();
-    private final SourceDataHandlerIntf dummyHandler = new SourceDataHandlerDummy();
+    private final List<SourceDataProcessorIntf> handlers = new ArrayList<>();
+    private final Map<SourceDataEnum, SourceDataProcessorIntf> selectedHandlers = new HashMap<>();
+    private final SourceDataProcessorIntf dummyHandler = new DummyProcessor();
 
     /* current "location" and training time, filled in telemetry to be reported */
     private Telemetry t = new Telemetry();
@@ -68,23 +68,23 @@ public class TelemetryProvider implements MessageCallback
     /* Subsystems and handlers, used by ConfigurationPanel only.. */
 
     // subsystems to be handled
-    public List<SensorSubsystemIntf> getSubsystems() {
+    public List<SubsystemIntf> getSubsystems() {
         return subsystems;
     }
     // all registered handlers
-    public List<SourceDataHandlerIntf> getSourceDataHandlers() {
+    public List<SourceDataProcessorIntf> getSourceDataHandlers() {
         return handlers;
     }
     // selected data handlers
-    public SourceDataHandlerIntf getSourceDataHanlder(SourceDataEnum data) {
+    public SourceDataProcessorIntf getSourceDataHanlder(SourceDataEnum data) {
         return selectedHandlers.get(data);
     }
-    public void setSourceDataHanlder(SourceDataEnum data, SourceDataHandlerIntf handler) {
+    public void setSourceDataHanlder(SourceDataEnum data, SourceDataProcessorIntf handler) {
         selectedHandlers.put(data, handler);
     }
 
     private double getValue(SourceDataEnum data, long currentTime) {
-        SourceDataHandlerIntf handler = selectedHandlers.get(data);
+        SourceDataProcessorIntf handler = selectedHandlers.get(data);
         if (handler == null) {
             handler = dummyHandler;
         }
@@ -94,7 +94,7 @@ public class TelemetryProvider implements MessageCallback
         return handler.getValue(data);
     }
     private double getValue(SourceDataEnum data) {
-        SourceDataHandlerIntf handler = selectedHandlers.get(data);
+        SourceDataProcessorIntf handler = selectedHandlers.get(data);
         if (handler == null) {
             handler = dummyHandler;
         }
@@ -153,7 +153,7 @@ public class TelemetryProvider implements MessageCallback
 
     @Override
     public void callback(Messages m, Object o) {
-        SourceDataHandlerIntf handler;
+        SourceDataProcessorIntf handler;
         switch (m) {
             case START:
                 logger.debug("TelemetryProvider start requested");
@@ -175,45 +175,47 @@ public class TelemetryProvider implements MessageCallback
 
             case SUBSYSTEM:
                 // check if subsystem already added
-                for (SensorSubsystemIntf existing : subsystems) {
+                for (SubsystemIntf existing : subsystems) {
                     // compare references, not objects!
                     if (existing == o) {
                         return;
                     }
                 }
-                logger.debug("TelemetryProvider subsystem " + ((SensorSubsystemIntf) o).getType() + " created");
-                subsystems.add((SensorSubsystemIntf) o);
+                logger.debug("TelemetryProvider subsystem " + ((SubsystemIntf) o).getType() + " created");
+                subsystems.add((SubsystemIntf) o);
                 break;
             case SUBSYSTEM_REMOVED:
-                logger.debug("TelemetryProvider subsystem " + ((SensorSubsystemIntf) o).getType() + " removed");
-                subsystems.remove((SensorSubsystemIntf) o);
+                logger.debug("TelemetryProvider subsystem " + ((SubsystemIntf) o).getType() + " removed");
+                subsystems.remove((SubsystemIntf) o);
                 break;
 
             case HANDLER:
                 // check if subsystem already added
-                for (SourceDataHandlerIntf existing : handlers) {
+                for (SourceDataProcessorIntf existing : handlers) {
                     // compare references, not objects!
                     if (existing == o) {
                         return;
                     }
                 }
-                logger.debug("TelemetryProvider handler " + ((SourceDataHandlerIntf) o).getPrettyName()+ " created");
+                logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " created");
                 // add handler and notify about all available subsystems
-                handler = (SourceDataHandlerIntf) o;
-                handlers.add(handler);
-                if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM, handler)) {
-                    for (SensorSubsystemIntf subsystem: subsystems) {
-                        handler.callback(Messages.SUBSYSTEM, (Object) subsystem);
+                handlers.add((SourceDataProcessorIntf) o);
+                if (o instanceof MessageCallback) {
+                    if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM, (MessageCallback) o)) {
+                        for (SubsystemIntf subsystem: subsystems) {
+                            ((MessageCallback) o).callback(Messages.SUBSYSTEM, (Object) subsystem);
+                        }
                     }
                 }
                 break;
             case HANDLER_REMOVED:
-                logger.debug("TelemetryProvider handler " + ((SourceDataHandlerIntf) o).getPrettyName()+ " removed");
-                handler = (SourceDataHandlerIntf) o;
-                handlers.remove(handler);
-                if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, handler)) {
-                    for (SensorSubsystemIntf subsystem: subsystems) {
-                        handler.callback(Messages.SUBSYSTEM_REMOVED, (Object) subsystem);
+                logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " removed");
+                handlers.remove((SourceDataProcessorIntf) o);
+                if (o instanceof MessageCallback) {
+                    if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, (MessageCallback) o)) {
+                        for (SubsystemIntf subsystem: subsystems) {
+                            ((MessageCallback) o).callback(Messages.SUBSYSTEM_REMOVED, (Object) subsystem);
+                        }
                     }
                 }
                 break;

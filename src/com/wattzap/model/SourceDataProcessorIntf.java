@@ -16,8 +16,6 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.controller.MessageCallback;
-
 /**
  * Declaration for source data handler.
  *
@@ -39,14 +37,13 @@ import com.wattzap.controller.MessageCallback;
  *
  * @author Jarek
  */
-public interface SourceDataHandlerIntf
-    extends MessageCallback
+public interface SourceDataProcessorIntf
 {
     // initialize handler: register messages, fill internal data, etc
     void initialize();
     // un-initialize hander: unregister messages, stop channels, etc
     void release();
-    
+
     /* Name of the handler, used in configuration panel */
     String getPrettyName();
 

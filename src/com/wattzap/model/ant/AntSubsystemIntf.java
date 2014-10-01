@@ -14,12 +14,26 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model;
+package com.wattzap.model.ant;
+
+import com.wattzap.model.SubsystemIntf;
+import org.cowboycoders.ant.Channel;
 
 /**
  *
  * @author Jarek
  */
-public enum SensorSubsystemTypeEnum {
-    ANT
+public interface AntSubsystemIntf extends SubsystemIntf {
+    /* create new free channel (if available).
+     * When channel is properly paired, new messages are passed to its handler.
+     */
+    Channel createChannel(int sensorId, AntSensor sensorHandler);
+
+    /* Get current sensorId for registered channel. Channel can be created with
+     * exact ID or with 0 ("mask"). Return non-zero value if channel is paired.
+     */
+    int getChannelId(Channel channel);
+
+    /* close and free the channel. */
+    void closeChannel(Channel channel);
 }

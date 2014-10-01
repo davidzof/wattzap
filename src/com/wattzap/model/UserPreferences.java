@@ -19,6 +19,7 @@ import java.awt.Rectangle;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
+import java.util.UUID;
 
 import com.wattzap.model.dto.WorkoutData;
 import com.wattzap.model.power.Power;

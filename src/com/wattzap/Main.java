@@ -45,11 +45,11 @@ import com.sun.jna.NativeLibrary;
 import com.wattzap.controller.MenuItem;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
+import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.ant.AdvancedSpeedCadenceListener;
 import com.wattzap.model.ant.Ant;
 import com.wattzap.model.ant.DummySpeedCadenceListener;
-import com.wattzap.model.ant.HeartRateListener;
+import com.wattzap.model.ant.SpeedAndCadenceSourceDataHandler;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.AntOdometer;
 import com.wattzap.view.ControlPanel;
@@ -65,7 +65,7 @@ import com.wattzap.view.training.TrainingPicker;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -135,7 +135,9 @@ public class Main implements Runnable {
 		//AdvancedSpeedCadenceListener scListener = null;
 		JPanel odo = null;
 		try {
-			new Ant(new AdvancedSpeedCadenceListener(), new HeartRateListener()).register();
+            new TelemetryProvider().initialize();
+			new Ant().initialize();
+            new SpeedAndCadenceSourceDataHandler().initialize();
 			odo = new AntOdometer();
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(frame, "ANT+ " + e.getMessage(),
@@ -235,12 +237,12 @@ public class Main implements Runnable {
 		JMenu analizeMenuItem = new JMenu(
 				userPrefs.messages.getString("analyze"));
 		trainingMenu.add(analizeMenuItem);
-		
+
 		JMenuItem analMenuItem = new JMenuItem(
 				userPrefs.messages.getString("analyze"));
 		analMenuItem.setActionCommand(TrainingController.analyze);
 		analizeMenuItem.add(analMenuItem);
-	
+
 		JMenuItem saveMenuItem = new JMenuItem(
 				userPrefs.messages.getString("save"));
 		saveMenuItem.setActionCommand(TrainingController.save);
@@ -259,7 +261,7 @@ public class Main implements Runnable {
 		analMenuItem.addActionListener(trainingController);
 		saveMenuItem.addActionListener(trainingController);
 		recoverMenuItem.addActionListener(trainingController);
-		
+
 		viewMenuItem.addActionListener(trainingController);
 
 		frame.add(trainingDisplay, "cell 0 0");

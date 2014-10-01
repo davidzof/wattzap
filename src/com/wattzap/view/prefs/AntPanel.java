@@ -144,8 +144,6 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 		String command = e.getActionCommand();
 
 		if ("start".equals(command)) {
-			antDevice = new Ant(scListener, hrListener);
-			antDevice.open(0, 0); // 0 is wildcard id
 			status.setText("Attempting pairing...");
 			// MessageBus.INSTANCE.send(Messages.START, new Double(0));
 
@@ -159,15 +157,7 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 
 		} else {
 			status.setText("Pairing complete...");
-			// MessageBus.INSTANCE.send(Messages.STOP, null);
-			// MessageBus.INSTANCE.unregister();
-			hrmID = antDevice.getHRMChannelId();
-			hrmIdField.setText("" + hrmID);
-			scID = antDevice.getSCChannelId();
-			sandcField.setText("" + scID);
-			antDevice.close();
 		}
-
 	}
 
 	public void close() {

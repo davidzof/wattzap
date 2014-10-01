@@ -40,9 +40,9 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import com.wattzap.controller.DistributionAccessor;
 import com.wattzap.model.dto.Telemetry;
 
-/* 
+/*
  Power Distribution Chart
- * 
+ *
  * @author David George (c) Copyright 2014
  * @date 21 April 2014
  */
@@ -105,7 +105,7 @@ public class DistributionGraph extends JPanel {
 		setLayout(new BorderLayout());
 		add(chartPanel, BorderLayout.CENTER);
 
-		BucketPanel bucketPanel = new BucketPanel(this, scale);
+        BucketPanel bucketPanel = new BucketPanel(this, scale);
 		add(bucketPanel, BorderLayout.SOUTH);
 
 		setBackground(Color.black);

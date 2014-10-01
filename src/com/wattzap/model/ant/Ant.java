@@ -24,11 +24,9 @@ import org.apache.log4j.Logger;
 import org.cowboycoders.ant.Channel;
 import org.cowboycoders.ant.NetworkKey;
 import org.cowboycoders.ant.Node;
-import org.cowboycoders.ant.events.BroadcastListener;
 import org.cowboycoders.ant.events.MessageCondition;
 import org.cowboycoders.ant.events.MessageConditionFactory;
 import org.cowboycoders.ant.interfaces.AntTransceiver;
-import org.cowboycoders.ant.messages.ChannelType;
 import org.cowboycoders.ant.messages.SlaveChannelType;
 import org.cowboycoders.ant.messages.commands.ChannelRequestMessage;
 import org.cowboycoders.ant.messages.commands.ChannelRequestMessage.Request;
@@ -49,25 +47,11 @@ import java.util.List;
  * @author David George
  * @date 30 May 2013
  */
-public class Ant implements MessageCallback, AntSensorSubsystem {
-    private Channel scChannel = null;
-	private Channel hrChannel = null;
-
-	private Node node = null;
-	private NetworkKey key = null;
-
-	private BroadcastListener<BroadcastDataMessage> SCListener;
-	private BroadcastListener<BroadcastDataMessage> HRListener;
-
-	private UserPreferences userPrefs = UserPreferences.INSTANCE;
-
-	private static final int HRM_CHANNEL_PERIOD = 8070;
-	private static final int ANT_SPORT_SPEED_PERIOD = 8086;
-	private static final int ANT_SPORT_FREQ = 57; // 0x39
-
+public class Ant implements MessageCallback, AntSensorSubsystemIntf {
 	private static Logger logger = LogManager.getLogger("Ant");
+	public static final Level LOG_LEVEL = Level.SEVERE;
 
-	/*
+    /*
 	 * This should match the device you are connecting with. Some devices are
 	 * put into pairing mode (which sets this bit).
 	 *
@@ -85,39 +69,32 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
 	 */
 	private static final int DEFAULT_TRANSMISSION_TYPE = 1;
 
-	/*
-	 * Device type, see ANT+ specs
-	 */
-	private static final int HRM_DEVICE_TYPE = 120; // 0x78
-	private static final int ANT_SPORT_SandC_TYPE = 121; // 0x78
+	private static final int ANT_SPORT_FREQ = 57; // 0x39
 
-	/*
-	 * You should make a note of the device id and use it in preference to the
-	 * wild card to pair to a specific device.
-	 *
-	 * 0: wild card, matches all device ids any other number: match specific
-	 * device id
-	 */
-	// private static final int HRM_DEVICE_ID = 31280;
-	// private static final int SC_DEVICE_ID = 26164;
-
-	public static final Level LOG_LEVEL = Level.SEVERE;
     private final List<Channel> channels = new ArrayList<>();
     private boolean running;
 
-	public Ant(BroadcastListener<BroadcastDataMessage> scListener,
-			BroadcastListener<BroadcastDataMessage> hrmListener) {
-		// optional: enable console logging with Level = LOG_LEVEL
-		setupLogging();
+	private Node node = null;
+	private NetworkKey key = null;
+
+    private UserPreferences userPrefs = UserPreferences.INSTANCE;
+
+
+	public Ant() {
+        running = false;
+	}
+
+	public void initialize() {
+        MessageBus.INSTANCE.register(Messages.START, this);
+		MessageBus.INSTANCE.register(Messages.STOP, this);
+        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+
 		/*
 		 * Choose driver: AndroidAntTransceiver or AntTransceiver
 		 *
 		 * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
 		 * sticks plugged in 0: first usb ant-stick
 		 */
-		SCListener = scListener;
-		HRListener = hrmListener;
-
         AntTransceiver antchip = null;
         if (userPrefs.isANTUSB()) {
             antchip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
@@ -131,16 +108,11 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
         key = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
         key.setName("N:ANT+");
 
-        running = false;
-
         // new subsystem was added
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
-	}
 
-	public void register() {
-        MessageBus.INSTANCE.register(Messages.START, this);
-		MessageBus.INSTANCE.register(Messages.STOP, this);
-        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+        // optional: enable console logging with Level = LOG_LEVEL
+        setupLogging();
 	}
 
 	public static void setupLogging() {
@@ -152,16 +124,15 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
 		AntTransceiver.LOGGER.addHandler(handler);
 	}
 
+    public void release() {
+        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM_REMOVED, this);
+    }
 
-	public int getHRMChannelId() {
-		return getChannelId(hrChannel);
-	}
 
-	public int getSCChannelId() {
-		return getChannelId(scChannel);
-	}
-
-	public int getChannelId(Channel channel) {
+	@Override
+    public int getChannelId(Channel channel) {
 		// build request
 		ChannelRequestMessage msg = new ChannelRequestMessage(
 				channel.getNumber(), Request.CHANNEL_ID);
@@ -199,15 +170,19 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
             return;
         }
 
-        closeChannel(scChannel);
-        closeChannel(hrChannel);
+        while (channels.size() != 0) {
+            closeChannel(channels.get(0));
+        }
 
         // cleans up : gives up control of usb device etc.
         node.stop();
         running = false;
-	}
 
-	public void open(int scID, int hrmID) {
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+    }
+
+	@Override
+    public void open() {
 		/* must be called before any configuration takes place */
 		node.start();
 
@@ -224,79 +199,9 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
 
 		// sets network key of network zero
 		node.setNetworkKey(0, key);
-
-
-
-		scChannel = node.getFreeChannel();
-
-		// Arbitrary name : useful for identifying channel
-		scChannel.setName("C:SC");
-
-		// choose slave or master type. Constructors exist to set
-		// two-way/one-way and shared/non-shared variants.
-		ChannelType channelType = new SlaveChannelType();
-
-		// use ant network key "N:ANT+"
-		scChannel.assign("N:ANT+", channelType);
-
-		// registers our Heart Rate and Speed and Cadence callbacks with the
-		// channel
-		scChannel.registerRxListener(SCListener, BroadcastDataMessage.class);
-
-		// ******* start device specific configuration ******
-		scChannel.setId(scID, ANT_SPORT_SandC_TYPE, DEFAULT_TRANSMISSION_TYPE,
-				PAIRING_FLAG);
-
-		scChannel.setFrequency(ANT_SPORT_FREQ);
-
-		scChannel.setPeriod(ANT_SPORT_SPEED_PERIOD);
-
-		// ******* end device specific configuration ******
-
-		// timeout before we give up looking for device
-		scChannel.setSearchTimeout(Channel.SEARCH_TIMEOUT_NEVER);
-
-		// start listening
-		scChannel.open();
-
-		// *** Heart Rate Monitor ***
-
-		hrChannel = node.getFreeChannel();
-
-		// Arbitrary name : useful for identifying channel
-		hrChannel.setName("C:HRM");
-
-		ChannelType channelType2 = new SlaveChannelType(); // use ant
-															// network key
-															// "N:ANT+"
-		hrChannel.assign("N:ANT+", channelType2);
-
-		// registers an instance of our callback with the channel
-		hrChannel.registerRxListener(HRListener, BroadcastDataMessage.class);
-
-		// start device specific configuration
-
-		hrChannel.setId(hrmID, HRM_DEVICE_TYPE, DEFAULT_TRANSMISSION_TYPE,
-				PAIRING_FLAG);
-
-		hrChannel.setFrequency(ANT_SPORT_FREQ);
-
-		hrChannel.setPeriod(HRM_CHANNEL_PERIOD);
-
-		// ******* end device specific configuration
-
-		// timeout before we give up looking for device
-		hrChannel.setSearchTimeout(Channel.SEARCH_TIMEOUT_NEVER);
-
-		// start listening
-		hrChannel.open();
         running = true;
+        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 	}
-
-    @Override
-    public void open() {
-        open(userPrefs.getSCId(), userPrefs.getHRMId());
-    }
 
     @Override
 	public void callback(Messages message, Object o) {
@@ -305,12 +210,13 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
                 if (running) {
                     // close if disabled
                 }
-		case STOP:
-			close();
-			break;
-		case START:
-			open(userPrefs.getSCId(), userPrefs.getHRMId());
-			break;
+                break;
+            case STOP:
+                close();
+                break;
+            case START:
+                open();
+                break;
 		}
 	}
 
@@ -327,7 +233,7 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
     @Override
     public Channel createChannel(int sensorId, AntSourceDataHandler sensorHandler) {
         // subsystem is closed.. cannot create new channel
-        if (node == null) {
+        if (!isOpen()) {
             return null;
         }
 
@@ -340,7 +246,7 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
 		channel.registerRxListener(sensorHandler, BroadcastDataMessage.class);
         // set channel configuration
 		channel.setId(sensorId, sensorHandler.getSensorType(), DEFAULT_TRANSMISSION_TYPE, PAIRING_FLAG);
-		channel.setFrequency(sensorHandler.getSensorFrequency());
+		channel.setFrequency(ANT_SPORT_FREQ);
 		channel.setPeriod(sensorHandler.getSensorPeriod());
 		// timeout before we give up looking for device
 		channel.setSearchTimeout(Channel.SEARCH_TIMEOUT_NEVER);
@@ -355,7 +261,7 @@ public class Ant implements MessageCallback, AntSensorSubsystem {
     @Override
     public void closeChannel(Channel channel) {
         // if subsystem disabled, all channels were already freed
-        if ((node == null) || (channel == null)) {
+        if ((!isOpen()) || (channel == null)) {
             return;
         }
 

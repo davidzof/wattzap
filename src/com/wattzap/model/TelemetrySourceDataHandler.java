@@ -16,46 +16,42 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.Telemetry;
 
 /**
  *
  * @author Jarek
  */
-class SourceDataHandlerDummy extends SourceDataHandlerAbstract {
+public abstract class TelemetrySourceDataHandler extends SourceDataHandlerAbstract {
 
-    public SourceDataHandlerDummy() {
-        super();
-        values[SourceDataEnum.LATITUDE.ordinal()] = 181.0;
-        values[SourceDataEnum.LONGITUDE.ordinal()] = 91.0;
-    }
-
-    @Override
-    public String getPrettyName() {
-        return "";
-    }
-
-    @Override
-    public boolean provides(SourceDataEnum data) {
-        return true;
-    }
-
-    @Override
-    public void setValue(SourceDataEnum data, double value) {
-        throw new UnsupportedOperationException(data + " not settable");
-    }
-
-    @Override
     public void initialize() {
-        // dumy handler, just for handling requested values..
+		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+
+        // initialize all config properties
+        configChanged(UserPreferences.INSTANCE);
     }
 
-    @Override
     public void release() {
+		MessageBus.INSTANCE.unregister(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
+
+    public abstract void setTelemetryData(Telemetry t);
+
+    public abstract void configChanged(UserPreferences pref);
 
     @Override
     public void callback(Messages m, Object o) {
-        // doesn't register anything
+        switch (m) {
+            case SPEEDCADENCE:
+                setTelemetryData((Telemetry) o);
+                break;
+            case CONFIG_CHANGED:
+                configChanged(UserPreferences.INSTANCE);
+                break;
+        }
     }
- }
+}

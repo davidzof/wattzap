@@ -18,9 +18,10 @@ package com.wattzap.model.ant;
 
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.SensorSubsystem;
+import com.wattzap.model.SensorSubsystemIntf;
 import com.wattzap.model.SensorSubsystemTypeEnum;
 import com.wattzap.model.SourceDataHandlerAbstract;
+import com.wattzap.model.UserPreferences;
 import org.cowboycoders.ant.Channel;
 import org.cowboycoders.ant.events.BroadcastListener;
 import org.cowboycoders.ant.messages.data.BroadcastDataMessage;
@@ -35,26 +36,44 @@ public abstract class AntSourceDataHandler extends SourceDataHandlerAbstract
     /* sensorId might be changed when paired */
     private int sensorId;
     private Channel channel = null;
-    private AntSensorSubsystem subsystem = null;
+    private AntSensorSubsystemIntf subsystem = null;
 
-    public AntSourceDataHandler(int sensorId) {
-        this.sensorId = sensorId;
-
+    public AntSourceDataHandler() {
         // handler not initialized yet
         lastMessageTime = 0;
+    }
+
+    public void initialize() {
+        // message registration
+        MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
+        MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
+
+        // initialize configuration
+        sensorId = UserPreferences.INSTANCE.getSensorId(getSensorName());
+        configChanged(UserPreferences.INSTANCE);
+
         // notify TelemetryProvider about new handler
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
         // will receive SUBSYSTEM notification in a second
     }
 
+    public void release() {
+        MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM, this);
+        MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM_REMOVED, this);
+
+        // request handler removal
+        lastMessageTime = 0;
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+    }
+
     // default sensor configuration
     abstract public String getSensorName();
     abstract public int getSensorType();
-    abstract public int getSensorFrequency();
     abstract public int getSensorPeriod();
 
     // handling received message data
-    abstract public void storeReceivedData(int[] data);
+    abstract public void storeReceivedData(long time, int[] data);
 
     @Override
 	public void receiveMessage(BroadcastDataMessage message) {
@@ -64,45 +83,48 @@ public abstract class AntSourceDataHandler extends SourceDataHandlerAbstract
         if (reportNew) {
             MessageBus.INSTANCE.send(Messages.HANDLER, this);
             if (sensorId == 0) {
-                // change configuration of sensor: it must be done automatically!
-                /*
-                propertyPage.removeSensor(getName());
-                */
                 sensorId = subsystem.getChannelId(channel);
-                /*
-                propertyPage.addSensor(getName(), sensorId);
-                */
-                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+                UserPreferences.INSTANCE.setSensorId(getSensorName(), sensorId);
             }
         }
 
         int[] data = message.getUnsignedData();
-        storeReceivedData(data);
+        storeReceivedData(lastMessageTime, data);
     }
 
+    public abstract void configChanged(UserPreferences config);
 
 	@Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
             case CONFIG_CHANGED:
-                // get the properties..
+                configChanged(UserPreferences.INSTANCE);
                 break;
 
             case SUBSYSTEM:
-                if (((SensorSubsystem) o).getType() == SensorSubsystemTypeEnum.ANT) {
-                    subsystem = (AntSensorSubsystem) o;
+                if (((SensorSubsystemIntf) o).getType() == SensorSubsystemTypeEnum.ANT) {
+                    if (subsystem == null) {
+                        subsystem = (AntSensorSubsystemIntf) o;
+                    }
                     if (subsystem.isOpen()) {
-                        channel = subsystem.createChannel(sensorId, this);
+                        if (channel == null) {
+                            channel = subsystem.createChannel(sensorId, this);
+                        }
+                    } else {
+                        if (channel != null) {
+                            subsystem.closeChannel(channel);
+                            lastMessageTime = 0;
+                        }
                     }
                 }
                 break;
-
             case SUBSYSTEM_REMOVED:
-                if (o == subsystem) {
-                    subsystem.closeChannel(channel);
-                    channel = null;
-                    // not paired anymore..
-                    lastMessageTime = 0;
+                if (subsystem == (AntSensorSubsystemIntf) o) {
+                    if (channel != null) {
+                        subsystem.closeChannel(channel);
+                        lastMessageTime = 0;
+                    }
+                    subsystem = null;
                 }
                 break;
         }

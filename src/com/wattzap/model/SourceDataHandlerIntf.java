@@ -42,8 +42,13 @@ import com.wattzap.controller.MessageCallback;
 public interface SourceDataHandlerIntf
     extends MessageCallback
 {
-   /* Name of the handler, used in configuration panel */
-   String getName();
+    // initialize handler: register messages, fill internal data, etc
+    void initialize();
+    // un-initialize hander: unregister messages, stop channels, etc
+    void release();
+    
+    /* Name of the handler, used in configuration panel */
+    String getPrettyName();
 
    /* Which data handler provides. If handler provides these data, it is
     * available in related source selector. If not, it doesn't deliver the

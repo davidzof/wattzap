@@ -19,7 +19,6 @@ import java.awt.Rectangle;
 import java.util.List;
 import java.util.Locale;
 import java.util.ResourceBundle;
-import java.util.UUID;
 
 import com.wattzap.model.dto.WorkoutData;
 import com.wattzap.model.power.Power;
@@ -27,9 +26,9 @@ import com.wattzap.model.power.PowerProfiles;
 
 /**
  * Singleton helper to read/write user preferences to a backing store
- * 
+ *
  * @author David George / 15 September 2013 (C) Copyright 2013
- * 
+ *
  */
 public enum UserPreferences {
 	INSTANCE;
@@ -44,7 +43,7 @@ public enum UserPreferences {
 	public ResourceBundle messages;
 	private boolean antEnabled = true;
 	private boolean antUSBM = false;
-	
+
 	private UserPreferences() {
 		user = System.getProperty("user.name");
 		String wd = getWD();
@@ -114,13 +113,13 @@ public enum UserPreferences {
 		int x = getInt("", "videoX", 0);
 		int y = getInt("", "videoY", 650);
 
-		
+
 		Rectangle r = new Rectangle(x, y, width, height);
 		return r;
 	}
 
 	public void setVideoBounds(Rectangle r) {
-		
+
 		setInt("", "videoHeight", r.height);
 		setInt("", "videoWidth", r.width);
 		setInt("", "videoX", r.x);
@@ -209,7 +208,7 @@ public enum UserPreferences {
 	public void setUnits(boolean value) {
 		setBoolean("units", value);
 	}
-	
+
 	public boolean isANTUSB() {
 		return getBoolean("antusbm", false);
 	}
@@ -277,7 +276,15 @@ public enum UserPreferences {
 		setInt(user, "hrmid", i);
 	}
 
-	/** Registration Stuff **/
+    public void setSensorId(String sensorName, int sensorId) {
+        setInt(user, sensorName + "id", sensorId);
+    }
+
+    public int getSensorId(String sensorName) {
+		return getInt(user, sensorName + "id", 0);
+	}
+
+    /** Registration Stuff **/
 	public String getSerial() {
 		String id = get("", "ssn", null);
 
@@ -419,9 +426,9 @@ public enum UserPreferences {
 
 	/*
 	 * Stores common data files: database logfile Videos Trainings
-	 * 
+	 *
 	 * These directories are created by the Windows/Unix installer
-	 * 
+	 *
 	 * On Windows 7: C:\ProgramData\Wattzap On Windows XP: C:\Documents and
 	 * Settings\All Users\Application Data\Wattzap On Unix: ??? $home/.wattzap
 	 */
@@ -454,7 +461,7 @@ public enum UserPreferences {
 
 	/*
 	 * Stores User dependent data Workouts
-	 * 
+	 *
 	 * On Windows 7: C:\Users\$user\AppData\Roaming\Wattzap On Windows XP:
 	 * C:\Documents & Settings\$user\AppData\Wattzap On Unix: ??? $home/.wattzap
 	 */

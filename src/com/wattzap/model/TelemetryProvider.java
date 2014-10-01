@@ -20,27 +20,29 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.power.Power;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Checks all (added) dataHandlers and computes periodically telemetry on settings
  * basis (speed, cadence, heart rate, power, trainer load).
  * @author Jarek
  */
-public class TelemetryProvider extends Thread
-    implements MessageCallback
+public class TelemetryProvider implements MessageCallback
 {
+	private final Logger logger = LogManager.getLogger("Telemetry");
+
     // existing sensor subsystems, currently only single ANT+..
-    private final List<SensorSubsystem> subsystems = new ArrayList<>();
+    private final List<SensorSubsystemIntf> subsystems = new ArrayList<>();
 
     // list of handlers for source data (read from subsystems, or computed on telemetry..)
     private final List<SourceDataHandlerIntf> handlers = new ArrayList<>();
     private final Map<SourceDataEnum, SourceDataHandlerIntf> selectedHandlers = new HashMap<>();
-    private SourceDataHandlerIntf dummyHandler = new SourceDataHandlerDummy();
+    private final SourceDataHandlerIntf dummyHandler = new SourceDataHandlerDummy();
 
     /* current "location" and training time, filled in telemetry to be reported */
     private Telemetry t = new Telemetry();
@@ -49,11 +51,24 @@ public class TelemetryProvider extends Thread
     private double speed = 0.0; // [m/s]
     private boolean paused = true;
 
+    private Thread runner = null;
+
+    public void initialize() {
+        MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
+        MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
+        MessageBus.INSTANCE.register(Messages.HANDLER, this);
+        MessageBus.INSTANCE.register(Messages.HANDLER_REMOVED, this);
+        MessageBus.INSTANCE.register(Messages.STARTPOS, this);
+        MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+        MessageBus.INSTANCE.register(Messages.CLOSE, this);
+        MessageBus.INSTANCE.register(Messages.START, this);
+        MessageBus.INSTANCE.register(Messages.STOP, this);
+    }
 
     /* Subsystems and handlers, used by ConfigurationPanel only.. */
 
     // subsystems to be handled
-    public List<SensorSubsystem> getSubsystems() {
+    public List<SensorSubsystemIntf> getSubsystems() {
         return subsystems;
     }
     // all registered handlers
@@ -78,51 +93,51 @@ public class TelemetryProvider extends Thread
         }
         return handler.getValue(data);
     }
-
-	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
-	private Power powerProfile = userPrefs.getPowerProfile();
-	private double weight = userPrefs.getTotalWeight();
+    private double getValue(SourceDataEnum data) {
+        SourceDataHandlerIntf handler = selectedHandlers.get(data);
+        if (handler == null) {
+            handler = dummyHandler;
+        }
+        return handler.getValue(data);
+    }
 
     /* Main loop: get all data, process it and send current telemetry, then sleep some time.
      * Advance time and distance as well.
      * Next step.. set indicators
      */
-    public void run() {
-        for (;;) {
-            paused = false;
+    private void threadLoop() {
+        logger.debug("TelemetryProvider started");
+        while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
-
-            // "default" power is computed on last reported wheelSpeed, slope,
-            // trainer resistance and total weight
-			speed = getValue(SourceDataEnum.SPEED, 0);
-            double power = getValue(SourceDataEnum.POWER, start);
-            double slope = getValue(SourceDataEnum.SLOPE, 0);
-            int resistance = (int)getValue(SourceDataEnum.RESISTANCE, 0);
-            boolean manualPause = ((int)getValue(SourceDataEnum.PAUSE, 0) != 0);
+            paused = false;
+            speed = getValue(SourceDataEnum.SPEED, start);
 
             // fill telemetry to send
             t.setTime(runtime);
             t.setDistance(distance);
             t.setSpeed(speed);
-            t.setPower((int) power);
+            t.setPower((int) getValue(SourceDataEnum.POWER, start));
             t.setWheelSpeed(getValue(SourceDataEnum.WHEEL_SPEED, start));
-            t.setCadence((int)getValue(SourceDataEnum.CADENCE, 0));
-            t.setHeartRate((int)getValue(SourceDataEnum.HEART_RATE, 0));
-            t.setGradient(slope);
-            t.setElevation(getValue(SourceDataEnum.ALTITUDE, 0));
-            t.setLatitude(getValue(SourceDataEnum.LATITUDE, 0));
-            t.setLongitude(getValue(SourceDataEnum.LONGITUDE, 0));
-            t.setResistance((resistance < 0) ? -resistance : resistance);
-            t.setAutoResistance(resistance < 0);
-            t.setPaused(paused || manualPause);
-			MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
+            t.setCadence((int)getValue(SourceDataEnum.CADENCE));
+            t.setHeartRate((int)getValue(SourceDataEnum.HEART_RATE));
+            t.setGradient(getValue(SourceDataEnum.SLOPE));
+            t.setElevation(getValue(SourceDataEnum.ALTITUDE));
+            t.setLatitude(getValue(SourceDataEnum.LATITUDE));
+            t.setLongitude(getValue(SourceDataEnum.LONGITUDE));
+            t.setResistance((int)getValue(SourceDataEnum.RESISTANCE));
+            t.setAutoResistance((int)getValue(SourceDataEnum.AUTO_RESISTANCE) != 0);
+            t.setPaused(((int)getValue(SourceDataEnum.PAUSE) != 0) || paused);
 
+            // TODO what about constraints? Shall they be included in telemetry?
+            // I don't like the idea of "special" source of such information..
+
+            MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
 
             // sleep some time
             try {
                 Thread.sleep(250);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                break;
             }
 
             // advance time and distance if not paused
@@ -133,24 +148,45 @@ public class TelemetryProvider extends Thread
                 runtime += timePassed;
             }
         }
+        logger.debug("TelemetryProvider stopped");
     }
 
     @Override
     public void callback(Messages m, Object o) {
         SourceDataHandlerIntf handler;
         switch (m) {
+            case START:
+                logger.debug("TelemetryProvider start requested");
+                runner = new Thread() {
+                    @Override
+                    public void run() {
+                        threadLoop();
+                    }
+                };
+                break;
+            case STOP:
+                logger.debug("TelemetryProvider stop requested");
+                // ask for save if distance bigger than 0
+                if (runner != null) {
+                    runner.interrupt();
+                    runner = null;
+                }
+                break;
+
             case SUBSYSTEM:
                 // check if subsystem already added
-                for (SensorSubsystem existing : subsystems) {
+                for (SensorSubsystemIntf existing : subsystems) {
                     // compare references, not objects!
                     if (existing == o) {
                         return;
                     }
                 }
-                subsystems.add((SensorSubsystem) o);
+                logger.debug("TelemetryProvider subsystem " + ((SensorSubsystemIntf) o).getType() + " created");
+                subsystems.add((SensorSubsystemIntf) o);
                 break;
             case SUBSYSTEM_REMOVED:
-                subsystems.remove((SensorSubsystem) o);
+                logger.debug("TelemetryProvider subsystem " + ((SensorSubsystemIntf) o).getType() + " removed");
+                subsystems.remove((SensorSubsystemIntf) o);
                 break;
 
             case HANDLER:
@@ -161,20 +197,22 @@ public class TelemetryProvider extends Thread
                         return;
                     }
                 }
+                logger.debug("TelemetryProvider handler " + ((SourceDataHandlerIntf) o).getPrettyName()+ " created");
                 // add handler and notify about all available subsystems
                 handler = (SourceDataHandlerIntf) o;
                 handlers.add(handler);
                 if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM, handler)) {
-                    for (SensorSubsystem subsystem: subsystems) {
+                    for (SensorSubsystemIntf subsystem: subsystems) {
                         handler.callback(Messages.SUBSYSTEM, (Object) subsystem);
                     }
                 }
                 break;
             case HANDLER_REMOVED:
+                logger.debug("TelemetryProvider handler " + ((SourceDataHandlerIntf) o).getPrettyName()+ " removed");
                 handler = (SourceDataHandlerIntf) o;
                 handlers.remove(handler);
                 if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, handler)) {
-                    for (SensorSubsystem subsystem: subsystems) {
+                    for (SensorSubsystemIntf subsystem: subsystems) {
                         handler.callback(Messages.SUBSYSTEM_REMOVED, (Object) subsystem);
                     }
                 }
@@ -182,16 +220,20 @@ public class TelemetryProvider extends Thread
 
 
             case STARTPOS:
+                logger.debug("TelemetryProvider position " + (Double) o);
                 distance = (Double) o;
                 speed = 0.0;
                 break;
-            case CLOSE:
+            case GPXLOAD:
+                logger.debug("TelemetryProvider file load");
                 distance = 0.0;
                 speed = 0.0;
                 break;
-
+            case CLOSE:
+                logger.debug("TelemetryProvider file closed");
+                distance = 0.0;
+                speed = 0.0;
+                break;
         }
-
-        // CLOSE, GPXLOAD
     }
 }

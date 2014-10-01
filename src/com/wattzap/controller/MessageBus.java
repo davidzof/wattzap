@@ -45,6 +45,9 @@ public enum MessageBus {
 		listeners.add(o);
 	}
 
+    public void unregister(Messages m, MessageCallback o) {
+        // TODO remove references!!! MLK jak nic
+    }
 	public void unregister(MessageCallback o) {
         // TODO remove references!!! MLK jak nic
     }

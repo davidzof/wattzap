@@ -15,6 +15,7 @@
 */
 package com.wattzap.model.ant;
 
+import com.wattzap.PopupMessageIntf;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -78,23 +79,27 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	private Node node = null;
 	private NetworkKey networkKey = null;
 
-    private boolean enabled;
-    private boolean usbM;
+    private boolean enabled = false;
+    private boolean usbM = false;
+    private final PopupMessageIntf popup;
 
 
-	public AntSubsystem() {
+	public AntSubsystem(PopupMessageIntf popup) {
         // subsystem must be initialized in order to run properly
         runLevel = SubsystemStateEnum.NOT_INITIALIZED;
-        enabled = false;
-        usbM = false;
+        this.popup = popup;
 	}
 
+    @Override
 	public void initialize() {
         MessageBus.INSTANCE.register(Messages.START, this);
 		MessageBus.INSTANCE.register(Messages.STOP, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
-        // new subsystem was added
+        // initialize configuration, both this and delivered classes
+        callback(Messages.CONFIG_CHANGED, UserPreferences.INSTANCE);
+
+        // notify all componenet about new subsystem (not initialized yet..)
         runLevel = SubsystemStateEnum.NOT_AVAILABLE;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 
@@ -113,6 +118,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 		AntTransceiver.LOGGER.addHandler(handler);
 	}
 
+    @Override
     public void release() {
         switch (runLevel) {
             case OPENED:
@@ -126,6 +132,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
                 MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
                 MessageBus.INSTANCE.unregister(Messages.START, this);
                 MessageBus.INSTANCE.unregister(Messages.STOP, this);
+
                 runLevel = SubsystemStateEnum.NOT_INITIALIZED;
                 MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
                 MessageBus.INSTANCE.send(Messages.SUBSYSTEM_REMOVED, this);
@@ -134,6 +141,10 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
     }
 
 
+    /*
+     * Request current ID of channel (if channel was created with ID=0)
+     * WARNING this function is blocking, it cannot be run in USB thread!
+     */
 	@Override
     public int getChannelId(Channel channel) {
         if (!channels.contains(channel)) {
@@ -212,21 +223,25 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
                 return;
             }
 
-            AntTransceiver antChip;
-            if (usbM) {
-                antChip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
-            } else {
-                antChip = new AntTransceiver(0);
+            try {
+                AntTransceiver antChip;
+                if (usbM) {
+                    antChip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
+                } else {
+                    antChip = new AntTransceiver(0);
+                }
+                // initialises node with chosen driver
+                node = new Node(antChip);
+
+                // ANT+ key
+                networkKey = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
+                networkKey.setName("N:ANT+");
+                runLevel = SubsystemStateEnum.CLOSED;
+
+                logger.debug("ANT connection created");
+            } catch (Exception e) {
+                logger.error("ANT+ " + e.getMessage());
             }
-            // initialises node with chosen driver
-            node = new Node(antChip);
-
-            // ANT+ key
-            networkKey = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
-            networkKey.setName("N:ANT+");
-            runLevel = SubsystemStateEnum.CLOSED;
-
-            logger.debug("ANT connection created");
         }
 
         if (runLevel != SubsystemStateEnum.CLOSED) {

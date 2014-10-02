@@ -40,12 +40,14 @@ public class TelemetryProvider implements MessageCallback
     private final List<SubsystemIntf> subsystems = new ArrayList<>();
 
     // list of handlers for source data (read from subsystems, or computed on telemetry..)
-    private final List<SourceDataProcessorIntf> handlers = new ArrayList<>();
-    private final Map<SourceDataEnum, SourceDataProcessorIntf> selectedHandlers = new HashMap<>();
-    private final SourceDataProcessorIntf dummyHandler = new DummyProcessor();
+    private final List<SourceDataProcessorIntf> dataProcessors = new ArrayList<>();
+    private final Map<SourceDataEnum, SourceDataProcessorIntf> selectedProcessors = new HashMap<>();
+    private final SourceDataProcessorIntf dummyProcessor = new DummyProcessor();
+    private SourceDataProcessorIntf defaultProcessor = dummyProcessor;
+
 
     /* current "location" and training time, filled in telemetry to be reported */
-    private Telemetry t = new Telemetry();
+    private final Telemetry t = new Telemetry();
     private double distance = 0.0; // [m]
     private long runtime = 0; // [ms]
     private double speed = 0.0; // [m/s]
@@ -72,33 +74,48 @@ public class TelemetryProvider implements MessageCallback
         return subsystems;
     }
     // all registered handlers
-    public List<SourceDataProcessorIntf> getSourceDataHandlers() {
-        return handlers;
+    public List<SourceDataProcessorIntf> getSourceDataProcessors() {
+        return dataProcessors;
     }
     // selected data handlers
-    public SourceDataProcessorIntf getSourceDataHanlder(SourceDataEnum data) {
-        return selectedHandlers.get(data);
+    public SourceDataProcessorIntf getSourceDataProcessor(SourceDataEnum data) {
+        return selectedProcessors.get(data);
     }
-    public void setSourceDataHanlder(SourceDataEnum data, SourceDataProcessorIntf handler) {
-        selectedHandlers.put(data, handler);
+    public void setSourceDataProcessor(SourceDataEnum data, SourceDataProcessorIntf processor) {
+        if (processor == null) {
+            selectedProcessors.remove(data);
+        } else {
+            selectedProcessors.put(data, processor);
+        }
+    }
+    // set default processor, it handles everything not processed by any other processor
+    public void setDefaultProcessor(SourceDataProcessorIntf processor) {
+        defaultProcessor = processor;
     }
 
     private double getValue(SourceDataEnum data, long currentTime) {
-        SourceDataProcessorIntf handler = selectedHandlers.get(data);
-        if (handler == null) {
-            handler = dummyHandler;
+        SourceDataProcessorIntf processor = selectedProcessors.get(data);
+        if (processor == null) {
+            processor = defaultProcessor;
         }
-        if ((currentTime > 0) && (handler.getModificationTime(data) < currentTime - 5000)) {
+        if ((processor == null) || (!processor.provides(data))) {
+            processor = dummyProcessor;
+        }
+        if ((currentTime > 0) && (processor.getModificationTime(data) < currentTime - 5000)) {
+            logger.debug(data + " not updated for 5s");
             paused = true;
         }
-        return handler.getValue(data);
+        return processor.getValue(data);
     }
     private double getValue(SourceDataEnum data) {
-        SourceDataProcessorIntf handler = selectedHandlers.get(data);
-        if (handler == null) {
-            handler = dummyHandler;
+        SourceDataProcessorIntf processor = selectedProcessors.get(data);
+        if (processor == null) {
+            processor = defaultProcessor;
         }
-        return handler.getValue(data);
+        if ((processor == null) || (!processor.provides(data))) {
+            processor = dummyProcessor;
+        }
+        return processor.getValue(data);
     }
 
     /* Main loop: get all data, process it and send current telemetry, then sleep some time.
@@ -163,6 +180,7 @@ public class TelemetryProvider implements MessageCallback
                         threadLoop();
                     }
                 };
+                runner.start();
                 break;
             case STOP:
                 logger.debug("TelemetryProvider stop requested");
@@ -191,7 +209,7 @@ public class TelemetryProvider implements MessageCallback
 
             case HANDLER:
                 // check if subsystem already added
-                for (SourceDataProcessorIntf existing : handlers) {
+                for (SourceDataProcessorIntf existing : dataProcessors) {
                     // compare references, not objects!
                     if (existing == o) {
                         return;
@@ -199,7 +217,7 @@ public class TelemetryProvider implements MessageCallback
                 }
                 logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " created");
                 // add handler and notify about all available subsystems
-                handlers.add((SourceDataProcessorIntf) o);
+                dataProcessors.add((SourceDataProcessorIntf) o);
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM, (MessageCallback) o)) {
                         for (SubsystemIntf subsystem: subsystems) {
@@ -210,7 +228,7 @@ public class TelemetryProvider implements MessageCallback
                 break;
             case HANDLER_REMOVED:
                 logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " removed");
-                handlers.remove((SourceDataProcessorIntf) o);
+                dataProcessors.remove((SourceDataProcessorIntf) o);
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, (MessageCallback) o)) {
                         for (SubsystemIntf subsystem: subsystems) {

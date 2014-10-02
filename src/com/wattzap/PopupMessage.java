@@ -14,20 +14,26 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model;
+package com.wattzap;
+
+import com.wattzap.model.UserPreferences;
+import com.wattzap.view.MainFrame;
+import javax.swing.JOptionPane;
 
 /**
  *
  * @author Jarek
  */
-public interface SubsystemIntf {
-    void initialize();
-    void release();
+public class PopupMessage implements PopupMessageIntf {
+    private MainFrame frame;
 
-    SubsystemTypeEnum getType();
+    public PopupMessage(MainFrame frame) {
+        this.frame = frame;
+    }
 
-    void open();
-    void close();
-
-    boolean isOpen();
+    public void showWarning(String src, String msg) {
+            JOptionPane.showMessageDialog(frame, src + " " + msg,
+                UserPreferences.INSTANCE.messages.getString("warning"),
+                JOptionPane.WARNING_MESSAGE);
+    }
 }

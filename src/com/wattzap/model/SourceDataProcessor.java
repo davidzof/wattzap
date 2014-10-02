@@ -46,7 +46,7 @@ public abstract class SourceDataProcessor
             return values[data.ordinal()];
         }
     }
-    public void setValue(SourceDataEnum data, double value) {
+    protected void setValue(SourceDataEnum data, double value) {
         if (!provides(data)) {
             throw new UnsupportedOperationException(data + " is not provided");
         }
@@ -71,11 +71,11 @@ public abstract class SourceDataProcessor
         }
     }
 
-    public  long setLastMessageTime() {
+    protected long setLastMessageTime() {
         return setLastMessageTime(System.currentTimeMillis());
     }
 
-    public  long setLastMessageTime(long time) {
+    protected long setLastMessageTime(long time) {
         synchronized(this) {
             long previous = lastMessageTime;
             lastMessageTime = time;

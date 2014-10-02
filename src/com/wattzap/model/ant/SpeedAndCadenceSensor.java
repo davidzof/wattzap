@@ -67,7 +67,6 @@ public class SpeedAndCadenceSensor extends AntSensor {
 
     @Override
     public void storeReceivedData(long time, int[] data) {
-        logger.debug("Message received");
         // Bytes 0 and 1: TTTT tick number [1024/s] when the last crank revolution
         // was detected
 		int cT = data[0] + (data[1] << 8);
@@ -80,10 +79,10 @@ public class SpeedAndCadenceSensor extends AntSensor {
 		// Bytes 6 and 7: wheel revolution count.
 		int wR = data[6] + (data[7] << 8);
 
-        logger.debug("cT=" + cT + "/" + cTlast + " cR=" + cR + "/" + cRlast
+        String msg = "cT=" + cT + "/" + cTlast + " cR=" + cR + "/" + cRlast
                   + " cM=" + (time - getModificationTime(SourceDataEnum.CADENCE))
                   + " wT=" + wT + "/" + wTlast + " wR=" + wR + "/" + wRlast
-                  + " wM=" + (time - getModificationTime(SourceDataEnum.WHEEL_SPEED)));
+                  + " wM=" + (time - getModificationTime(SourceDataEnum.WHEEL_SPEED));
 
 
         int wTD = wT - wTlast; // time delta
@@ -102,10 +101,12 @@ public class SpeedAndCadenceSensor extends AntSensor {
             // Proper speed is reported just next update.
             if (time > getModificationTime(SourceDataEnum.WHEEL_SPEED) + 10000) {
                 setValue(SourceDataEnum.WHEEL_SPEED, 0.0);
+                msg += " first speed update";
             } else {
                 double speed = // [m/s]
                         ((double) wRD * wheelSize / 1000.0) / ((double) wTD / 1024.0);
                 setValue(SourceDataEnum.WHEEL_SPEED, speed);
+                msg += " speed=" + speed;
             }
             wTlast = wT;
             wRlast = wR;
@@ -122,14 +123,18 @@ public class SpeedAndCadenceSensor extends AntSensor {
         if ((cRD != 0) && (cTD != 0)) {
             if (time > getModificationTime(SourceDataEnum.CADENCE) + 10000) {
                 setValue(SourceDataEnum.CADENCE, 0.0);
+                msg += " first cadence update";
             } else {
                 double cadence = // [RPM]
-                        ((double) wRD) / (((double) wTD / 1024.0) / 60.0);
+                        ((double) cRD) / (((double) cTD / 1024.0) / 60.0);
                 setValue(SourceDataEnum.CADENCE, cadence);
+                msg += " cadence=" + cadence;
             }
             cTlast = cT;
             cRlast = cR;
         }
+
+        logger.debug(msg);
     }
 
     @Override

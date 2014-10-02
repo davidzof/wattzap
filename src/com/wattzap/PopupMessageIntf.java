@@ -14,20 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model;
+package com.wattzap;
 
 /**
  *
  * @author Jarek
  */
-public interface SubsystemIntf {
-    void initialize();
-    void release();
-
-    SubsystemTypeEnum getType();
-
-    void open();
-    void close();
-
-    boolean isOpen();
+public interface PopupMessageIntf {
+    void showWarning(String src, String msg);
 }

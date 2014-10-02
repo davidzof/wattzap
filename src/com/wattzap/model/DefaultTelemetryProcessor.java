@@ -16,6 +16,7 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
@@ -30,6 +31,17 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     @Override
     public String getPrettyName() {
         return "";
+    }
+
+    @Override
+    public void initialize() {
+        super.initialize();
+        MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+    }
+    @Override
+    public void release() {
+        MessageBus.INSTANCE.unregister(Messages.GPXLOAD, this);
+        super.initialize();
     }
 
     boolean simulSpeed = false;
@@ -97,14 +109,21 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
                 if (routeData.routeType() == RouteReader.SLOPE) {
                     double realSpeed = power.getRealSpeed(totalWeight,
                         p.getGradient() / 100, powerWatts);
+                    System.out.println("Speed=" + realSpeed);
                     setValue(SourceDataEnum.SPEED, realSpeed);
+                } else {
+                    System.out.println("Route type is " + routeData.routeType());
                 }
 
                 setValue(SourceDataEnum.ALTITUDE, p.getElevation());
                 setValue(SourceDataEnum.SLOPE, p.getGradient());
                 setValue(SourceDataEnum.LATITUDE, p.getLatitude());
                 setValue(SourceDataEnum.LONGITUDE, p.getLongitude());
+            } else {
+                System.out.println("No point at " + t.getDistance());
             }
+        } else {
+            System.out.println("No route data at all!");
         }
 
         // default resistance taken from preferences

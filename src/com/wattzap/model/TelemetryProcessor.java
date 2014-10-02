@@ -35,10 +35,14 @@ public abstract class TelemetryProcessor
 
         // initialize all config properties
         configChanged(UserPreferences.INSTANCE);
+        // notify about new telemetryProvider
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
     }
 
     public void release() {
-		MessageBus.INSTANCE.unregister(Messages.SPEEDCADENCE, this);
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+
+        MessageBus.INSTANCE.unregister(Messages.SPEEDCADENCE, this);
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
 

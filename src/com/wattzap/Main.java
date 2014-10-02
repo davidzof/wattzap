@@ -45,17 +45,18 @@ import com.sun.jna.NativeLibrary;
 import com.wattzap.controller.MenuItem;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
+import com.wattzap.model.DefaultTelemetryProcessor;
+import com.wattzap.model.SourceDataEnum;
+import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.ant.AntSubsystem;
-import com.wattzap.model.ant.DummySpeedCadenceListener;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.AntOdometer;
 import com.wattzap.view.ControlPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
-import com.wattzap.view.Odometer;
 import com.wattzap.view.Profile;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
@@ -126,28 +127,35 @@ public class Main implements Runnable {
 	@Override
 	public void run() {
 		MainFrame frame = new MainFrame();
+        PopupMessageIntf popupMsg = new PopupMessage(frame);
 		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 
 		// frame.setSize(screenSize.width, screenSize.height-100);
 		frame.setBounds(userPrefs.getMainBounds());
 
-		// Must be declared above Odometer
-		//AdvancedSpeedCadenceListener scListener = null;
-		JPanel odo = null;
-		try {
-            new TelemetryProvider().initialize();
-			new AntSubsystem().initialize();
-            new SpeedAndCadenceSensor().initialize();
-			odo = new AntOdometer();
-		} catch (Exception e) {
-			JOptionPane.showMessageDialog(frame, "ANT+ " + e.getMessage(),
-					userPrefs.messages.getString("warning"),
-					JOptionPane.WARNING_MESSAGE);
-			logger.error("ANT+ " + e.getMessage());
-			new DummySpeedCadenceListener();
-			userPrefs.setAntEnabled(false);
-			odo = new Odometer();
-		}
+        TelemetryProvider telemetryProvider = new TelemetryProvider();
+        telemetryProvider.initialize();
+
+        new AntSubsystem(popupMsg).initialize();
+
+        // how to configure these processors? By telemetryProvider "automatically"?
+        // or on configuration?
+
+        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor();
+        telemetryProvider.setSourceDataProcessor(SourceDataEnum.WHEEL_SPEED, sandc);
+        telemetryProvider.setSourceDataProcessor(SourceDataEnum.CADENCE, sandc);
+        sandc.initialize();
+
+        /*SourceDataProcessorIntf hrm = new HeartRateSensor();
+        telemetryProvider.setSourceDataProcessor(SourceDataEnum.HEART_RATE, hrm);
+        hrm.initialize();*/
+
+        // telemetry is busy with processing all source data
+        SourceDataProcessorIntf telemetry = new DefaultTelemetryProcessor();
+        telemetryProvider.setDefaultProcessor(telemetry);
+        telemetry.initialize();
+
+        JPanel odo = new AntOdometer();
 
 		// Performs an isregister check, be careful if we move below AboutPanel
 		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);

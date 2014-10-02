@@ -41,6 +41,7 @@ public class AntSensorIdQuery extends Thread {
         this.sensor = sensor;
         this.channel = channel;
         startTime = System.currentTimeMillis();
+        logger.debug("AntSensor ID query created");
     }
 
     public void run() {

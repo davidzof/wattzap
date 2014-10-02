@@ -93,19 +93,16 @@ public abstract class AntSensor extends SourceDataProcessor
 
     @Override
 	public void receiveMessage(BroadcastDataMessage message) {
-        boolean firstMessage = (setLastMessageTime() == 0);
-
-        logger.debug("Receive message");
-        if (firstMessage) {
+        if (setLastMessageTime() == 0) {
+            logger.debug("First " + getPrettyName() + " message received, sensorId=" + getSensorId());
             // sensor has just started
             MessageBus.INSTANCE.send(Messages.HANDLER, this);
             // if sensorId is a mask, just get real value and update configuration
             if (getSensorId() == 0) {
-                new AntSensorIdQuery(subsystem, this, channel);
+                new AntSensorIdQuery(subsystem, this, channel).start();
             }
         }
 
-        logger.debug("Processing message");
         int[] data = message.getUnsignedData();
         storeReceivedData(getLastMessageTime(), data);
     }

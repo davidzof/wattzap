@@ -27,7 +27,7 @@ public abstract class SourceDataProcessor
     protected final long[] modifications = new long[SourceDataEnum.values().length];
 
     // handler doesn't provide connectivity information.
-    protected long lastMessageTime = -1;
+    private long lastMessageTime = -1;
 
     public SourceDataProcessor() {
         // initialize all values to not modified
@@ -70,10 +70,16 @@ public abstract class SourceDataProcessor
             return lastMessageTime;
         }
     }
-    public void setLastMessageTime() {
-        long current = System.currentTimeMillis();
+
+    public  long setLastMessageTime() {
+        return setLastMessageTime(System.currentTimeMillis());
+    }
+
+    public  long setLastMessageTime(long time) {
         synchronized(this) {
-           lastMessageTime = current;
+            long previous = lastMessageTime;
+            lastMessageTime = time;
+            return previous;
         }
     }
 }

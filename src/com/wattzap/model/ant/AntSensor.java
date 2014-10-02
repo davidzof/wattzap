@@ -39,13 +39,13 @@ public abstract class AntSensor extends SourceDataProcessor
 	private static Logger logger = LogManager.getLogger("Sensor");
 
     /* sensorId might be changed when paired */
-    private int sensorId;
+    private int sensorId; // synchronized
     private Channel channel = null;
     private AntSubsystemIntf subsystem = null;
 
     public AntSensor() {
         // handler not initialized yet
-        lastMessageTime = 0;
+        setLastMessageTime(0);
     }
 
     @Override
@@ -55,7 +55,7 @@ public abstract class AntSensor extends SourceDataProcessor
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
 
         // initialize configuration
-        sensorId = UserPreferences.INSTANCE.getSensorId(getSensorName());
+        setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
         configChanged(UserPreferences.INSTANCE);
 
         // notify TelemetryProvider about new handler
@@ -69,9 +69,23 @@ public abstract class AntSensor extends SourceDataProcessor
         MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM_REMOVED, this);
 
         // request handler removal
-        lastMessageTime = 0;
+        setLastMessageTime(0);
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
         MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+    }
+
+    @Override
+    public int getSensorId() {
+        synchronized (this) {
+            return sensorId;
+        }
+    }
+
+    @Override
+    public void setSensorId(int sId) {
+        synchronized (this) {
+            sensorId = sId;
+        }
     }
 
     // handling received message data
@@ -79,23 +93,21 @@ public abstract class AntSensor extends SourceDataProcessor
 
     @Override
 	public void receiveMessage(BroadcastDataMessage message) {
-        boolean reportNew = (lastMessageTime == 0);
-        lastMessageTime = System.currentTimeMillis();
+        boolean firstMessage = (setLastMessageTime() == 0);
 
         logger.debug("Receive message");
-        if (reportNew) {
+        if (firstMessage) {
+            // sensor has just started
             MessageBus.INSTANCE.send(Messages.HANDLER, this);
-            if (sensorId == 0) {
-                logger.debug("Update sensor ID");
-                sensorId = subsystem.getChannelId(channel);
-                logger.debug("Received " + sensorId + " after " + (System.currentTimeMillis() - lastMessageTime));
-                UserPreferences.INSTANCE.setSensorId(getSensorName(), sensorId);
+            // if sensorId is a mask, just get real value and update configuration
+            if (getSensorId() == 0) {
+                new AntSensorIdQuery(subsystem, this, channel);
             }
         }
 
         logger.debug("Processing message");
         int[] data = message.getUnsignedData();
-        storeReceivedData(lastMessageTime, data);
+        storeReceivedData(getLastMessageTime(), data);
     }
 
     public abstract void configChanged(UserPreferences config);
@@ -104,6 +116,16 @@ public abstract class AntSensor extends SourceDataProcessor
 	public void callback(Messages message, Object o) {
 		switch (message) {
             case CONFIG_CHANGED:
+                // if sensorId was changed, it might be important to restart the channel
+                if (UserPreferences.INSTANCE.getSensorId(getSensorName()) != getSensorId()) {
+                    setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
+                    // if channel exist.. just recreate it in order to get proper messages.
+                    if (channel != null) {
+                        subsystem.closeChannel(channel);
+                        setLastMessageTime(0);
+                        channel = subsystem.createChannel(getSensorId(), this);
+                    }
+                }
                 configChanged(UserPreferences.INSTANCE);
                 break;
 
@@ -112,19 +134,19 @@ public abstract class AntSensor extends SourceDataProcessor
                     if (subsystem == null) {
                         subsystem = (AntSubsystemIntf) o;
                     } else if (subsystem != o) {
-                        logger.error("Differnt subsystem of type ANT found?!?!");
+                        logger.error("Different subsystem of type ANT found?!?!");
                         return;
                     }
                     if (subsystem.isOpen()) {
                         if (channel == null) {
-                            logger.debug("Subsystem started, create channel for " + sensorId);
+                            logger.debug("Subsystem started, create channel for " + getSensorId());
                             channel = subsystem.createChannel(sensorId, this);
                         }
                     } else {
                         if (channel != null) {
-                            logger.debug("Subsystem stopped, close channel for " + sensorId);
+                            logger.debug("Subsystem stopped, close channel for " + getSensorId());
                             subsystem.closeChannel(channel);
-                            lastMessageTime = 0;
+                            setLastMessageTime(0);
                         }
                     }
                 }
@@ -133,9 +155,9 @@ public abstract class AntSensor extends SourceDataProcessor
                 if (subsystem == (AntSubsystemIntf) o) {
                     logger.debug("ANT Subsystem removed");
                     if (channel != null) {
-                        logger.debug("Subsystem removed, close channel for " + sensorId);
+                        logger.debug("Subsystem removed, close channel for " + getSensorId());
                         subsystem.closeChannel(channel);
-                        lastMessageTime = 0;
+                        setLastMessageTime(0);
                     }
                     subsystem = null;
                 }

@@ -14,20 +14,15 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model.ant;
-
-import com.wattzap.model.SourceDataProcessorIntf;
+package com.wattzap.model;
 
 /**
- *
+ * List of "hardware" values provided by sensors
  * @author Jarek
  */
-public interface AntSensorIntf extends SourceDataProcessorIntf {
-    // default sensor configuration
-    String getSensorName();
-    int getSensorType();
-    int getSensorPeriod();
-
-    int getSensorId();
-    void setSensorId(int sensorId);
+public enum SubsystemStateEnum {
+    NOT_INITIALIZED,
+    NOT_AVAILABLE,
+    CLOSED,
+    OPENED
 }

@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 
+import com.wattzap.model.SubsystemStateEnum;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.cowboycoders.ant.Channel;
@@ -72,16 +73,20 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	private static final int ANT_SPORT_FREQ = 57; // 0x39
 
     private final List<Channel> channels = new ArrayList<>();
-    private boolean running;
+    private SubsystemStateEnum runLevel;
 
 	private Node node = null;
-	private NetworkKey key = null;
+	private NetworkKey networkKey = null;
 
-    private UserPreferences userPrefs = UserPreferences.INSTANCE;
+    private boolean enabled;
+    private boolean usbM;
 
 
 	public AntSubsystem() {
-        running = false;
+        // subsystem must be initialized in order to run properly
+        runLevel = SubsystemStateEnum.NOT_INITIALIZED;
+        enabled = false;
+        usbM = false;
 	}
 
 	public void initialize() {
@@ -89,29 +94,8 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 		MessageBus.INSTANCE.register(Messages.STOP, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
-		/*
-		 * Choose driver: AndroidAntTransceiver or AntTransceiver
-		 *
-		 * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
-		 * sticks plugged in 0: first usb ant-stick
-		 */
-        AntTransceiver antchip = null;
-        if (userPrefs.isANTUSB()) {
-            antchip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
-        } else {
-            antchip = new AntTransceiver(0);
-        }
-        // initialises node with chosen driver
-        node = new Node(antchip);
-
-        // ANT+ key
-        key = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
-        key.setName("N:ANT+");
-
-        logger.debug("ANT connection created");
-
         // new subsystem was added
-        running = false;
+        runLevel = SubsystemStateEnum.NOT_AVAILABLE;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 
         logger.debug("All SUBSYSTEM listeners notified");
@@ -130,14 +114,33 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	}
 
     public void release() {
-        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
-        MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
-        MessageBus.INSTANCE.send(Messages.SUBSYSTEM_REMOVED, this);
+        switch (runLevel) {
+            case OPENED:
+                close();
+                /* no break */
+            case CLOSED:
+                node = null;
+                runLevel = SubsystemStateEnum.NOT_AVAILABLE;
+                /* no break */
+            case NOT_AVAILABLE:
+                MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
+                MessageBus.INSTANCE.unregister(Messages.START, this);
+                MessageBus.INSTANCE.unregister(Messages.STOP, this);
+                runLevel = SubsystemStateEnum.NOT_INITIALIZED;
+                MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
+                MessageBus.INSTANCE.send(Messages.SUBSYSTEM_REMOVED, this);
+                /* no break */
+        }
     }
 
 
 	@Override
     public int getChannelId(Channel channel) {
+        if (!channels.contains(channel)) {
+            logger.error("Channel is not handled by the subsystem");
+            return 0;
+        }
+
         logger.debug("Getting channel ID...");
 		// build request
 		ChannelRequestMessage msg = new ChannelRequestMessage(
@@ -173,13 +176,13 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	}
 
 	public void close() {
-        if (!running) {
-            logger.error("ANT Subsystem not started");
+        if (runLevel != SubsystemStateEnum.OPENED) {
+            logger.error("ANT Subsystem not open");
             return;
         }
 
-        // notify all about subsystem stopped
-        running = false;
+        // notify all about subsystem stopped, they should close all channels
+        runLevel = SubsystemStateEnum.CLOSED;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 
         // clean up all channels.. if any left
@@ -197,10 +200,40 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
 	@Override
     public void open() {
-        if (running) {
-            logger.error("ANT Subsystem already started");
+        if (runLevel == SubsystemStateEnum.NOT_AVAILABLE) {
+            /*
+             * Choose driver: AndroidAntTransceiver or AntTransceiver
+             *
+             * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
+             * sticks plugged in 0: first usb ant-stick
+             */
+            if (!enabled) {
+                logger.warn("ANT is disabled, cannot open");
+                return;
+            }
+
+            AntTransceiver antChip;
+            if (usbM) {
+                antChip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
+            } else {
+                antChip = new AntTransceiver(0);
+            }
+            // initialises node with chosen driver
+            node = new Node(antChip);
+
+            // ANT+ key
+            networkKey = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
+            networkKey.setName("N:ANT+");
+            runLevel = SubsystemStateEnum.CLOSED;
+
+            logger.debug("ANT connection created");
+        }
+
+        if (runLevel != SubsystemStateEnum.CLOSED) {
+            logger.error("ANT Subsystem is " + runLevel + ", cannot open");
             return;
         }
+
 		/* must be called before any configuration takes place */
         logger.debug("node start");
 		node.start();
@@ -219,12 +252,12 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 		}
 		// sets network key of network zero
         logger.debug("set network key");
-		node.setNetworkKey(0, key);
+		node.setNetworkKey(0, networkKey);
 
         logger.debug("ANT subsystem started");
 
         // notify all handlers about subsystem ready
-        running = true;
+        runLevel = SubsystemStateEnum.OPENED;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
 
         logger.debug("All sensors notified");
@@ -233,9 +266,26 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
     @Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
+            // only if subsystem switched or subsystem mode changed.
             case CONFIG_CHANGED:
-                if (running) {
-                    // close if disabled
+                UserPreferences prefs = (UserPreferences) o;
+                if ((prefs.isAntEnabled() != enabled) || (prefs.isANTUSB() != usbM)) {
+                    enabled = prefs.isAntEnabled();
+                    usbM = prefs.isANTUSB();
+                    boolean reopen = false;
+                    switch (runLevel) {
+                        case OPENED:
+                            reopen = true;
+                            close();
+                            /* no break */
+                        case CLOSED:
+                            node = null;
+                            runLevel = SubsystemStateEnum.NOT_AVAILABLE;
+                            /* no break */
+                    }
+                    if (reopen) {
+                        open();
+                    }
                 }
                 break;
 
@@ -257,7 +307,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
     @Override
     public boolean isOpen() {
-        return running;
+        return (runLevel == SubsystemStateEnum.OPENED);
     }
 
     @Override
@@ -265,7 +315,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
         logger.debug("Create channel " + sensorId);
         // subsystem is closed.. cannot create new channel
         if (!isOpen()) {
-            logger.error("Cannot create channel, subsystem disabled");
+            logger.error("Cannot create channel, subsystem not opened");
             return null;
         }
 
@@ -292,21 +342,16 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
     @Override
     public void closeChannel(Channel channel) {
-        // if subsystem disabled, all channels were already freed
-        if (!isOpen()) {
-            logger.error("Subsystem is not running, channel canot exist");
-            return;
-        }
-        if (channel == null) {
-            logger.error("Null channel given to close?");
+        if (!channels.contains(channel)) {
+            logger.error("Channel is not handled by subsystem");
             return;
         }
 
+        channels.remove(channel);
         if (channel.isFree()) {
             channel.close();
             channel.unassign();
             node.freeChannel(channel);
         }
-        channels.remove(channel);
     }
 }

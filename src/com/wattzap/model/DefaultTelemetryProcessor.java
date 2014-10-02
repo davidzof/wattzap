@@ -25,7 +25,7 @@ import com.wattzap.model.power.Power;
  *
  * @author Jarek
  */
-public class DefaultSourceDataHandler extends TelemetryProcessor {
+public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
     @Override
     public String getPrettyName() {

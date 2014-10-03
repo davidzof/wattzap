@@ -98,7 +98,7 @@ MessageCallback {
 		setIconImage(img.getImage());
 
 		/* Messages we are interested in */
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.STOP, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
@@ -258,7 +258,7 @@ MessageCallback {
 	@Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
-		case SPEEDCADENCE:
+		case TELEMETRY:
 			if (videoLoaded && routeData != null) {
 				Telemetry t = (Telemetry) o;
 				setSpeed(t);

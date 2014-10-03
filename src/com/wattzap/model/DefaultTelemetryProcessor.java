@@ -34,10 +34,12 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     }
 
     @Override
-    public void initialize() {
+    public SourceDataProcessorIntf initialize() {
         super.initialize();
         MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+        return this;
     }
+
     @Override
     public void release() {
         MessageBus.INSTANCE.unregister(Messages.GPXLOAD, this);
@@ -78,6 +80,7 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
             case SLOPE:
             case LATITUDE:
             case LONGITUDE:
+            case PAUSE:
                 return true;
 
             default:
@@ -107,9 +110,8 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
                 // if slope is known
                 if (routeData.routeType() == RouteReader.SLOPE) {
-                    double realSpeed = power.getRealSpeed(totalWeight,
+                    double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                         p.getGradient() / 100, powerWatts);
-                    System.out.println("Speed=" + realSpeed);
                     setValue(SourceDataEnum.SPEED, realSpeed);
                 } else {
                     System.out.println("Route type is " + routeData.routeType());
@@ -121,6 +123,7 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
                 setValue(SourceDataEnum.LONGITUDE, p.getLongitude());
             } else {
                 System.out.println("No point at " + t.getDistance());
+                setValue(SourceDataEnum.PAUSE, 1);
             }
         } else {
             System.out.println("No route data at all!");
@@ -142,9 +145,11 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
         switch (m) {
             case GPXLOAD:
                 routeData = (RouteReader) o;
+                /* no break */
+            case STARTPOS:
+                setValue(SourceDataEnum.PAUSE, 0);
                 break;
         }
         super.callback(m, o);
     }
-
 }

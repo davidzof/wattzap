@@ -21,7 +21,7 @@ package com.wattzap.model;
  * @author Jarek
  */
 public interface SubsystemIntf {
-    void initialize();
+    SubsystemIntf initialize();
     void release();
 
     SubsystemTypeEnum getType();

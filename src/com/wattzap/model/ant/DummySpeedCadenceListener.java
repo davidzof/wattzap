@@ -173,7 +173,7 @@ public class DummySpeedCadenceListener extends Thread implements
 				t.setTime(System.currentTimeMillis());
 
 				// notifyListeners(t);
-				MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
+				MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
 				// d = s * t
 				distance += (speed / 3600) * 0.25;

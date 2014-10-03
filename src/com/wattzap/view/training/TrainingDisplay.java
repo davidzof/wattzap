@@ -80,7 +80,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		setPreferredSize(new Dimension(screenSize.width / 2, 400));
 		setLayout(new BorderLayout());
 
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.START, this);
 		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.STOP, this);
@@ -296,7 +296,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 	@Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
-		case SPEEDCADENCE:
+		case TELEMETRY:
 			if (numElements > 0) {
 				// TODO: this is a race hazard, this method can be called before
 				// setup, hence this test.

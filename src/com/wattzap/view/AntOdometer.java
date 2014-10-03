@@ -39,7 +39,7 @@ import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
 
-/* 
+/*
  * @author David George (c) Copyright 2014
  * @date 5 February 2014
  */
@@ -183,7 +183,7 @@ public class AntOdometer extends JPanel implements MessageCallback {
 
 		initLabels(userPrefs.isMetric());
 		MessageBus.INSTANCE.register(Messages.TRAININGITEM, this);
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.HEARTRATE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.START, this);
@@ -205,7 +205,7 @@ public class AntOdometer extends JPanel implements MessageCallback {
 	@Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
-		case SPEEDCADENCE:
+		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 
 			if (startTime == 0) {
@@ -287,24 +287,6 @@ public class AntOdometer extends JPanel implements MessageCallback {
 				break;
 			}
 
-			break;
-		case HEARTRATE:
-			t = (Telemetry) o;
-			if (current != null) {
-				int i = current.isHRInRange(t.getHeartRate());
-				if (i < 0) {
-					hrLabel.setForeground(skyBlue);
-					hrLabel.setText("" + t.getHeartRate());
-				} else if (i > 0) {
-					hrLabel.setForeground(Color.RED);
-					hrLabel.setText("" + t.getHeartRate());
-				} else {
-					hrLabel.setForeground(Color.WHITE);
-					hrLabel.setText("" + t.getHeartRate());
-				}
-			} else {
-				hrLabel.setText(Integer.toString(t.getHeartRate()));
-			}
 			break;
 		case TRAININGITEM:
 			current = (TrainingItem) o;

@@ -60,7 +60,7 @@ public class Profile extends JPanel implements MessageCallback {
 
 		// this.setPreferredSize(d);
 
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
@@ -70,7 +70,7 @@ public class Profile extends JPanel implements MessageCallback {
 	public void callback(Messages message, Object o) {
 		double distance = 0.0;
 		switch (message) {
-		case SPEEDCADENCE:
+		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 			distance = t.getDistance();
 			break;

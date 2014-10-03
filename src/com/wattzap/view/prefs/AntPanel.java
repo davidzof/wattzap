@@ -118,22 +118,14 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 		status.setText("");
 		add(status, "span");
 
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
-		MessageBus.INSTANCE.register(Messages.HEARTRATE, this);
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 	}
 
 	@Override
 	public void callback(Messages message, Object o) {
 		Telemetry t = (Telemetry) o;
 		switch(message) {
-		case HEARTRATE:
-			int hr = t.getHeartRate();
-			System.out.println("hr " + hr);
-			if (hr != -1) {
-				hrm.setText(Integer.toString(hr) + " bpm");
-			}
-			break;
-		case SPEEDCADENCE:
+		case TELEMETRY:
 			speedLabel.setText(String.format("%.1f", t.getSpeed()) + " km/h");
 			break;
 		}

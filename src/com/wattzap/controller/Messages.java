@@ -25,6 +25,9 @@ public enum Messages {
     // any value in the config properties was changed (simple value, sensor,
     // subsystem, default source, trainer, etc).
     // data: ???
+// any value in the config properties was changed (simple value, sensor,
+    // subsystem, default source, trainer, etc).
+    // data: ???
     CONFIG_CHANGED,
     // subsystem opened or closed. Reconfiguration is allowed only when stopped
     // so before changing configuration it must be stopped.
@@ -36,7 +39,7 @@ public enum Messages {
 
     // rename to telemetry and remove heartrate
     // data: well-filled telemetry
-    SPEEDCADENCE, HEARTRATE,
+    TELEMETRY, HEARTRATE,
 
     // first and last message of the training? Save on stop?
     START, STOP,

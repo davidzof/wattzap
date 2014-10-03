@@ -29,20 +29,23 @@ public abstract class TelemetryProcessor
     extends SourceDataProcessor
     implements MessageCallback
 {
-    public void initialize() {
-		MessageBus.INSTANCE.register(Messages.SPEEDCADENCE, this);
+    @Override
+    public SourceDataProcessorIntf initialize() {
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
         // initialize all config properties
         configChanged(UserPreferences.INSTANCE);
         // notify about new telemetryProvider
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        return this;
     }
 
+    @Override
     public void release() {
         MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
 
-        MessageBus.INSTANCE.unregister(Messages.SPEEDCADENCE, this);
+        MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
 
@@ -53,7 +56,7 @@ public abstract class TelemetryProcessor
     @Override
     public void callback(Messages m, Object o) {
         switch (m) {
-            case SPEEDCADENCE:
+            case TELEMETRY:
                 storeTelemetryData((Telemetry) o);
                 break;
             case CONFIG_CHANGED:

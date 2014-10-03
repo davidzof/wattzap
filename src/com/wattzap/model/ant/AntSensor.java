@@ -22,6 +22,7 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.SubsystemTypeEnum;
 import com.wattzap.model.SourceDataProcessor;
+import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.UserPreferences;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -49,7 +50,7 @@ public abstract class AntSensor extends SourceDataProcessor
     }
 
     @Override
-    public void initialize() {
+    public SourceDataProcessorIntf initialize() {
         // message registration
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
@@ -61,6 +62,9 @@ public abstract class AntSensor extends SourceDataProcessor
         // notify TelemetryProvider about new handler
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
         // will receive SUBSYSTEM notification in a second
+
+        logger.debug("Ant sensor initialized");
+        return this;
     }
 
     @Override
@@ -95,11 +99,13 @@ public abstract class AntSensor extends SourceDataProcessor
 	public void receiveMessage(BroadcastDataMessage message) {
         if (setLastMessageTime() == 0) {
             logger.debug("First " + getPrettyName() + " message received, sensorId=" + getSensorId());
-            // sensor has just started
-            MessageBus.INSTANCE.send(Messages.HANDLER, this);
-            // if sensorId is a mask, just get real value and update configuration
             if (getSensorId() == 0) {
+                // if sensorId is a mask, just get real value and update configuration
+                // when new sensorId is received, notification about sensor ready is sent
                 new AntSensorIdQuery(subsystem, this, channel).start();
+            } else {
+                // imediatelly send notification about sensor ready
+                MessageBus.INSTANCE.send(Messages.HANDLER, this);
             }
         }
 
@@ -113,11 +119,14 @@ public abstract class AntSensor extends SourceDataProcessor
 	public void callback(Messages message, Object o) {
 		switch (message) {
             case CONFIG_CHANGED:
+                logger.debug("Configuration changed for " + getPrettyName() + " #" + getSensorId());
                 // if sensorId was changed, it might be important to restart the channel
                 if (UserPreferences.INSTANCE.getSensorId(getSensorName()) != getSensorId()) {
+                    logger.debug("Sensor id changed to " + UserPreferences.INSTANCE.getSensorId(getSensorName()));
                     setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
                     // if channel exist.. just recreate it in order to get proper messages.
                     if (channel != null) {
+                        logger.debug("Restart channel for " + getPrettyName() + " #" + getSensorId());
                         subsystem.closeChannel(channel);
                         setLastMessageTime(0);
                         channel = subsystem.createChannel(getSensorId(), this);
@@ -143,6 +152,7 @@ public abstract class AntSensor extends SourceDataProcessor
                         if (channel != null) {
                             logger.debug("Subsystem stopped, close channel for " + getSensorId());
                             subsystem.closeChannel(channel);
+                            channel = null;
                             setLastMessageTime(0);
                         }
                     }
@@ -154,6 +164,7 @@ public abstract class AntSensor extends SourceDataProcessor
                     if (channel != null) {
                         logger.debug("Subsystem removed, close channel for " + getSensorId());
                         subsystem.closeChannel(channel);
+                        channel = null;
                         setLastMessageTime(0);
                     }
                     subsystem = null;

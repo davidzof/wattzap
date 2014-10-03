@@ -38,6 +38,7 @@ import org.cowboycoders.ant.messages.responses.ChannelIdResponse;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.SubsystemTypeEnum;
 import com.wattzap.model.UserPreferences;
 import java.util.ArrayList;
@@ -91,7 +92,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	}
 
     @Override
-	public void initialize() {
+	public SubsystemIntf initialize() {
         MessageBus.INSTANCE.register(Messages.START, this);
 		MessageBus.INSTANCE.register(Messages.STOP, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
@@ -107,6 +108,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
         // optional: enable console logging with Level = LOG_LEVEL
         setupLogging();
+        return this;
 	}
 
 	public static void setupLogging() {

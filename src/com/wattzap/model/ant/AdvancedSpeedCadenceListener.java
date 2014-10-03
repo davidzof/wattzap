@@ -291,7 +291,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 			t.setCadence(cadence);
 			distance += distanceKM;
 			logger.debug("Sending " + t);
-			MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
+			MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
 		}
 	}

@@ -109,7 +109,7 @@ public class DistributionGraph extends JPanel {
         BucketPanel bucketPanel = new BucketPanel(this, scale);
 		add(bucketPanel, BorderLayout.SOUTH);
         */
-        
+
 		setBackground(Color.black);
 		chartPanel.revalidate();
 		setVisible(true);

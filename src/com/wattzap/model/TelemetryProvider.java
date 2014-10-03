@@ -48,14 +48,14 @@ public class TelemetryProvider implements MessageCallback
 
     /* current "location" and training time, filled in telemetry to be reported */
     private final Telemetry t = new Telemetry();
-    private double distance = 0.0; // [m]
+    private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
-    private double speed = 0.0; // [m/s]
+    private double speed = 0.0; // [km/h]
     private boolean paused = true;
 
     private Thread runner = null;
 
-    public void initialize() {
+    public TelemetryProvider initialize() {
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
         MessageBus.INSTANCE.register(Messages.HANDLER, this);
@@ -65,6 +65,7 @@ public class TelemetryProvider implements MessageCallback
         MessageBus.INSTANCE.register(Messages.CLOSE, this);
         MessageBus.INSTANCE.register(Messages.START, this);
         MessageBus.INSTANCE.register(Messages.STOP, this);
+        return this;
     }
 
     /* Subsystems and handlers, used by ConfigurationPanel only.. */
@@ -102,7 +103,6 @@ public class TelemetryProvider implements MessageCallback
             processor = dummyProcessor;
         }
         if ((currentTime > 0) && (processor.getModificationTime(data) < currentTime - 5000)) {
-            logger.debug(data + " not updated for 5s");
             paused = true;
         }
         return processor.getValue(data);
@@ -143,12 +143,17 @@ public class TelemetryProvider implements MessageCallback
             t.setLongitude(getValue(SourceDataEnum.LONGITUDE));
             t.setResistance((int)getValue(SourceDataEnum.RESISTANCE));
             t.setAutoResistance((int)getValue(SourceDataEnum.AUTO_RESISTANCE) != 0);
-            t.setPaused(((int)getValue(SourceDataEnum.PAUSE) != 0) || paused);
+            paused |= ((int)getValue(SourceDataEnum.PAUSE) != 0);
+
+            if (paused) {
+                t.setSpeed(0.0);
+                t.setPower(0);
+                t.setWheelSpeed(0.0);
+            }
 
             // TODO what about constraints? Shall they be included in telemetry?
             // I don't like the idea of "special" source of such information..
-
-            MessageBus.INSTANCE.send(Messages.SPEEDCADENCE, t);
+            MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
             // sleep some time
             try {
@@ -161,7 +166,7 @@ public class TelemetryProvider implements MessageCallback
             long timePassed = System.currentTimeMillis() - start; // [ms]
             // advance ridden distance and time, only if pause condition not detected
             if (!paused) {
-                distance += speed * (timePassed / 1000.0);
+                distance += speed * (timePassed / 1000.0) / 3600.0;
                 runtime += timePassed;
             }
         }

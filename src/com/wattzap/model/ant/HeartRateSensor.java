@@ -34,7 +34,7 @@ public class HeartRateSensor extends AntSensor {
 
     @Override
     public void configChanged(UserPreferences config) {
-        /* nothing.. */
+        /* nothing to be configured. SensorId is handled by AntSensor class */
     }
 
     @Override
@@ -59,7 +59,7 @@ public class HeartRateSensor extends AntSensor {
 
     @Override
     public void storeReceivedData(long time, int[] data) {
-        String msg = "Heart rate ";
+        String msg = "Process message for " + getPrettyName() + " #" + getSensorId() + "::";
         for (int i = 0; i < data.length; i++) {
             msg += "[" + data[i] + "]";
         }

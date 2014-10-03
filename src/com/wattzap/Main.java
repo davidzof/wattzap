@@ -51,6 +51,7 @@ import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.ant.AntSubsystem;
+import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.AntOdometer;
@@ -133,27 +134,25 @@ public class Main implements Runnable {
 		// frame.setSize(screenSize.width, screenSize.height-100);
 		frame.setBounds(userPrefs.getMainBounds());
 
-        TelemetryProvider telemetryProvider = new TelemetryProvider();
-        telemetryProvider.initialize();
+        // telemetry privider receives all subsystems/sensors/processors
+        TelemetryProvider telemetryProvider = new TelemetryProvider().initialize();
 
         new AntSubsystem(popupMsg).initialize();
 
-        // how to configure these processors? By telemetryProvider "automatically"?
-        // or on configuration?
+        // how to configure these processors? Automatically from processor
+        // or on configuration? Or first one *providing* the data wins?
 
-        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor();
+        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor().initialize();
         telemetryProvider.setSourceDataProcessor(SourceDataEnum.WHEEL_SPEED, sandc);
         telemetryProvider.setSourceDataProcessor(SourceDataEnum.CADENCE, sandc);
-        sandc.initialize();
 
-        /*SourceDataProcessorIntf hrm = new HeartRateSensor();
+        SourceDataProcessorIntf hrm = new HeartRateSensor().initialize();
         telemetryProvider.setSourceDataProcessor(SourceDataEnum.HEART_RATE, hrm);
-        hrm.initialize();*/
 
         // telemetry is busy with processing all source data
         SourceDataProcessorIntf telemetry = new DefaultTelemetryProcessor();
-        telemetryProvider.setDefaultProcessor(telemetry);
         telemetry.initialize();
+        telemetryProvider.setDefaultProcessor(telemetry);
 
         JPanel odo = new AntOdometer();
 

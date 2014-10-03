@@ -44,7 +44,8 @@ class DummyProcessor extends SourceDataProcessor {
     }
 
     @Override
-    public void initialize() {
+    public SourceDataProcessorIntf initialize() {
+        return this;
     }
 
     @Override

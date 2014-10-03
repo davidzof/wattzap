@@ -16,6 +16,8 @@
  */
 package com.wattzap.model.ant;
 
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -41,18 +43,27 @@ public class AntSensorIdQuery extends Thread {
         this.sensor = sensor;
         this.channel = channel;
         startTime = System.currentTimeMillis();
-        logger.debug("AntSensor ID query created");
+        logger.debug("AntSensor ID query created for " + sensor.getPrettyName());
     }
 
+    @Override
+    public void start() {
+        logger.debug("AntSensor ID query started for " + sensor.getPrettyName());
+        super.start();
+    }
+
+    @Override
     public void run() {
-        logger.debug("Update sensor ID for " + sensor.getPrettyName());
+        logger.debug("AntSensor ID query update sensor ID for " + sensor.getPrettyName());
         int sId = subsystem.getChannelId(channel);
         logger.debug("Received " + sId + " after " + (System.currentTimeMillis() - startTime) + "for " + sensor.getPrettyName());
 
         // replace only if 0 is still set (this is value was not changed from GUI)
         if (sensor.getSensorId() == 0) {
             sensor.setSensorId(sId);
+            // this should call configChanged callback
             UserPreferences.INSTANCE.setSensorId(sensor.getSensorName(), sId);
+            MessageBus.INSTANCE.send(Messages.HANDLER, sensor);
         }
     }
 }

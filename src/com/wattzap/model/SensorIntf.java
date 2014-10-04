@@ -16,39 +16,10 @@
  */
 package com.wattzap.model;
 
-/**
- *
+/*
  * @author Jarek
  */
-class DummyProcessor extends SourceDataProcessor {
-
-    public DummyProcessor() {
-        super();
-        values[SourceDataEnum.LATITUDE.ordinal()] = 181.0;
-        values[SourceDataEnum.LONGITUDE.ordinal()] = 91.0;
-    }
-
-    @Override
-    public String getPrettyName() {
-        return "";
-    }
-
-    @Override
-    public boolean provides(SourceDataEnum data) {
-        return true;
-    }
-
-    @Override
-    public void setValue(SourceDataEnum data, double value) {
-        throw new UnsupportedOperationException(data + " not settable");
-    }
-
-    @Override
-    public SourceDataProcessorIntf initialize() {
-        return this;
-    }
-
-    @Override
-    public void release() {
-    }
- }
+public interface SensorIntf extends SourceDataProcessorIntf {
+    String getSensorName();
+    void configChanged(UserPreferences config);
+}

@@ -54,10 +54,10 @@ import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
-import com.wattzap.view.AntOdometer;
 import com.wattzap.view.ControlPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
+import com.wattzap.view.Odometer;
 import com.wattzap.view.Profile;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
@@ -135,26 +135,22 @@ public class Main implements Runnable {
 		frame.setBounds(userPrefs.getMainBounds());
 
         // telemetry privider receives all subsystems/sensors/processors
-        TelemetryProvider telemetryProvider = new TelemetryProvider().initialize();
+        TelemetryProvider.INSTANCE.initialize();
 
         new AntSubsystem(popupMsg).initialize();
 
-        // how to configure these processors? Automatically from processor
-        // or on configuration? Or first one *providing* the data wins?
-
         SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor().initialize();
-        telemetryProvider.setSourceDataProcessor(SourceDataEnum.WHEEL_SPEED, sandc);
-        telemetryProvider.setSourceDataProcessor(SourceDataEnum.CADENCE, sandc);
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
 
         SourceDataProcessorIntf hrm = new HeartRateSensor().initialize();
-        telemetryProvider.setSourceDataProcessor(SourceDataEnum.HEART_RATE, hrm);
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
 
-        // telemetry is busy with processing all source data
-        SourceDataProcessorIntf telemetry = new DefaultTelemetryProcessor();
-        telemetry.initialize();
-        telemetryProvider.setDefaultProcessor(telemetry);
+        // default telemetry is busy with processing all source data. It is not
+        // activated if simulSpeed is selected.
+        new DefaultTelemetryProcessor().initialize();
 
-        JPanel odo = new AntOdometer();
+        JPanel odo = new Odometer();
 
 		// Performs an isregister check, be careful if we move below AboutPanel
 		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);

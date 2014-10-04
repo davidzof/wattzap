@@ -18,6 +18,8 @@ package com.wattzap.controller;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * (c) 2013 David George / Wattzap.com
@@ -27,7 +29,10 @@ import java.util.Map;
  */
 public enum MessageBus {
 	INSTANCE;
-	Map<Messages, HashSet<MessageCallback>> objects;
+
+	private static final Logger logger = LogManager.getLogger("MessageBus");
+
+    private final Map<Messages, HashSet<MessageCallback>> objects;
 
 	MessageBus() {
 		objects = new EnumMap<Messages, HashSet<MessageCallback>>(
@@ -46,20 +51,34 @@ public enum MessageBus {
 	}
 
 	public void unregister(MessageCallback o) {
-        // TODO remove references!!! MLK jak nic
+        for (HashSet<MessageCallback> listeners : objects.values()) {
+            listeners.remove(o);
+        }
     }
     public void unregister(Messages m, MessageCallback o) {
-        // TODO remove references!!! MLK jak nic
+		if (objects.containsKey(m)) {
+    		HashSet<MessageCallback> listeners = objects.get(m);
+        	listeners.remove(o);
+        }
     }
+
     public boolean isRegisterd(Messages m, MessageCallback o) {
-        return false;
+		if (!objects.containsKey(m)) {
+            return false;
+		}
+		HashSet<MessageCallback> listeners = objects.get(m);
+		return listeners.contains(o);
     }
 
 	public void send(Messages m, Object o) {
 		HashSet<MessageCallback> listeners = objects.get(m);
 		if (listeners != null) {
 			for (MessageCallback callback : listeners) {
-				callback.callback(m, o);
+                try {
+    				callback.callback(m, o);
+                } catch (Exception e) {
+                    logger.fatal("Exception " + e, e);
+                }
 			}
 		}
 	}

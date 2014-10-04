@@ -39,7 +39,7 @@ import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 
-/* 
+/*
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  */
@@ -61,18 +61,17 @@ public class Odometer extends JPanel implements MessageCallback {
 	private JLabel powerLabel;
 	private JLabel chronoLabel;
 
-	private int type = RouteReader.SLOPE;
+	private int routeType = RouteReader.SLOPE;
 
 	private static Logger logger = LogManager.getLogger("Odometer");
 
 	private final Color textColor = new Color(240, 244, 112);
 	private DateFormat timeFormat;
-	private long startTime = 0;
 	private double totalDistance = 0;
 
 	Power power;
 
-	private static final double KMTOMILES = 1.609344;
+	private double KMTOMILES = 1.609344;
 	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
 	public Odometer() {
@@ -96,14 +95,12 @@ public class Odometer extends JPanel implements MessageCallback {
 		speedText.setForeground(textColor);
 		add(speedText);
 
-		if (userPrefs.INSTANCE.isVirtualPower()) {
-			// Virtual Speed #1
-			JLabel vspeedText = new JLabel();
-			vspeedText.setFont(font1);
-			vspeedText.setForeground(textColor);
-			vspeedText.setText(userPrefs.messages.getString("trainer_speed"));
-			add(vspeedText);
-		}
+        // Virtual Speed #1
+        JLabel vspeedText = new JLabel();
+        vspeedText.setFont(font1);
+        vspeedText.setForeground(textColor);
+        vspeedText.setText(userPrefs.messages.getString("trainer_speed"));
+        add(vspeedText);
 
 		// Distance #2
 		distText = new JLabel();
@@ -147,58 +144,56 @@ public class Odometer extends JPanel implements MessageCallback {
 		add(chronoText, "Wrap");
 
 		// Variables
-		// #1
+		// #1 Speed
 		speedLabel = new JLabel();
 		speedLabel.setFont(font);
 		speedLabel.setText("0.0");
 		speedLabel.setForeground(Color.WHITE);
 		add(speedLabel);
 
-		if (userPrefs.INSTANCE.isVirtualPower()) {
-			// #2
-			vspeedLabel = new JLabel();
-			vspeedLabel.setFont(font);
-			vspeedLabel.setText("0");
-			vspeedLabel.setForeground(Color.WHITE);
-			add(vspeedLabel);
-		}
+        // #2 wheelSpeed
+        vspeedLabel = new JLabel();
+        vspeedLabel.setFont(font);
+        vspeedLabel.setText("0");
+        vspeedLabel.setForeground(Color.WHITE);
+        add(vspeedLabel);
 
-		// #3
+		// #3 distance
 		distanceLabel = new JLabel();
 		distanceLabel.setFont(font);
 		distanceLabel.setText("0.0");
 		distanceLabel.setForeground(Color.WHITE);
 		add(distanceLabel);
 
-		// #4
+		// #4 power
 		powerLabel = new JLabel();
 		powerLabel.setFont(font);
 		powerLabel.setText("0");
 		powerLabel.setForeground(Color.WHITE);
 		add(powerLabel);
 
-		// #5
+		// #5 resistance
 		resistanceLabel = new JLabel();
 		resistanceLabel.setFont(font);
 		resistanceLabel.setText("0");
 		resistanceLabel.setForeground(Color.WHITE);
 		add(resistanceLabel);
 
-		// #6
+		// #6 slope
 		slopeLabel = new JLabel();
 		slopeLabel.setFont(font);
 		slopeLabel.setText("0.0");
 		slopeLabel.setForeground(Color.WHITE);
 		add(slopeLabel);
 
-		// #7
+		// #7 altitude
 		elevationLabel = new JLabel();
 		elevationLabel.setFont(font);
 		elevationLabel.setForeground(Color.WHITE);
 		elevationLabel.setText("0");
 		add(elevationLabel);
 
-		// #8
+		// #8 time
 		chronoLabel = new JLabel();
 		chronoLabel.setFont(font);
 		chronoLabel.setForeground(Color.WHITE);
@@ -207,23 +202,18 @@ public class Odometer extends JPanel implements MessageCallback {
 
 		initLabels(userPrefs.isMetric());
 
-		System.out.println("listen for HR messages");
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.START, this);
 	}
 
 	private void initLabels(boolean metric) {
 		if (metric) {
-			speedText
-					.setText(userPrefs.messages.getString("speed") + " (km/h)");
+			speedText.setText(userPrefs.messages.getString("speed") + " (km/h)");
 			distText.setText(userPrefs.messages.getString("distance") + " (km)");
 		} else {
 			speedText.setText(userPrefs.messages.getString("speed") + " (mph)");
-			distText.setText(userPrefs.messages.getString("distance")
-					+ " (miles)");
-
+			distText.setText(userPrefs.messages.getString("distance") + " (miles)");
 		}
 	}
 
@@ -233,100 +223,60 @@ public class Odometer extends JPanel implements MessageCallback {
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 
-			if (startTime == 0) {
-				startTime = t.getTime();
-			}
-
 			// Power
 			powerLabel.setText("" + t.getPower());
 
 			// Resistance
-				resistanceLabel.setText("" + t.getResistance());
+            resistanceLabel.setText("" + t.getResistance());
 
-			
+
 			// Speed & Distance
-			if (userPrefs.isMetric()) {
-				speedLabel.setText(String.format("%.1f", t.getSpeed()));
-				if (userPrefs.INSTANCE.isVirtualPower()) {
-					vspeedLabel.setText("" + t.getWheelSpeed());
-				}
-				distanceLabel.setText(String.format("%.3f", t.getDistance()));
-			} else {
-				speedLabel.setText(String.format("%.1f", t.getSpeed()
-						/ KMTOMILES));
-				distanceLabel.setText(String.format("%.3f", t.getDistance()
-						/ KMTOMILES));
-				// need to round up or down
-				if (userPrefs.INSTANCE.isVirtualPower()) {
-					vspeedLabel.setText("" + t.getWheelSpeed() / KMTOMILES);
-				}
+            speedLabel.setText(String.format("%.1f", t.getSpeed() / KMTOMILES));
+            distanceLabel.setText(String.format("%.3f", t.getDistance() / KMTOMILES));
+            vspeedLabel.setText(String.format("%.1f", t.getWheelSpeed() / KMTOMILES));
+
+			chronoLabel.setText(timeFormat.format(new Date(t.getTime())));
+
+            switch (routeType) {
+                case RouteReader.POWER:
+                    elevationLabel.setText(String.format("%.1f",
+                        (totalDistance - t.getDistance()) / KMTOMILES));
+                    break;
+
+                case RouteReader.SLOPE:
+                    elevationLabel.setText(String.format("%.0f", t.getElevation()));
+                    slopeLabel.setText(String.format("%.1f", t.getGradient()));
+    				break;
 			}
-
-			chronoLabel.setText(timeFormat.format(new Date(t.getTime()
-					- startTime)));
-			switch (type) {
-			case RouteReader.POWER:
-				if (userPrefs.isMetric()) {
-					elevationLabel.setText(String.format("%.1f",
-							(totalDistance / 1000) - t.getDistance()));
-				} else {
-					elevationLabel.setText(String.format("%.1f",
-							((totalDistance / 1000) - t.getDistance())
-									/ KMTOMILES));
-
-				}
-
-				break;
-			case RouteReader.SLOPE:
-				elevationLabel.setText(String.format("%.0f", t.getElevation()));
-				slopeLabel.setText(String.format("%.1f", t.getGradient()));
-
-				break;
-			}// switch
-
-			if (type == RouteReader.SLOPE) {
-				break;
-			}
-
 			break;
 
-		
+
 
 		case GPXLOAD:
 			RouteReader routeData = (RouteReader) o;
-			type = routeData.routeType();
-			switch (type) {
-			case RouteReader.POWER:
-				levelText
-						.setText(userPrefs.messages.getString("distance_left"));
-				slopeText.setVisible(false);
-				slopeLabel.setVisible(false);
-				break;
-			case RouteReader.SLOPE:
-				levelText.setText(userPrefs.messages.getString("altitude"));
-				slopeText.setVisible(true);
-				slopeLabel.setVisible(true);
-				break;
-			}
+			routeType = routeData.routeType();
+			switch (routeType) {
+                case RouteReader.POWER:
+                    levelText.setText(userPrefs.messages.getString("distance_left"));
+                    slopeText.setVisible(false);
+                    slopeLabel.setVisible(false);
+                    break;
+                case RouteReader.SLOPE:
+                    levelText.setText(userPrefs.messages.getString("altitude"));
+                    slopeText.setVisible(true);
+                    slopeLabel.setVisible(true);
+                    break;
+            }
 
-			totalDistance = routeData.getDistanceMeters();
+			totalDistance = routeData.getDistanceMeters() / 1000.0;
 
-			startTime = 0;
 			speedLabel.setText("0.0");
 			powerLabel.setText("0");
-			if (userPrefs.getResistance() == 0) {
-				resistanceLabel.setVisible(true);
-				resistanceText.setVisible(true);
-				resistanceLabel.setText("1");
-			} else {
-				resistanceLabel.setVisible(false);
-				resistanceText.setVisible(false);
-			}
-
+            resistanceLabel.setText("1");
 			distanceLabel.setText("0.0");
 			break;
-		case START:
 
+        case START:
 			// code to see if we are registered
 			if (!userPrefs.isRegistered() && (userPrefs.getEvalTime()) <= 0) {
 				logger.info("Out of time " + userPrefs.getEvalTime());

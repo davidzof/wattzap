@@ -31,13 +31,13 @@ import com.wattzap.utils.Rolling;
 
 /*
  * Wrapper class for GPX Track. Performs some analysis such as calculating instantaneous speed, average gradient etc.
- * 
+ *
  * Roller resistance calculated from power graphs
- * 
+ *
  * Pwr = (mass cyclist + mass bike) * 9.8 * slope (0.1) * m/s; // rolling resistance?
  * so if power is 250 w and we are generating xyz we either need to peddle faster or increase resistance.
  * For example a Satori can only simulate up to a 4.5% slope
- * 
+ *
  * @author David George (c) Copyright 2013
  * @date 11 June 2013
  */
@@ -57,7 +57,7 @@ public class GPXReader implements RouteReader {
 	public String getExtension() {
 		return "gpx";
 	}
-	
+
 	@Override
 	public int routeType() {
 		return RouteReader.SLOPE;
@@ -109,20 +109,19 @@ public class GPXReader implements RouteReader {
 	 * public Point getPoint(double distance) { int index = 0; while
 	 * ((points[index].getDistanceFromStart() < (distance * 1000))) { index++;
 	 * if (index == points.length) { return null; } }
-	 * 
+	 *
 	 * if (index > 0) { currentPoint = index - 1; }
-	 * 
+	 *
 	 * return points[currentPoint]; }
 	 */
 
 	public Point getPoint(double distance) {
-		while ((points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
+		while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
 			currentPoint++;
-			if (currentPoint == points.length) {
-				return null;
-			}
-		}// while
-		if (currentPoint > 0) {
+		}
+        if (currentPoint >= points.length) {
+            return null;
+        } else if (currentPoint > 0) {
 			return points[currentPoint - 1];
 		} else {
 			return points[0];
@@ -131,7 +130,7 @@ public class GPXReader implements RouteReader {
 
 	/**
 	 * Returns a Point relative to the start of the track
-	 * 
+	 *
 	 * @param distance
 	 * @return
 	 */
@@ -143,10 +142,10 @@ public class GPXReader implements RouteReader {
 
 	/**
 	 * Load GPX data from file
-	 * 
+	 *
 	 * @param filename
 	 *            name of file to load
-	 * 
+	 *
 	 */
 	public void load(String filename) {
 		gpxFile = new GPXFile(new File(filename));
@@ -287,7 +286,7 @@ public class GPXReader implements RouteReader {
 	 * Calculate distance between two points in latitude and longitude taking
 	 * into account height difference. If you are not interested in height
 	 * difference pass 0.0. Uses Haversine method as its base.
-	 * 
+	 *
 	 * lat1, lon1 Start point lat2, lon2 End point el1 Start altitude in meters
 	 * el2 End altitude in meters
 	 */

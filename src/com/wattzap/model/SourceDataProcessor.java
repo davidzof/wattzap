@@ -24,17 +24,20 @@ public abstract class SourceDataProcessor
     implements SourceDataProcessorIntf
 {
     protected final double[] values = new double[SourceDataEnum.values().length];
-    protected final long[] modifications = new long[SourceDataEnum.values().length];
 
-    // handler doesn't provide connectivity information.
-    private long lastMessageTime = -1;
+    // has no valid information, cannot provide anything
+    private long lastMessageTime = 0;
 
     public SourceDataProcessor() {
         // initialize all values to not modified
-        for (int i = 0; i < modifications.length; i++) {
-            modifications[i] = 0;
+        for (int i = 0; i < values.length; i++) {
             values[i] = 0.0;
         }
+    }
+
+    @Override
+    public void activate(boolean active) {
+        throw new UnsupportedOperationException("Only telemetryProcessors can be activated");
     }
 
     @Override
@@ -50,17 +53,14 @@ public abstract class SourceDataProcessor
         if (!provides(data)) {
             throw new UnsupportedOperationException(data + " is not provided");
         }
-        long current = System.currentTimeMillis();
         synchronized(this) {
             values[data.ordinal()] = value;
-            modifications[data.ordinal()] = current;
         }
     }
+    /* WARNING Not usable for telemetryProcessors, only valid for sensors */
     @Override
     public long getModificationTime(SourceDataEnum data) {
-        synchronized(this) {
-            return modifications[data.ordinal()];
-        }
+        throw new UnsupportedOperationException("Only sensors handle property modification time");
     }
 
 
@@ -72,7 +72,7 @@ public abstract class SourceDataProcessor
     }
 
     protected long setLastMessageTime() {
-        return setLastMessageTime(System.currentTimeMillis());
+        throw new UnsupportedOperationException("Only sensors handles message current time!");
     }
 
     protected long setLastMessageTime(long time) {

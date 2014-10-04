@@ -15,6 +15,7 @@
 */
 package com.wattzap.model.dto;
 
+import com.wattzap.model.TelemetryProvider;
 import java.io.Serializable;
 
 /**
@@ -36,8 +37,7 @@ public class Telemetry implements Serializable {
 	private long time;
     private double wheelSpeed;
     private int resistance = 1;
-    private boolean autoResistance = false;
-    private boolean paused = true;
+    private int paused = 0;
 
     public long getTime() {
         return time;
@@ -124,28 +124,22 @@ public class Telemetry implements Serializable {
 		resistance =  v;
 	}
 
-    public boolean getAutoResistance() {
-        return autoResistance;
-    }
-    public void setAutoResistance(boolean v) {
-        autoResistance = v;
-    }
-
-    public boolean getPaused() {
+    public int getPaused() {
         return paused;
     }
-    public void setPaused(boolean v) {
+    public void setPaused(int v) {
         paused = v;
     }
 
 	@Override
 	public String toString() {
 		return "Telemetry [speed=" + speed + ", cadence=" + cadence
-				+ ", distance=" + distance + ", power=" + power
-                + ", wheelSpeed=" + wheelSpeed + ", resistance=" + resistance
-                + (autoResistance ? "*" : "") + (paused ? ", paused" : "")
-				+ ", elevation=" + elevation + ", gradient=" + gradient
+				+ ", distance=" + distance + ", time=" + time / 1000
+                + ", power=" + power + ", wheelSpeed=" + wheelSpeed
+                + ", heartRate=" + heartRate + ", resistance=" + resistance
+				+ ", altitude=" + elevation + ", slope=" + gradient
 				+ ", latitude=" + latitude + ", longitude=" + longitude
-				+ ", heartRate=" + heartRate + " tt " + heartRate + ", time=" + time / 1000 + "]";
+                + ", paused=\"" + TelemetryProvider.INSTANCE.pauseMsg(this, false) + "\""
+            + "]";
 	}
 }

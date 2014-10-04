@@ -87,16 +87,24 @@ public class SpeedAndCadenceSensor extends AntSensor {
 
 
         int wTD = wT - wTlast; // time delta
-        if (wTD < 0) {
+        // "from time to time".. Sensor reports time in wrong order, some
+        // "past" values are injected: eg times are: 61091 *59395* 61735 62778..
+        // when rollover is detected, the difference is -6xxxx. I hope it is
+        // enough
+        if (wTD < -5000) {
             wTD += 65536;
+        } else if (wTD < 0) {
+            msg += " wTD=" + wTD;
         }
 		int wRD = wR - wRlast; // wheel rotations within the time
-        if (wRD < 0) {
+        if (wRD < -100) {
             wRD += 65536;
+        } else if (wRD < 0) {
+            msg += " wRD=" + wRD;
         }
         // wheel rotation detected.. and time delta is NOT zero
         // Sometimes time doesn't advance when rotation is detected (buggy sensor?)
-        if ((wRD != 0) && (wTD != 0)) {
+        if ((wRD > 0) && (wTD > 0)) {
             // first rotation (after pause or in session) might have very short
             // update time, so it must be discarded and speed 0 must be reported.
             // Proper speed is reported just next update.
@@ -114,12 +122,16 @@ public class SpeedAndCadenceSensor extends AntSensor {
         }
 
         int cTD = cT - cTlast; // time delta
-        if (cTD < 0) {
+        if (cTD < -5000) {
             cTD += 65536;
+        } else if (cTD < 0) {
+            msg += " cTD=" + cTD;
         }
 		int cRD = cR - cRlast; // crank rotations within the time
-        if (cRD < 0) {
+        if (cRD < -100) {
             cRD += 65536;
+        } else if (cRD < 0) {
+            msg += " cRD=" + cRD;
         }
         if ((cRD != 0) && (cTD != 0)) {
             if (time > getModificationTime(SourceDataEnum.CADENCE) + 10000) {
@@ -134,8 +146,11 @@ public class SpeedAndCadenceSensor extends AntSensor {
             cTlast = cT;
             cRlast = cR;
         }
-
-        logger.debug(msg);
+        if ((wTD < 0) || (wRD < 0) || (cTD < 0) || (cRD < 0)) {
+            logger.error(msg);
+        } else {
+            logger.debug(msg);
+        }
     }
 
     @Override

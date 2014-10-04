@@ -37,9 +37,10 @@ public enum Messages {
     // data: handler object
     HANDLER, HANDLER_REMOVED,
 
-    // rename to telemetry and remove heartrate
-    // data: well-filled telemetry
-    TELEMETRY, HEARTRATE,
+    TELEMETRY,
+
+    @Deprecated
+    HEARTRATE,
 
     // first and last message of the training? Save on stop?
     START, STOP,

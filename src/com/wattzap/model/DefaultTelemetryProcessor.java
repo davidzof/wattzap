@@ -27,45 +27,58 @@ import com.wattzap.model.power.Power;
  * @author Jarek
  */
 public class DefaultTelemetryProcessor extends TelemetryProcessor {
+    private double totalWeight = 85.0;
+    private int resistance;
+    private boolean autoResistance;
+    private boolean initialize;
+    private boolean simulSpeed;
+    private RouteReader routeData = null;
+    private Power power = null;
 
     @Override
     public String getPrettyName() {
-        return "";
+        return "DefaultTelemetryProcessor";
     }
 
     @Override
     public SourceDataProcessorIntf initialize() {
+        initialize = true;
         super.initialize();
         MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+        // set default resistance..
+        setValue(SourceDataEnum.RESISTANCE, resistance);
+        initialize = false;
         return this;
     }
 
     @Override
     public void release() {
         MessageBus.INSTANCE.unregister(Messages.GPXLOAD, this);
-        super.initialize();
+        super.release();
     }
-
-    boolean simulSpeed = false;
-    double totalWeight = 85.0;
-    RouteReader routeData = null;
-    private Power power = null;
-    private int resistance = 1;
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        simulSpeed = prefs.isVirtualPower();
+        if (initialize) {
+            if (prefs.getResistance() == 0) {
+                resistance = 1;
+                autoResistance = true;
+            } else {
+                resistance = prefs.getResistance();
+                autoResistance = false;
+            }
+        }
+        if (initialize || (simulSpeed != prefs.isVirtualPower())) {
+            simulSpeed = prefs.isVirtualPower();
+            activate(!simulSpeed);
+        }
+
         totalWeight = prefs.getTotalWeight();
         power = prefs.getPowerProfile();
-        resistance = prefs.getResistance();
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        if (simulSpeed && (data == SourceDataEnum.WHEEL_SPEED)) {
-            return true;
-        }
-
         switch (data) {
             // main targets
             case SPEED:
@@ -73,7 +86,6 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
             // it shall be handled by TrainerHandler!
             case RESISTANCE:
-            case AUTO_RESISTANCE:
 
             // these shall be made by RouteHandler!
             case ALTITUDE:
@@ -98,21 +110,17 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
         // based on power and gradient using magic sauce
 
         // these data shall be moved to routeHandler! Except simulated speed..
+        boolean noMoreRoute = true;
         if (routeData != null) {
             // System.out.println("gettng point at distance " + distance);
             Point p = routeData.getPoint(t.getDistance());
             if (p != null) {
-                if (simulSpeed) {
-                    double ratio = (powerWatts / p.getGradient());
-                    // speed is video speed * power ratio
-                    setValue(SourceDataEnum.WHEEL_SPEED, p.getSpeed() * ratio);
-                }
-
                 // if slope is known
                 if (routeData.routeType() == RouteReader.SLOPE) {
                     double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                         p.getGradient() / 100, powerWatts);
                     setValue(SourceDataEnum.SPEED, realSpeed);
+                    noMoreRoute = false;
                 } else {
                     System.out.println("Route type is " + routeData.routeType());
                 }
@@ -123,20 +131,25 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
                 setValue(SourceDataEnum.LONGITUDE, p.getLongitude());
             } else {
                 System.out.println("No point at " + t.getDistance());
-                setValue(SourceDataEnum.PAUSE, 1);
             }
         } else {
             System.out.println("No route data at all!");
         }
 
         // default resistance taken from preferences
-        if (resistance == 0) {
+        if (autoResistance) {
             // Best matching (this is wheelSpeed best matches speed) shall be selected
             setValue(SourceDataEnum.RESISTANCE, 1);
-            setValue(SourceDataEnum.AUTO_RESISTANCE, 1);
+        }
+
+        // set pause at end of route or when no running, otherwise unpause
+        if (noMoreRoute) {
+            setValue(SourceDataEnum.PAUSE, 100.0);
+            setValue(SourceDataEnum.SPEED, 0.0);
+        } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
+            setValue(SourceDataEnum.PAUSE, 1.0);
         } else {
-            setValue(SourceDataEnum.RESISTANCE, resistance);
-            setValue(SourceDataEnum.AUTO_RESISTANCE, 0);
+            setValue(SourceDataEnum.PAUSE, 0.0);
         }
     }
 

@@ -21,6 +21,25 @@ package com.wattzap.model;
  * @author Jarek
  */
 public enum SourceDataEnum {
-    WHEEL_SPEED, CADENCE, HEART_RATE, POWER, RESISTANCE, AUTO_RESISTANCE, SLOPE,
-    ALTITUDE, LATITUDE, LONGITUDE, SPEED, PAUSE
+    WHEEL_SPEED(0.0),
+    CADENCE(0.0),
+    HEART_RATE(0.0),
+    POWER(0.0),
+    RESISTANCE(1.0),
+    SLOPE(0.0),
+    ALTITUDE(0.0),
+    LATITUDE(181.0),
+    LONGITUDE(91.0),
+    SPEED(0.0),
+    PAUSE(0.0);
+
+    private double defVal;
+
+    private SourceDataEnum(double defVal) {
+        this.defVal = defVal;
+    }
+
+    public double getDefault() {
+        return defVal;
+    }
 }

@@ -38,27 +38,30 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.Rolling;
+import java.awt.Dimension;
+import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 
 /**
  * (c) 2013-2014 David George / TrainingLoops.com
- * 
+ *
  * Video Player.
- * 
+ *
  * Synchronizes video playback to road speed. This is done using an SDK to the
  * cross platform VLC player. We can't set the speed frame by frame because it
  * would be too expensive in terms of CPU cycles. What we do is compare the
  * speed from the rider with the speed the video was recorded at and set the
  * playback speed according to this ratio. For example is the rider is doing
  * 10kph and the video was recorded at 20kpg we set the playback speed to 50%.
- * 
+ *
  * It sounds easy but both the rider speed and video record speed are constantly
  * varying so adjustments have to be made continuously. It is very easy to
  * overshoot hence the different offsets used.
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -124,6 +127,10 @@ MessageCallback {
 
 	private void setSpeed(Telemetry t) {
 		Point p = routeData.getPoint(t.getDistance());
+        // it is null if end_of_training..
+        if (p == null) {
+            p = new Point();
+        }
 
 		if (startTime == 0) {
 			// first time through, start video
@@ -166,9 +173,25 @@ MessageCallback {
 		if (mPlayer.isPlaying() == false) {
 			mPlayer.start();
 		}
-		if (t.getSpeed() == 0.0) {
-			mPlayer.pause();
-		}
+
+        // handle pause
+        String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
+        if (pauseMsg != null) {
+            logger.debug("Pause reason: " + pauseMsg);
+            Dimension size = mPlayer.getVideoDimension();
+            if (size != null) {
+                mPlayer.setMarqueeText(pauseMsg);
+                mPlayer.setMarqueeSize(size.height / 8);
+                mPlayer.setMarqueeOpacity(255);
+                mPlayer.setMarqueeColour(Color.RED);
+                mPlayer.setMarqueePosition(libvlc_marquee_position_e.centre);
+                mPlayer.enableMarquee(true);
+            }
+            mPlayer.pause();
+            return;
+        } else {
+            mPlayer.enableMarquee(false);
+        }
 
 		long mapTime = p.getTime() /*- mapStartTime*/;
 
@@ -252,7 +275,7 @@ MessageCallback {
 	/*
 	 * @Override public void stateChanged(ChangeEvent e) { if (!videoLoaded ||
 	 * gpxData == null) { return; }
-	 * 
+	 *
 	 * Telemetry t = (Telemetry) e.getSource();
 	 */
 	@Override

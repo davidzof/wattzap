@@ -17,11 +17,10 @@
 package com.wattzap.model.ant;
 
 import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.Sensor;
 import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.SubsystemTypeEnum;
-import com.wattzap.model.SourceDataProcessor;
 import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.UserPreferences;
 import org.apache.log4j.LogManager;
@@ -34,8 +33,8 @@ import org.cowboycoders.ant.messages.data.BroadcastDataMessage;
  *
  * @author Jarek
  */
-public abstract class AntSensor extends SourceDataProcessor
-    implements AntSensorIntf, MessageCallback, BroadcastListener<BroadcastDataMessage>
+public abstract class AntSensor extends Sensor
+    implements AntSensorIntf, BroadcastListener<BroadcastDataMessage>
 {
 	private static Logger logger = LogManager.getLogger("Sensor");
 
@@ -44,38 +43,11 @@ public abstract class AntSensor extends SourceDataProcessor
     private Channel channel = null;
     private AntSubsystemIntf subsystem = null;
 
-    public AntSensor() {
-        // handler not initialized yet
-        setLastMessageTime(0);
-    }
 
     @Override
     public SourceDataProcessorIntf initialize() {
-        // message registration
-        MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
-        MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
-
-        // initialize configuration
         setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
-        configChanged(UserPreferences.INSTANCE);
-
-        // notify TelemetryProvider about new handler
-        MessageBus.INSTANCE.send(Messages.HANDLER, this);
-        // will receive SUBSYSTEM notification in a second
-
-        logger.debug("Ant sensor initialized");
-        return this;
-    }
-
-    @Override
-    public void release() {
-        MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM, this);
-        MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM_REMOVED, this);
-
-        // request handler removal
-        setLastMessageTime(0);
-        MessageBus.INSTANCE.send(Messages.HANDLER, this);
-        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+        return super.initialize();
     }
 
     @Override
@@ -112,8 +84,6 @@ public abstract class AntSensor extends SourceDataProcessor
         int[] data = message.getUnsignedData();
         storeReceivedData(getLastMessageTime(), data);
     }
-
-    public abstract void configChanged(UserPreferences config);
 
 	@Override
 	public void callback(Messages message, Object o) {

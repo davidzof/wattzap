@@ -49,6 +49,15 @@ public abstract class TelemetryProcessor
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
 
+    @Override
+    public void activate(boolean active) {
+        if (active) {
+            setLastMessageTime(-1);
+        } else {
+            setLastMessageTime(0);
+        }
+    }
+
     public abstract void storeTelemetryData(Telemetry t);
 
     public abstract void configChanged(UserPreferences pref);

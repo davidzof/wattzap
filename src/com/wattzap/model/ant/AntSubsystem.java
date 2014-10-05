@@ -338,7 +338,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
         Channel channel = node.getFreeChannel();
 		// Arbitrary name : useful for identifying channel
-		channel.setName(sensorHandler.getSensorName());
+		channel.setName(sensorHandler.getPrettyName());
 		// use ant network key "N:ANT+"
 		channel.assign("N:ANT+", new SlaveChannelType());
 		// registers an instance of our callback with the channel

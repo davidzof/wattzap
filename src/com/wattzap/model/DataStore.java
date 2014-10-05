@@ -38,7 +38,7 @@ import com.wattzap.model.dto.WorkoutData;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -168,7 +168,7 @@ public class DataStore {
 
 			psInsert.setTime(20, new java.sql.Time(data.getTime()));
 			psInsert.setDate(21, new java.sql.Date(data.getDate()));
-			
+
 			psInsert.setString(22, data.getDescription());
 			psInsert.setInt(23, data.getSource()); // Wattzap
 			int i = psInsert.executeUpdate();
@@ -224,7 +224,7 @@ public class DataStore {
 				data.setWeight(rs.getDouble(19));
 				data.setTime(rs.getTime(20).getTime());
 				data.setDate(rs.getDate(21).getTime());
-				
+
 				data.setDescription(rs.getString(22));
 				data.setSource(rs.getInt(23));
 			}
@@ -246,7 +246,7 @@ public class DataStore {
 
 		return data;
 	}
-	
+
 	public WorkoutData deleteWorkout(String user, String name) {
 		PreparedStatement s = null;
 		ResultSet rs = null;
@@ -276,7 +276,7 @@ public class DataStore {
 
 		return data;
 	}
-	
+
 	public List<WorkoutData> listWorkouts(String user) {
 		PreparedStatement s = null;
 		ResultSet rs = null;
@@ -321,10 +321,10 @@ public class DataStore {
 				data.setWeight(rs.getDouble(19));
 				data.setTime(rs.getTime(20).getTime());
 				data.setDate(rs.getDate(21).getTime());
-				
+
 				data.setDescription(rs.getString(22));
 				data.setSource(rs.getInt(23));
-				
+
 				workouts.add(data);
 			}
 		} catch (SQLException e) {
@@ -349,7 +349,7 @@ public class DataStore {
 	/**
 	 * Encrypts values before writing to database using DES. If there is an
 	 * exception nothing is written.
-	 * 
+	 *
 	 * @param user
 	 * @param k
 	 * @param v
@@ -414,7 +414,30 @@ public class DataStore {
 		return v;
 	}
 
-	public String getProp(String user, String k) {
+    public void deleteProp(String user, String k) {
+		PreparedStatement psDelete = null;
+		try {
+			psDelete = conn.prepareStatement("DELETE FROM props WHERE username=? and k=?");
+			psDelete.setString(1, user);
+			psDelete.setString(2, k);
+			int i = psDelete.executeUpdate();
+
+			conn.commit();
+            logger.debug("Erased " + user + "." + k + ", result " + i);
+		} catch (SQLException e) {
+			logger.error(e.getLocalizedMessage());
+		} finally {
+			try {
+				if (psDelete != null) {
+					psDelete.close();
+				}
+			} catch (SQLException e) {
+				logger.error(e.getLocalizedMessage());
+			}
+		}
+    }
+
+    public String getProp(String user, String k) {
 		PreparedStatement s = null;
 		ResultSet rs = null;
 		String value = null;
@@ -524,7 +547,7 @@ public class DataStore {
 	/**
 	 * Prints details of an SQLException chain to <code>System.err</code>.
 	 * Details included are SQL State, Error code, Exception message.
-	 * 
+	 *
 	 * @param e
 	 *            the SQLException from which to print details.
 	 */

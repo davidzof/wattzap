@@ -36,8 +36,6 @@ import javax.swing.JTextField;
 import net.miginfocom.swing.MigLayout;
 
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.power.Power;
-import com.wattzap.model.power.PowerProfiles;
 
 // TODO: Add video directory location
 public class Preferences extends JFrame implements ActionListener {
@@ -183,7 +181,7 @@ public class Preferences extends JFrame implements ActionListener {
 						.getString("your_weight") + " (kg) ");
 				bikeWeightLabel.setText(UserPreferences.INSTANCE.messages
 						.getString("bike_weight") + " (kg) ");
-				userPrefs.setUnits(true);
+				userPrefs.setMetric(true);
 				weight.setText(String.format("%.1f", userPrefs.getWeight()));
 				bikeWeight.setText(String.format("%.1f", userPrefs.getBikeWeight()));
 			} else {
@@ -191,7 +189,7 @@ public class Preferences extends JFrame implements ActionListener {
 						.getString("your_weight")+ " (lbs)");
 				bikeWeightLabel.setText(UserPreferences.INSTANCE.messages
 						.getString("bike_weight") + " (lbs)");
-				userPrefs.setUnits(false);
+				userPrefs.setMetric(false);
 				weight.setText(String.format("%.1f", userPrefs.getWeight()));
 				bikeWeight.setText(String.format("%.1f", userPrefs.getBikeWeight()));
 			}
@@ -207,7 +205,6 @@ public class Preferences extends JFrame implements ActionListener {
 	}
 
 	public void updatePreferences() {
-		userPrefs.setVirtualPower(trainerPanel.isVirtualPower());
 
 		try {
 			userPrefs.setWeight(Double.parseDouble(weight.getText()));
@@ -241,18 +238,6 @@ public class Preferences extends JFrame implements ActionListener {
 		} catch (NumberFormatException nfe) {
 			JOptionPane.showMessageDialog(this, nfe.getMessage(),
 					"Power format error: ", JOptionPane.ERROR_MESSAGE);
-		}
-
-		// set trainer
-		String profile = trainerPanel.getProfileDescription();
-		PowerProfiles pp = PowerProfiles.INSTANCE;
-		Power p = pp.getProfile(profile);
-		userPrefs.setPowerProfile(profile);
-		if (p.getResitanceLevels() > 1) {
-			int level = trainerPanel.getResistanceLevel();
-			userPrefs.setResistance(level);
-		} else {
-			userPrefs.setResistance(1);
 		}
 
 		// set ANT Ids

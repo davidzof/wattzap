@@ -62,7 +62,7 @@ public class AntSensorIdQuery extends Thread {
         if (sensor.getSensorId() == 0) {
             sensor.setSensorId(sId);
             // this should call configChanged callback
-            UserPreferences.INSTANCE.setSensorId(sensor.getSensorName(), sId);
+            UserPreferences.INSTANCE.setSensorId(sensor.getPrettyName(), sId);
             MessageBus.INSTANCE.send(Messages.HANDLER, sensor);
         }
     }

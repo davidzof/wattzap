@@ -17,29 +17,28 @@
 package com.wattzap.model;
 
 /**
- * List of values provided by sensors and telemetryProcessors
+ *
  * @author Jarek
  */
-public enum SourceDataEnum {
-    WHEEL_SPEED(0.0),
-    CADENCE(0.0),
-    HEART_RATE(0.0),
-    POWER(0.0),
-    RESISTANCE(1.0),
-    SLOPE(0.0),
-    ALTITUDE(0.0),
-    LATITUDE(91.0),
-    LONGITUDE(181.0),
-    SPEED(0.0),
-    PAUSE(0.0);
+public enum VirtualPowerEnum {
+    // computes power from wheelSpeed
+    SPEED_TO_POWER("speed2power"),
+    // computes wheel speed from power. If (any) power sensor is not
+    // available, it is impossible to run in this mode.
+    POWER_TO_SPEED("power2speed"),
+    // simulated speed, it shows wheel speed to be followed.
+    // Base on slope: at highest slope FTP is to be touched, when flat half of
+    // FTP is taken into consideration
+    FTP_SIMULATION("simulSpeed"),
+    // compute wheel speed which is necessary to run video with 1:1 speed
+    VIDEO_SPEED("videoSpeed");
 
-    private double defVal;
+    private String key;
 
-    private SourceDataEnum(double defVal) {
-        this.defVal = defVal;
+    private VirtualPowerEnum(String key) {
+        this.key = key;
     }
-
-    public double getDefault() {
-        return defVal;
+    public String getKey() {
+        return key;
     }
 }

@@ -23,8 +23,6 @@ import com.wattzap.model.SourceDataProcessorIntf;
  * @author Jarek
  */
 public interface AntSensorIntf extends SourceDataProcessorIntf {
-    String getSensorName();
-
     // default sensor configuration
     int getSensorType();
     int getSensorPeriod();

@@ -68,6 +68,7 @@ public enum TelemetryProvider implements MessageCallback
 
     private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
     static {
+        pauseMsgKeys.put(-1, "not_started");
         pauseMsgKeys.put(1, "no_movement");
         pauseMsgKeys.put(2, "manual_pause");
         pauseMsgKeys.put(100, "end_of_training");

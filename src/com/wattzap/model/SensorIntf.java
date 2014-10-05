@@ -20,6 +20,5 @@ package com.wattzap.model;
  * @author Jarek
  */
 public interface SensorIntf extends SourceDataProcessorIntf {
-    String getSensorName();
-    void configChanged(UserPreferences config);
+    void configChanged(UserPreferences property);
 }

@@ -46,6 +46,7 @@ public interface SourceDataProcessorIntf
 
     /* Name of the handler, used in configuration panel */
     String getPrettyName();
+    void setPrettyName(String name);
 
     void activate(boolean active);
 

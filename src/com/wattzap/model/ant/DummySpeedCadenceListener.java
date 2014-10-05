@@ -18,7 +18,6 @@ package com.wattzap.model.ant;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-import javax.swing.JOptionPane;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -35,9 +34,9 @@ import com.wattzap.utils.Rolling;
 
 /**
  * (c) 2013 David George / TrainingLoops.com
- * 
+ *
  * Speed and Cadence ANT+ processor.
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -127,7 +126,7 @@ public class DummySpeedCadenceListener extends Thread implements
 						// power comes from video (gradient)
 						//powerWatts = (int) ((p.getGradient()) + (Math.random() * 4));
 						powerWatts = (int) p.getGradient();
-						
+
 						// apply some smoothing
 						rPower.add(powerWatts);
 						powerWatts = (int) rPower.getAverage();
@@ -191,7 +190,7 @@ public class DummySpeedCadenceListener extends Thread implements
 			wheelSize = UserPreferences.INSTANCE.getWheelSizeCM();
 			resistance = UserPreferences.INSTANCE.getResistance();
 			power = UserPreferences.INSTANCE.getPowerProfile();
-			virtualPower = UserPreferences.INSTANCE.isVirtualPower();
+			// virtualPower = UserPreferences.INSTANCE.isVirtualPower();
 			if (this.getState() == Thread.State.NEW ) {
 				start();
 			}
@@ -211,7 +210,7 @@ public class DummySpeedCadenceListener extends Thread implements
 				UserPreferences.INSTANCE.shutDown();
 				System.exit(0);
 			}
-			
+
 			this.routeData = (RouteReader) o;
 			power = UserPreferences.INSTANCE.getPowerProfile();
 			power.setGrades(routeData.getMaxSlope(), routeData.getMinSlope());

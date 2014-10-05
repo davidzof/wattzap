@@ -27,12 +27,24 @@ public abstract class SourceDataProcessor
 
     // has no valid information, cannot provide anything
     private long lastMessageTime = 0;
+    private String prettyName;
 
     public SourceDataProcessor() {
         // initialize all values to not modified
         for (int i = 0; i < values.length; i++) {
             values[i] = 0.0;
         }
+        // default pretty name: class name..
+        prettyName = getClass().getSimpleName();
+    }
+
+    @Override
+    public String getPrettyName() {
+        return prettyName;
+    }
+    @Override
+    public void setPrettyName(String name) {
+        prettyName = name;
     }
 
     @Override

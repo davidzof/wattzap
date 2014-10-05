@@ -31,9 +31,9 @@ import com.wattzap.model.power.Power;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * Speed and Cadence ANT+ processor.
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -41,7 +41,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 		implements BroadcastListener<BroadcastDataMessage>, MessageCallback {
 
 	private final static Logger logger = LogManager.getLogger("ASCL");
-	
+
 	private static int lastTs = -1;
 	private static int lastTc = -1;
 	private static int sRR = 0; // previous speed rotation measurement
@@ -305,7 +305,6 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 			wheelSize = userPrefs.getWheelSizeCM();
 			resistance = userPrefs.getResistance();
 			power = userPrefs.getPowerProfile();
-			simulSpeed = userPrefs.isVirtualPower();
 			elapsedTime = System.currentTimeMillis();
 			lastTs = -1;
 			lastTc = -1;

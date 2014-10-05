@@ -32,19 +32,13 @@ public class HeartRateSensor extends AntSensor {
     private static final int HRM_CHANNEL_PERIOD = 8070;
 	private static final int HRM_DEVICE_TYPE = 120; // 0x78
 
+    public HeartRateSensor() {
+        setPrettyName("hrm");
+    }
+
     @Override
     public void configChanged(UserPreferences config) {
         /* nothing to be configured. SensorId is handled by AntSensor class */
-    }
-
-    @Override
-    public String getPrettyName() {
-        return "HR";
-    }
-
-    @Override
-    public String getSensorName() {
-        return "C:HRM";
     }
 
     @Override

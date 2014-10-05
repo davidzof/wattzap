@@ -46,7 +46,7 @@ public abstract class AntSensor extends Sensor
 
     @Override
     public SourceDataProcessorIntf initialize() {
-        setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
+        setSensorId(UserPreferences.INSTANCE.getSensorId(getPrettyName()));
         return super.initialize();
     }
 
@@ -91,9 +91,10 @@ public abstract class AntSensor extends Sensor
             case CONFIG_CHANGED:
                 logger.debug("Configuration changed for " + getPrettyName() + " #" + getSensorId());
                 // if sensorId was changed, it might be important to restart the channel
-                if (UserPreferences.INSTANCE.getSensorId(getSensorName()) != getSensorId()) {
-                    logger.debug("Sensor id changed to " + UserPreferences.INSTANCE.getSensorId(getSensorName()));
-                    setSensorId(UserPreferences.INSTANCE.getSensorId(getSensorName()));
+                // No single property exist for sensors, it must be handled by INSTANCE..
+                if (UserPreferences.INSTANCE.getSensorId(getPrettyName()) != getSensorId()) {
+                    logger.debug("Sensor id changed to " + UserPreferences.INSTANCE.getSensorId(getPrettyName()));
+                    setSensorId(UserPreferences.INSTANCE.getSensorId(getPrettyName()));
                     // if channel exist.. just recreate it in order to get proper messages.
                     if (channel != null) {
                         logger.debug("Restart channel for " + getPrettyName() + " #" + getSensorId());

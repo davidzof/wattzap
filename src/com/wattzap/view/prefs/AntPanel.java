@@ -31,9 +31,6 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.ant.AdvancedSpeedCadenceListener;
-import com.wattzap.model.ant.AntSubsystem;
-import com.wattzap.model.ant.HeartRateListener;
 import com.wattzap.model.dto.Telemetry;
 
 /**
@@ -43,80 +40,44 @@ import com.wattzap.model.dto.Telemetry;
  * @date 25th August 2013
  */
 public class AntPanel extends JPanel implements ActionListener, MessageCallback {
-	private static final long serialVersionUID = 1L;
-	private JTextField sandcField;
-	private JTextField hrmIdField;
-	private JLabel speedLabel;
-	private JLabel hrm;
-	private JLabel status;
-	private AntSubsystem antDevice;
-	private int hrmID;
-	private int scID;
-	JCheckBox antUSBM;
+    private UserPreferences userPrefs = UserPreferences.INSTANCE;
 
-	private UserPreferences userPrefs = UserPreferences.INSTANCE;
-	AdvancedSpeedCadenceListener scListener;
-	HeartRateListener hrListener;
+	private JTextField sandcId;
+	private JTextField hrmId;
+	private JLabel speedLabel;
+	private JLabel hrmLabel;
+    JCheckBox ant;
+	JCheckBox antUSBM;
 
 	public AntPanel() {
 		super();
 		MigLayout layout = new MigLayout();
 		setLayout(layout);
 
-		scListener = new AdvancedSpeedCadenceListener();
-		hrListener = new HeartRateListener();
-
-		JLabel label1 = new JLabel();
-		label1.setText("Speed and Cadence ID");
-		sandcField = new JTextField(10);
-		sandcField.setText("" + userPrefs.getSCId());
-		add(label1);
-		add(sandcField, "wrap");
-
-		JLabel label3 = new JLabel();
-		label3.setText(userPrefs.messages.getString("speed"));
+		// TODO pair checkBox: auto-disabled when all sensors active
+        JLabel sandc = new JLabel();
+		sandc.setText("Speed and Cadence");
+        add(sandc);
+		sandcId = new JTextField(10);
+        sandcId.setActionCommand("sandc");
+        sandcId.addActionListener(this);
+		add(sandcId);
 		speedLabel = new JLabel();
-		speedLabel.setText("0 km/h");
-		add(label3);
 		add(speedLabel, "wrap");
 
-		JLabel label2 = new JLabel();
-		label2.setText("HRM Id");
-		hrmIdField = new JTextField(10);
-		hrmIdField.setText("" + userPrefs.getHRMId());
-		add(label2);
-		add(hrmIdField, "wrap");
-
-		JLabel label4 = new JLabel();
-		label4.setText(userPrefs.messages.getString("heartrate"));
-		hrm = new JLabel();
-		hrm.setText("0 bpm");
-		add(label4);
-		add(hrm, "wrap");
-
+		JLabel hrm = new JLabel();
+		hrm.setText("Heart rate");
+		hrmId = new JTextField(10);
+        hrmId.setActionCommand("hrm");
+        hrmId.addActionListener(this);
+        add(hrmId);
+        hrmLabel = new JLabel();
+		add(hrmLabel, "wrap");
 
 		antUSBM = new JCheckBox("ANTUSB-m Stick");
-		antUSBM.setSelected(userPrefs.isANTUSB());
 		antUSBM.setActionCommand("antusbm");
 		antUSBM.addActionListener(this);
-
 		add(antUSBM, "wrap");
-
-		JButton pairButton = new JButton("Pair");
-		pairButton.setPreferredSize(new Dimension(60, 30));
-		pairButton.setActionCommand("start");
-		pairButton.addActionListener(this);
-
-		JButton stopButton = new JButton(userPrefs.messages.getString("stop"));
-		stopButton.setPreferredSize(new Dimension(60, 30));
-		stopButton.setActionCommand("stop");
-		stopButton.addActionListener(this);
-		add(pairButton);
-		add(stopButton, "wrap");
-
-		status = new JLabel();
-		status.setText("");
-		add(status, "span");
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 	}
@@ -125,45 +86,15 @@ public class AntPanel extends JPanel implements ActionListener, MessageCallback 
 	public void callback(Messages message, Object o) {
 		Telemetry t = (Telemetry) o;
 		switch(message) {
-		case TELEMETRY:
-			speedLabel.setText(String.format("%.1f", t.getSpeed()) + " km/h");
-			break;
+    		case TELEMETRY:
+	    		speedLabel.setText(String.format("%.1f", t.getSpeed()));
+                hrmLabel.setText(String.format("%d", t.getHeartRate()));
+    			break;
 		}
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
-
-		if ("start".equals(command)) {
-			status.setText("Attempting pairing...");
-			// MessageBus.INSTANCE.send(Messages.START, new Double(0));
-
-		} else if ("antusbm".equals(command)) {
-			if (antUSBM.isSelected()) {
-				userPrefs.setAntUSBM(true);
-			} else {
-				userPrefs.setAntUSBM(false);
-
-			}
-
-		} else {
-			status.setText("Pairing complete...");
-		}
-	}
-
-	public void close() {
-		status.setText("");
-		speedLabel.setText("");
-		hrm.setText("");
-
-	}
-
-	public int getSCId() {
-		return scID;
-	}
-
-	public int getHRMId() {
-		return hrmID;
 	}
 }

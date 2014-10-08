@@ -19,30 +19,20 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
-import javax.swing.JTextField;
-
-import net.miginfocom.swing.MigLayout;
 
 import com.wattzap.model.UserPreferences;
+import java.awt.FlowLayout;
+import javax.swing.JPanel;
 
 public class Preferences extends JFrame implements ActionListener {
     private static final UserPreferences userPrefs = UserPreferences.INSTANCE;
-
-	private UserPanel userPanel;
-    private TurboPanel trainerPanel;
-    private AntPanel antPanel;
 
 	public Preferences() {
 		setTitle("Preferences");
@@ -58,48 +48,38 @@ public class Preferences extends JFrame implements ActionListener {
 		contentPane.setBackground(Color.lightGray);
 
 		// Personal Data
-        userPanel = new UserPanel();
-        jtp.addTab(userPrefs.messages.getString("personal_data"), userPanel);
-
+        jtp.addTab(userPrefs.messages.getString("personal_data"), new UserPanel());
 		// ANT+ Pairing
-		antPanel = new AntPanel();
-        jtp.addTab("ANT+", antPanel);
-
+        jtp.addTab("ANT+", new AntPanel());
 		// Trainer Profiles
-		trainerPanel = new TurboPanel();
-		jtp.addTab("Trainer", trainerPanel);
+		jtp.addTab("Trainer", new TurboPanel());
 
-		JPanel buttonPanel = new JPanel();
+        JPanel buttonPanel = new JPanel();
 		buttonPanel.setLayout(new FlowLayout());
-		JButton saveButton = new JButton(userPrefs.messages.getString("saveclose"));
-		saveButton.setPreferredSize(new Dimension(150, 30));
-		saveButton.setActionCommand("save");
-		saveButton.addActionListener(this);
-		buttonPanel.add(saveButton);
 
-		JButton cancelButton = new JButton(userPrefs.messages.getString("cancel"));
-		cancelButton.setPreferredSize(new Dimension(120, 30));
-		cancelButton.setActionCommand("cancel");
-		cancelButton.addActionListener(this);
-		buttonPanel.add(cancelButton);
+		JButton closeButton = new JButton(userPrefs.messages.getString("close"));
+		closeButton.setPreferredSize(new Dimension(120, 30));
+		closeButton.setActionCommand("close");
+		closeButton.addActionListener(this);
+
+        buttonPanel.add(closeButton);
 		contentPane.add(buttonPanel, BorderLayout.SOUTH);
 
 		pack();
 		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setVisible(true);
 	}
 
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
-		if ("save".equals(command)) {
+        if ("Preferences".equals(command)) {
+			setVisible(true); // you can see me (again)!
+            return;
+        }
+		if ("close".equals(command)) {
 			setVisible(false); // you can't see me!
-			dispose(); // Destroy the JFrame object
-			return;
-		} else if ("cancel".equals(command)) {
-			setVisible(false); // you can't see me!
-			dispose(); // Destroy the JFrame object
+			dispose();
 			return;
 		}
 	}

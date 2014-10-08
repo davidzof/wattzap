@@ -44,7 +44,7 @@ import com.wattzap.model.power.Power;
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  */
-public class Odometer extends JPanel implements MessageCallback {
+public class Odo extends JPanel implements MessageCallback {
     private static final double KMTOMILES = 1.609344;
     private static final double MTOFEET = 0.3048;
 
@@ -167,7 +167,7 @@ public class Odometer extends JPanel implements MessageCallback {
                 text.setFont(font);
             }
         }
-        public static void rebuild(Odometer odo) {
+        public static void rebuild(Odo odo) {
             ValueCol v[] = values();
             int i;
             int last = -1;
@@ -203,7 +203,7 @@ public class Odometer extends JPanel implements MessageCallback {
 	private TrainingItem current = null;
 	Power power;
 
-	public Odometer() {
+	public Odo() {
 		super();
 
 		setBackground(Color.BLACK);

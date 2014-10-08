@@ -75,13 +75,10 @@ public enum UserPreferences {
     // and user settings? Hmm. serial? evalTime? What else?
     private static String user = System.getProperty("user.name");
 
-    // TODO with the use of configuration property..
+    // TODO with the use of LANG property.. and with callbacks..
 	public static ResourceBundle messages;
     static {
-        Locale currentLocale;
-        currentLocale = Locale.getDefault();
-		currentLocale = Locale.ENGLISH;
-		messages = ResourceBundle.getBundle("MessageBundle", currentLocale);
+		messages = ResourceBundle.getBundle("MessageBundle", LANG.getLocale());
     }
 
     // property values
@@ -141,6 +138,7 @@ public enum UserPreferences {
     }
     public void setString(String val) {
         if (!getString().equals(val)) {
+            strVal = val;
             set(forAll ? "" : user, name, val);
             MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
         }
@@ -161,6 +159,7 @@ public enum UserPreferences {
     }
     public void setInt(int val) {
         if (getInt()!= val) {
+            intVal = val;
             if (intCrypted) {
                 setIntCrypt(forAll ? "" : user, name, val);
             } else {
@@ -182,6 +181,7 @@ public enum UserPreferences {
     public void setDouble(double val) {
         double diff = getDouble() - val;
         if ((diff < -doubleDiff) || (diff > doubleDiff)) {
+            doubleVal = val;
             setDouble(forAll ? "" : user, name, val);
             MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
         }
@@ -198,6 +198,7 @@ public enum UserPreferences {
     }
     public void setBool(boolean val) {
         if (getBool() != val) {
+            boolVal = val;
             setBoolean(forAll ? "" : user, name, val);
             MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
         }
@@ -306,6 +307,16 @@ public enum UserPreferences {
 	public void setAntUSBM(boolean value) {
 		ANT_USBM.setBool(value);
 	}
+
+    public Locale getLocale() {
+        return Locale.forLanguageTag(LANG.getString());
+    }
+    public String getLang() {
+        return LANG.getString();
+    }
+    public void setLang(String lang) {
+        LANG.setString(lang);
+    }
 
 	public boolean isDebug() {
         return DEBUG.getBool();
@@ -423,25 +434,36 @@ public enum UserPreferences {
 
 
     public void addWorkout(WorkoutData data) {
-		ds.saveWorkOut(user, data);
+		getDS().saveWorkOut(user, data);
 	}
 	public WorkoutData getWorkout(String name) {
-		return ds.getWorkout(user, name);
+		return getDS().getWorkout(user, name);
 	}
 	public void deleteWorkout(String name) {
-		ds.deleteWorkout(user, name);
+		getDS().deleteWorkout(user, name);
 	}
 	public List<WorkoutData> listWorkouts() {
-		return ds.listWorkouts(user);
+		return getDS().listWorkouts(user);
 	}
 
-    // TODO move to dataStore!
 	// Data Access Functions
-	private static final String cryptKey = "afghanistanbananastan";
-	private static final DataStore ds = new DataStore(getWD(), cryptKey);
+	private static DataStore ds = null;
+    private DataStore getDS() {
+        if (ds == null) {
+        	String cryptKey = "afghanistanbananastan";
+            ds = new DataStore(getWD(), cryptKey);
+        }
+        return ds;
+    }
+	public void shutDown() {
+        if (ds != null) {
+    		ds.close();
+            ds = null;
+        }
+	}
 
-	private static double getDouble(String user, String key, double d) {
-		String v = ds.getProp(user, key);
+	private double getDouble(String user, String key, double d) {
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				d = Double.parseDouble(v);
@@ -453,12 +475,12 @@ public enum UserPreferences {
 		return d;
 	}
 
-	private static void setDouble(String user, String key, double d) {
+	private void setDouble(String user, String key, double d) {
 		ds.insertProp(user, key, Double.toString(d));
 	}
 
-	private static int getInt(String user, String key, int i) {
-		String v = ds.getProp(user, key);
+	private int getInt(String user, String key, int i) {
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				i = Integer.parseInt(v);
@@ -470,8 +492,8 @@ public enum UserPreferences {
 		return i;
 	}
 
-	private static int getIntCrypt(String user, String key, int i) {
-		String v = ds.getPropCrypt(user, key);
+	private int getIntCrypt(String user, String key, int i) {
+		String v = getDS().getPropCrypt(user, key);
 		if (v != null) {
 			try {
 				i = Integer.parseInt(v);
@@ -483,7 +505,7 @@ public enum UserPreferences {
 		return i;
 	}
 
-	private static void setInt(String user, String key, int i) {
+	private void setInt(String user, String key, int i) {
 		ds.insertProp(user, key, Integer.toString(i));
 	}
 
@@ -491,8 +513,8 @@ public enum UserPreferences {
 		ds.insertPropCrypt(user, key, Integer.toString(i));
 	}
 
-	private static boolean getBoolean(String user, String key, boolean b) {
-		String v = ds.getProp(user, key);
+	private boolean getBoolean(String user, String key, boolean b) {
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				b = Boolean.parseBoolean(v);
@@ -504,24 +526,20 @@ public enum UserPreferences {
 		return b;
 	}
 
-	private static void setBoolean(String user, String key, boolean b) {
+	private void setBoolean(String user, String key, boolean b) {
 		ds.insertProp(user, key, Boolean.toString(b));
 	}
 
-	private static String get(String user, String key, String s) {
-		String v = ds.getProp(user, key);
+	private String get(String user, String key, String s) {
+		String v = getDS().getProp(user, key);
 		if (v == null) {
 			v = s;
 		}
 		return v;
 	}
 
-	private static void set(String user, String key, String s) {
+	private void set(String user, String key, String s) {
 		ds.insertProp(user, key, s);
-	}
-
-	public static void shutDown() {
-		ds.close();
 	}
 
 	/*

@@ -57,7 +57,7 @@ import com.wattzap.view.AboutPanel;
 import com.wattzap.view.ControlPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
-import com.wattzap.view.Odometer;
+import com.wattzap.view.Odo;
 import com.wattzap.view.Profile;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
@@ -150,7 +150,7 @@ public class Main implements Runnable {
         // activated if simulSpeed is selected.
         new DefaultTelemetryProcessor().initialize();
 
-        JPanel odo = new Odometer();
+        JPanel odo = new Odo();
 
 		// Performs an isregister check, be careful if we move below AboutPanel
 		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);

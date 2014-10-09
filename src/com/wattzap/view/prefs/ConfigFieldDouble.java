@@ -65,8 +65,9 @@ public abstract class ConfigFieldDouble implements ConfigFieldIntf {
             label.setText(name);
         }
 		panel.add(label);
-		value = new JTextField(20);
-        value.getDocument().putProperty("prop", property);
+
+        value = new JTextField(20);
+        value.getDocument().putProperty("name", property.getName());
         value.getDocument().addDocumentListener(panel);
         if ((metricUnit != null) || (imperialUnit != null)) {
     		panel.add(value);
@@ -79,12 +80,13 @@ public abstract class ConfigFieldDouble implements ConfigFieldIntf {
     }
 
     @Override
-    public UserPreferences getProp() {
-        return property;
+    public String getName() {
+        // must be same as during registration in value field..
+        return property.getName();
     }
 
     @Override
-    public void propertyChanged(UserPreferences prop, UserPreferences changed) {
+    public void propertyChanged(UserPreferences prop, String changed) {
         if ((prop == UserPreferences.METRIC) || (prop == UserPreferences.INSTANCE)) {
             conversion =  prop.isMetric() ? 1.0 : imperialConv;
             if (unit != null) {
@@ -92,7 +94,7 @@ public abstract class ConfigFieldDouble implements ConfigFieldIntf {
                 unit.setText(label);
             }
         }
-        if ((changed != property) && (
+        if ((!getName().equals(changed)) && (
                 (prop == property) ||
                 (prop == UserPreferences.INSTANCE) ||
                 (prop == UserPreferences.METRIC))) {

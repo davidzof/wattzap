@@ -16,11 +16,13 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.view.prefs.EnumerationIntf;
+
 /**
  *
  * @author Jarek
  */
-public enum VirtualPowerEnum {
+public enum VirtualPowerEnum implements EnumerationIntf {
     // computes power from wheelSpeed
     SPEED_TO_POWER("speed2power"),
     // computes wheel speed from power. If (any) power sensor is not
@@ -33,12 +35,25 @@ public enum VirtualPowerEnum {
     // compute wheel speed which is necessary to run video with 1:1 speed
     VIDEO_SPEED("videoSpeed");
 
-    private String key;
+    // TODO add handler classes, checking whether enabled, etc..
 
+    private String key;
     private VirtualPowerEnum(String key) {
         this.key = key;
     }
+
+    @Override
     public String getKey() {
         return key;
+    }
+
+    @Override
+    public boolean isValid() {
+        return true;
+    }
+
+    @Override
+    public EnumerationIntf[] getValues() {
+        return VirtualPowerEnum.values();
     }
 }

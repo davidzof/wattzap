@@ -14,18 +14,22 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.view.prefs;
-
-import com.wattzap.model.UserPreferences;
+package com.wattzap.model.dto;
 
 /**
- * General interface for single parameter
+ * Enum to be used to compute field properness.
+ * Field by default is OK, if no value computed by any handler NOT_SET.
+ * If value is too big or too small and data is OK these values are set.
+ * If there is a confilict, WRONG value is set.
+ * These values shall be reported by telemetryHandlers: fit training file,
+ * "simulation" profiles (when sensor data differ) and so on.
+ *
  * @author Jarek
  */
-public interface ConfigFieldIntf {
-    String getName();
-    // value in the field was changed, it must be set in property
-    void fieldChanged();
-    // property changed, it must be updated (if not "local" change)
-    void propertyChanged(UserPreferences prop, String locallyChanged);
+public enum TelemetryValidityEnum {
+    NOT_SET,
+    TOO_SMALL,
+    OK,
+    TOO_BIG,
+    WRONG
 }

@@ -62,6 +62,9 @@ public enum UserPreferences {
 
     DB_VERSION("dbVersion", "1.2"),
 
+    // special property for sensors, cannot be get/set outside callback
+    SENSOR("sensor"),
+
     // backward compability, cannot be get/set
 	INSTANCE;
 
@@ -94,14 +97,14 @@ public enum UserPreferences {
 
     private UserPreferences() {
         this.name = null;
-	}
-    private UserPreferences(String name, String val) {
-        this.name = name;
-        strVal = val;
     }
     private UserPreferences(String name) {
         this.name = name;
-        strVal = "";
+        this.initialized = true;
+    }
+    private UserPreferences(String name, String val) {
+        this.name = name;
+        strVal = val;
     }
     private UserPreferences(String name, double val, double diff) {
         this.name = name;
@@ -127,9 +130,7 @@ public enum UserPreferences {
         return name;
     }
     public String getString() {
-        if (strVal == null) {
-            throw new UnsupportedOperationException(name + " is not a string");
-        }
+        assert (strVal != null) : name + " is not a string";
         if (!initialized) {
             strVal = get(forAll ? "" : user, name, strVal);
             initialized = true;
@@ -144,9 +145,7 @@ public enum UserPreferences {
         }
     }
     public int getInt() {
-        if (intVal == null) {
-            throw new UnsupportedOperationException(name + " is not a integer");
-        }
+        assert (intVal != null) : name + " is not an integer";
         if (!initialized) {
             if (intCrypted) {
                 intVal = getIntCrypt(forAll ? "" : user, name, intVal);
@@ -169,9 +168,7 @@ public enum UserPreferences {
         }
     }
     public double getDouble() {
-        if (doubleVal == null) {
-            throw new UnsupportedOperationException(name + " is not a double");
-        }
+        assert (doubleVal != null) : name + " is not a double";
         if (!initialized) {
             doubleVal = getDouble(forAll ? "" : user, name, doubleVal);
             initialized = true;
@@ -187,9 +184,7 @@ public enum UserPreferences {
         }
     }
     public boolean getBool() {
-        if (boolVal == null) {
-            throw new UnsupportedOperationException(name + " is not a bool");
-        }
+        assert (boolVal != null) : name + " is not a bool";
         if (!initialized) {
             boolVal = getBoolean(forAll ? "" : user, name, boolVal);
             initialized = true;
@@ -420,14 +415,24 @@ public enum UserPreferences {
 		setInt(user, "hrmid", i);
 	}
 
+    // TODO add getSensors, set/getSensorProfile(profile enum..)
+    // but this is quite bigger issue and need a bit more work..
     public void setSensorId(String sensorName, int sensorId) {
-        setInt(user, sensorName + "id", sensorId);
+        System.err.println("set " + sensorName + "=" + sensorId);
+        SENSOR.strVal = sensorName;
+        SENSOR.intVal = sensorId;
+        MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSOR);
+        SENSOR.strVal = null;
+        SENSOR.intVal = null;
+        setInt(user, "*" + sensorName, sensorId);
     }
     public int getSensorId(String sensorName) {
-		return getInt(user, sensorName + "id", 0);
+        int sensorId = getInt(user, "*" + sensorName, 0);
+        System.err.println("return " + sensorName + "=" + sensorId);
+        return sensorId;
 	}
     public void removeSensor(String sensorName) {
-        // TODO
+        set(user, "*" + sensorName, null);
     }
 
 
@@ -539,7 +544,11 @@ public enum UserPreferences {
 	}
 
 	private void set(String user, String key, String s) {
-		ds.insertProp(user, key, s);
+        if (s != null) {
+    		ds.insertProp(user, key, s);
+        } else {
+            ds.deleteProp(user, key);
+        }
 	}
 
 	/*

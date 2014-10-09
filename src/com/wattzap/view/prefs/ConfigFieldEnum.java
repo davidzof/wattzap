@@ -17,21 +17,22 @@
 package com.wattzap.view.prefs;
 
 import com.wattzap.model.UserPreferences;
-import java.awt.Color;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
-import javax.swing.JTextField;
 
 /**
  *
  * @author Jarek
  */
-public abstract class ConfigFieldInt implements ConfigFieldIntf {
+public abstract class ConfigFieldEnum implements ConfigFieldIntf {
+    private final EnumerationIntf enumeration;
     private final UserPreferences property;
 
-    private final JTextField value;
+    private final JComboBox value;
 
-    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
+    public ConfigFieldEnum(ConfigPanel panel, UserPreferences property, String name, EnumerationIntf e) {
         this.property = property;
+        this.enumeration = e;
 
         JLabel label = new JLabel();
         if (UserPreferences.INSTANCE.messages.containsKey(name)) {
@@ -40,9 +41,21 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
             label.setText(name);
         }
 		panel.add(label);
-		value = new JTextField(20);
-        value.getDocument().putProperty("name", property.getName());
-        value.getDocument().addDocumentListener(panel);
+
+        value = new JComboBox();
+        for (int i = 0; i < enumeration.getValues().length; i++) {
+            EnumerationIntf en = enumeration.getValues()[i];
+            if (UserPreferences.INSTANCE.messages.containsKey(en.getKey())) {
+                value.addItem(UserPreferences.INSTANCE.messages.getString(en.getKey()));
+            } else {
+                value.addItem(en.getKey());
+            }
+            if (!en.isValid()) {
+                // TODO block this option..
+            }
+        }
+        value.setActionCommand(property.getName());
+        value.addActionListener(panel);
 		panel.add(value, "span");
     }
 
@@ -54,34 +67,16 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
 
     @Override
     public void propertyChanged(UserPreferences prop, String changed) {
-        if ((!getName().equals(changed)) && (
-                (prop == property) ||
-                (prop == UserPreferences.INSTANCE))) {
-            value.setText(String.format("%d", getProperty()));
+        if ((prop == property) || (prop == UserPreferences.INSTANCE)) {
+            value.setSelectedIndex(getProperty().ordinal());
         }
     }
-    public abstract int getProperty();
+    public abstract EnumerationIntf getProperty();
 
 
     @Override
     public void fieldChanged() {
-        int val = 0;
-        boolean valid;
-        try {
-            val = Integer.parseInt(value.getText());
-            valid = isValid(val);
-        } catch (NumberFormatException nfe) {
-            valid = false;
-        }
-        if (valid) {
-            value.setBackground(Color.WHITE);
-            setProperty(val);
-        } else {
-            value.setBackground(Color.RED);
-        }
+        setProperty(enumeration.getValues()[value.getSelectedIndex()]);
     }
-    public boolean isValid(int val) {
-        return true;
-    }
-    public abstract void setProperty(int val);
+    public abstract void setProperty(EnumerationIntf val);
 }

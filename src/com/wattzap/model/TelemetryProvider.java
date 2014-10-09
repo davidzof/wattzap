@@ -108,12 +108,9 @@ public enum TelemetryProvider implements MessageCallback
         if (sensor == null) {
             sensors.remove(data);
         } else {
-            if (sensor instanceof SensorIntf) {
-                sensors.put(data, (SensorIntf) sensor);
-            } else {
-                throw new UnsupportedOperationException(
-                        "Non-sensor handler " + sensor.getPrettyName());
-            }
+            assert sensor instanceof SensorIntf :
+                    "Non-sensor handler " + sensor.getPrettyName();
+            sensors.put(data, (SensorIntf) sensor);
         }
     }
 
@@ -210,7 +207,7 @@ public enum TelemetryProvider implements MessageCallback
                         t.setPaused((int)value);
                         break;
                     default:
-                        throw new UnsupportedOperationException("Telemetry provider doesn't handle " + prop);
+                        assert false : "Telemetry provider doesn't handle " + prop;
                 }
             }
             t.setTime(runtime);

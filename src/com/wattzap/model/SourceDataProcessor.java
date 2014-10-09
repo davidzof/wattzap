@@ -49,22 +49,18 @@ public abstract class SourceDataProcessor
 
     @Override
     public void activate(boolean active) {
-        throw new UnsupportedOperationException("Only telemetryProcessors can be activated");
+        assert false : "Only telemetryProcessors can be activated";
     }
 
     @Override
     public double getValue(SourceDataEnum data) {
-        if (!provides(data)) {
-            throw new UnsupportedOperationException(data + " is not provided");
-        }
+        assert provides(data) : data + " is not provided";
         synchronized(this) {
             return values[data.ordinal()];
         }
     }
     protected void setValue(SourceDataEnum data, double value) {
-        if (!provides(data)) {
-            throw new UnsupportedOperationException(data + " is not provided");
-        }
+        assert provides(data) : data + " is not provided";
         synchronized(this) {
             values[data.ordinal()] = value;
         }
@@ -72,7 +68,8 @@ public abstract class SourceDataProcessor
     /* WARNING Not usable for telemetryProcessors, only valid for sensors */
     @Override
     public long getModificationTime(SourceDataEnum data) {
-        throw new UnsupportedOperationException("Only sensors handle property modification time");
+        assert false : "Only sensors handle property modification time";
+        return 0;
     }
 
 
@@ -84,7 +81,8 @@ public abstract class SourceDataProcessor
     }
 
     protected long setLastMessageTime() {
-        throw new UnsupportedOperationException("Only sensors handles message current time!");
+        assert false : "Only sensors handles message current time!";
+        return 0;
     }
 
     protected long setLastMessageTime(long time) {

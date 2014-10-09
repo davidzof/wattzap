@@ -36,18 +36,19 @@ public abstract class ConfigFieldCheck implements ConfigFieldIntf {
         } else {
             value = new JCheckBox(name);
         }
-        value.setActionCommand(property.toString());
+        value.setActionCommand(property.getName());
         value.addActionListener(panel);
 		panel.add(value, "span");
     }
 
     @Override
-    public UserPreferences getProp() {
-        return property;
+    public String getName() {
+        // must be same as during registration in value field..
+        return property.getName();
     }
 
     @Override
-    public void propertyChanged(UserPreferences prop, UserPreferences change) {
+    public void propertyChanged(UserPreferences prop, String changed) {
         if ((prop == property) || (prop == UserPreferences.INSTANCE)) {
             value.setSelected(getProperty());
         }

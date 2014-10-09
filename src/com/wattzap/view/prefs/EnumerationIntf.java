@@ -16,16 +16,14 @@
  */
 package com.wattzap.view.prefs;
 
-import com.wattzap.model.UserPreferences;
-
 /**
- * General interface for single parameter
+ *
  * @author Jarek
  */
-public interface ConfigFieldIntf {
-    String getName();
-    // value in the field was changed, it must be set in property
-    void fieldChanged();
-    // property changed, it must be updated (if not "local" change)
-    void propertyChanged(UserPreferences prop, String locallyChanged);
+public interface EnumerationIntf {
+    EnumerationIntf[] getValues();
+    String getKey();
+    // ordinal() is defined in enum.. just interface method :)
+    int ordinal();
+    boolean isValid();
 }

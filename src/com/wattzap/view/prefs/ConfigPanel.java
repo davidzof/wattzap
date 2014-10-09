@@ -34,8 +34,8 @@ import net.miginfocom.swing.MigLayout;
  * @author Jarek
  */
 public class ConfigPanel extends JPanel implements ActionListener, DocumentListener, MessageCallback {
-    private final Map<UserPreferences, ConfigFieldIntf> fields = new HashMap<>();
-    private UserPreferences changedProperty;
+    private final Map<String, ConfigFieldIntf> fields = new HashMap<>();
+    private String changedProperty;
 
     public ConfigPanel() {
         // register messages
@@ -49,22 +49,22 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     }
 
     public void add(ConfigFieldIntf field) {
-        if ((field.getProp() == null) || (field.getProp() == UserPreferences.INSTANCE)) {
-            throw new UnsupportedOperationException("Invalid property for field");
-        }
-        fields.put(field.getProp(), field);
+        assert !fields.containsKey(field.getName()) :
+            "Field " + field.getName() + " already in the panel";
+
+        fields.put(field.getName(), field);
         // initialize values and labels, only in this field
         field.propertyChanged(UserPreferences.INSTANCE, null);
     }
 
-    private void fieldChanged(UserPreferences property) {
-        // if listener was called with wrong property..
-        if ((property == null) || (property == UserPreferences.INSTANCE)) {
+    private void fieldChanged(String name) {
+        // if listener was called with no property or unknown one..
+        if ((name == null) || (!fields.containsKey(name))) {
             return;
         }
-        ConfigFieldIntf field = fields.get(property);
+        ConfigFieldIntf field = fields.get(name);
         if (field != null) {
-            changedProperty =  property;
+            changedProperty =  name;
             field.fieldChanged();
             changedProperty = null;
         }
@@ -73,22 +73,21 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     // callbacks for textFields
     @Override
     public void insertUpdate(DocumentEvent e) {
-        fieldChanged((UserPreferences) e.getDocument().getProperty("prop"));
+        fieldChanged((String) e.getDocument().getProperty("name"));
     }
     @Override
     public void removeUpdate(DocumentEvent e) {
-        fieldChanged((UserPreferences) e.getDocument().getProperty("prop"));
+        fieldChanged((String) e.getDocument().getProperty("name"));
     }
     @Override
     public void changedUpdate(DocumentEvent e) {
-        fieldChanged((UserPreferences) e.getDocument().getProperty("prop"));
+        fieldChanged((String) e.getDocument().getProperty("name"));
     }
 
     // callbacks for "normal" fields, actionCommand is a name of property
     @Override
     public void actionPerformed(ActionEvent e) {
-        UserPreferences p = UserPreferences.valueOf(null);
-        fieldChanged(UserPreferences.valueOf(e.getActionCommand()));
+        fieldChanged(e.getActionCommand());
     }
 
     // configuration changed callback

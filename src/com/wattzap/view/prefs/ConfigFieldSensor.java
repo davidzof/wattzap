@@ -25,13 +25,15 @@ import javax.swing.JTextField;
  *
  * @author Jarek
  */
-public abstract class ConfigFieldInt implements ConfigFieldIntf {
-    private final UserPreferences property;
+public class ConfigFieldSensor implements ConfigFieldIntf {
+    private final String name;
+    private final String fieldName;
 
     private final JTextField value;
 
-    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
-        this.property = property;
+    public ConfigFieldSensor(ConfigPanel panel, String name) {
+        this.name = name;
+        this.fieldName = "*" + name;
 
         JLabel label = new JLabel();
         if (UserPreferences.INSTANCE.messages.containsKey(name)) {
@@ -40,8 +42,9 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
             label.setText(name);
         }
 		panel.add(label);
-		value = new JTextField(20);
-        value.getDocument().putProperty("name", property.getName());
+
+        value = new JTextField(20);
+        value.getDocument().putProperty("name", fieldName);
         value.getDocument().addDocumentListener(panel);
 		panel.add(value, "span");
     }
@@ -49,18 +52,19 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
     @Override
     public String getName() {
         // must be same as during registration in value field..
-        return property.getName();
+        return fieldName;
     }
 
     @Override
     public void propertyChanged(UserPreferences prop, String changed) {
-        if ((!getName().equals(changed)) && (
-                (prop == property) ||
-                (prop == UserPreferences.INSTANCE))) {
-            value.setText(String.format("%d", getProperty()));
+        if (getName().equals(changed)) {
+            return;
+        }
+        if (((prop == UserPreferences.SENSOR) && (name.equals(prop.getString())))
+                || (prop == UserPreferences.INSTANCE)) {
+            value.setText(String.format("%d", UserPreferences.SENSOR.getSensorId(name)));
         }
     }
-    public abstract int getProperty();
 
 
     @Override
@@ -75,13 +79,14 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
         }
         if (valid) {
             value.setBackground(Color.WHITE);
-            setProperty(val);
+            UserPreferences.SENSOR.setSensorId(name, val);
         } else {
             value.setBackground(Color.RED);
         }
     }
     public boolean isValid(int val) {
-        return true;
+        return (val >= 0) && (val < 65536);
     }
-    public abstract void setProperty(int val);
+
+    // add HANDLER callbacks
 }

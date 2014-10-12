@@ -16,6 +16,7 @@
  */
 package com.wattzap.view.prefs;
 
+import com.wattzap.model.EnumerationIntf;
 import com.wattzap.model.UserPreferences;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
@@ -43,6 +44,14 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
 		panel.add(label);
 
         value = new JComboBox();
+        rebuild();
+        value.setActionCommand(property.getName());
+        value.addActionListener(panel);
+		panel.add(value, "span");
+    }
+
+    public void rebuild() {
+        value.removeAllItems();
         for (int i = 0; i < enumeration.getValues().length; i++) {
             EnumerationIntf en = enumeration.getValues()[i];
             if (UserPreferences.INSTANCE.messages.containsKey(en.getKey())) {
@@ -54,9 +63,6 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
                 // TODO block this option..
             }
         }
-        value.setActionCommand(property.getName());
-        value.addActionListener(panel);
-		panel.add(value, "span");
     }
 
     @Override
@@ -76,6 +82,13 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
 
     @Override
     public void fieldChanged() {
+        // nothing selected? It is possible when all items are removed to
+        // initialize new list of values (eg. resistance levels depend on
+        // turbo). In a second this will be fixed.. but what will happen if
+        // previous value cannot be set?
+        if (value.getSelectedIndex() < 0) {
+            return;
+        }
         setProperty(enumeration.getValues()[value.getSelectedIndex()]);
     }
     public abstract void setProperty(EnumerationIntf val);

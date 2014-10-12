@@ -16,15 +16,13 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.view.prefs.EnumerationIntf;
-
 /**
  *
  * @author Jarek
  */
-public enum VirtualPowerEnum implements EnumerationIntf {
+public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     // computes power from wheelSpeed
-    SPEED_TO_POWER("speed2power"),
+    SPEED_TO_POWER("speed2power", DefaultTelemetryProcessor.class),
     // computes wheel speed from power. If (any) power sensor is not
     // available, it is impossible to run in this mode.
     POWER_TO_SPEED("power2speed"),
@@ -37,9 +35,17 @@ public enum VirtualPowerEnum implements EnumerationIntf {
 
     // TODO add handler classes, checking whether enabled, etc..
 
-    private String key;
+    private final String key;
+    private final Class clazz;
+    private SourceDataProcessorIntf handler;
+
     private VirtualPowerEnum(String key) {
+        this(key, null);
+    }
+    private VirtualPowerEnum(String key, Class clazz) {
         this.key = key;
+        this.clazz = clazz;
+        this.handler = null;
     }
 
     @Override
@@ -55,5 +61,33 @@ public enum VirtualPowerEnum implements EnumerationIntf {
     @Override
     public EnumerationIntf[] getValues() {
         return VirtualPowerEnum.values();
+    }
+
+    @Override
+    public SourceDataProcessorIntf active() {
+        return handler;
+    }
+
+    public static void setActive(SourceDataProcessorIntf handler, boolean removed) {
+        for (VirtualPowerEnum e : VirtualPowerEnum.values()) {
+            if (handler.getClass().equals(e.clazz)) {
+                if (removed) {
+                    if ((e.handler == null) || (e.handler != handler)) {
+                        System.err.println("Cannot remove " + e.getKey() +
+                            " handler " + handler.getPrettyName());
+                    } else {
+                        e.handler = null;
+                    }
+                } else {
+                    if ((e.handler != null) && (e.handler != handler)) {
+                        System.err.println("Cannot set " + e.getKey() +
+                                " handler " + handler.getPrettyName());
+                    } else {
+                        e.handler = handler;
+                    }
+                }
+                break;
+            }
+        }
     }
 }

@@ -22,7 +22,9 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.swing.JPanel;
 import javax.swing.event.DocumentEvent;
@@ -55,6 +57,16 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
         fields.put(field.getName(), field);
         // initialize values and labels, only in this field
         field.propertyChanged(UserPreferences.INSTANCE, null);
+    }
+
+    public List<ConfigFieldSensor> getSensorFields() {
+        List<ConfigFieldSensor> list = new ArrayList<>();
+        for (ConfigFieldIntf field : fields.values()) {
+            if (field instanceof ConfigFieldSensor) {
+                list.add((ConfigFieldSensor) field);
+            }
+        }
+        return list;
     }
 
     private void fieldChanged(String name) {

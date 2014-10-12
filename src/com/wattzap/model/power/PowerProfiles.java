@@ -27,11 +27,11 @@ import com.wattzap.utils.ReflexiveClassLoader;
 
 /**
  * Load all available power profiles
- * 
+ *
  * @author David George
- * 
+ *
  *         (c) 2013 David George / Wattzap.com
- * 
+ *
  */
 public enum PowerProfiles {
 	INSTANCE;

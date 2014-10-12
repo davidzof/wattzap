@@ -14,20 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model.ant;
-
-import com.wattzap.model.SensorIntf;
-import org.cowboycoders.ant.Channel;
+package com.wattzap.model;
 
 /**
- *
+ * Interface to get active (enumerated) handler
  * @author Jarek
  */
-public interface AntSensorIntf extends SensorIntf {
-    // default sensor configuration
-    int getSensorType();
-    int getSensorPeriod();
-
-    // notification about setting proper id instead of wildcard
-    void handleChannelId(Channel channel, int channelId);
+public interface HandlerEnumerationIntf extends EnumerationIntf {
+    SourceDataProcessorIntf active();
 }

@@ -16,7 +16,6 @@
 package com.wattzap.view.prefs;
 
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.VirtualPowerEnum;
 
 // TODO: Add video directory location
 public class UserPanel extends ConfigPanel {
@@ -27,7 +26,7 @@ public class UserPanel extends ConfigPanel {
 	public UserPanel() {
         super();
 
-        add(new ConfigFieldDouble(this, UserPreferences.WEIGHT, "weight",
+        add(new ConfigFieldDouble(this, UserPreferences.WEIGHT, "your_weight",
                 "%.1f", "kg", "lbs", LBSTOKG) {
             @Override
             public double getProperty() {
@@ -72,6 +71,7 @@ public class UserPanel extends ConfigPanel {
                 userPrefs.setMaxHR(val);
             }
         });
+
         add(new ConfigFieldInt(this, UserPreferences.MAX_POWER, "ftp") {
             @Override
             public int getProperty() {
@@ -93,19 +93,5 @@ public class UserPanel extends ConfigPanel {
                 userPrefs.setMetric(val);
             }
         });
-
-        add(new ConfigFieldEnum(this, UserPreferences.VIRTUAL_POWER, "virtualPower", VirtualPowerEnum.FTP_SIMULATION) {
-            @Override
-            public EnumerationIntf getProperty() {
-                return userPrefs.getVirtualPower();
-            }
-            @Override
-            public void setProperty(EnumerationIntf val) {
-                userPrefs.setVirtualPower((VirtualPowerEnum) val);
-            }
-        });
-
-        add(new ConfigFieldSensor(this, "hrm"));
-        add(new ConfigFieldSensor(this, "sandc"));
 	}
 }

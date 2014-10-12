@@ -40,8 +40,8 @@ public class SpeedAndCadenceSensor extends AntSensor {
     // wheel circumference [mm], taken from configuration
     double wheelSize = 1496.0;
 
-    public SpeedAndCadenceSensor() {
-        setPrettyName("sandc");
+    public SpeedAndCadenceSensor(String name) {
+        setPrettyName(name);
     }
 
     @Override
@@ -81,20 +81,23 @@ public class SpeedAndCadenceSensor extends AntSensor {
 
 
         int wTD = wT - wTlast; // time delta
-        // "from time to time".. Sensor reports time in wrong order, some
-        // "past" values are injected: eg times are: 61091 *59395* 61735 62778..
-        // when rollover is detected, the difference is -6xxxx. I hope it is
-        // enough
+        // "from time to time".. it hapens that time is back several seconds
         if (wTD < -5000) {
             wTD += 65536;
         } else if (wTD < 0) {
             msg += " wTD=" + wTD;
         }
 		int wRD = wR - wRlast; // wheel rotations within the time
-        if (wRD < -100) {
+        if (wRD < -10) {
             wRD += 65536;
         } else if (wRD < 0) {
             msg += " wRD=" + wRD;
+        }
+        // "from time to time".. it hapens that time is back several seconds
+        // let's try to synchronize with this bogus value..
+        if ((wRD < 0) || (wTD < 0)) {
+            wTlast = wT;
+            wRlast = wR;
         }
         // wheel rotation detected.. and time delta is NOT zero
         // Sometimes time doesn't advance when rotation is detected (buggy sensor?)
@@ -102,7 +105,7 @@ public class SpeedAndCadenceSensor extends AntSensor {
             // first rotation (after pause or in session) might have very short
             // update time, so it must be discarded and speed 0 must be reported.
             // Proper speed is reported just next update.
-            if (time > getModificationTime(SourceDataEnum.WHEEL_SPEED) + 10000) {
+            if (time > getModificationTime(SourceDataEnum.WHEEL_SPEED) + 5000) {
                 setValue(SourceDataEnum.WHEEL_SPEED, 0.0);
                 msg += " first speed update";
             } else {
@@ -122,12 +125,16 @@ public class SpeedAndCadenceSensor extends AntSensor {
             msg += " cTD=" + cTD;
         }
 		int cRD = cR - cRlast; // crank rotations within the time
-        if (cRD < -100) {
+        if (cRD < -10) {
             cRD += 65536;
         } else if (cRD < 0) {
             msg += " cRD=" + cRD;
         }
-        if ((cRD != 0) && (cTD != 0)) {
+        if ((cRD < 0) || (cTD < 0)) {
+            cTlast = cT;
+            cRlast = cR;
+        }
+        if ((cRD > 0) && (cTD > 0)) {
             if (time > getModificationTime(SourceDataEnum.CADENCE) + 10000) {
                 setValue(SourceDataEnum.CADENCE, 0.0);
                 msg += " first cadence update";
@@ -141,7 +148,7 @@ public class SpeedAndCadenceSensor extends AntSensor {
             cRlast = cR;
         }
         if ((wTD < 0) || (wRD < 0) || (cTD < 0) || (cRD < 0)) {
-            logger.error(msg);
+            System.err.println(msg);
         } else {
             logger.debug(msg);
         }

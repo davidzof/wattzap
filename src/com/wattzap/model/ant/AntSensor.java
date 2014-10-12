@@ -19,9 +19,7 @@ package com.wattzap.model.ant;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.Sensor;
-import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.SubsystemTypeEnum;
-import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.UserPreferences;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -36,32 +34,13 @@ import org.cowboycoders.ant.messages.data.BroadcastDataMessage;
 public abstract class AntSensor extends Sensor
     implements AntSensorIntf, BroadcastListener<BroadcastDataMessage>
 {
-	private static Logger logger = LogManager.getLogger("Sensor");
+	private static final Logger logger = LogManager.getLogger("Sensor");
 
-    /* sensorId might be changed when paired */
-    private int sensorId; // synchronized
     private Channel channel = null;
-    private AntSubsystemIntf subsystem = null;
-
 
     @Override
-    public SourceDataProcessorIntf initialize() {
-        setSensorId(UserPreferences.INSTANCE.getSensorId(getPrettyName()));
-        return super.initialize();
-    }
-
-    @Override
-    public int getSensorId() {
-        synchronized (this) {
-            return sensorId;
-        }
-    }
-
-    @Override
-    public void setSensorId(int sId) {
-        synchronized (this) {
-            sensorId = sId;
-        }
+    public SubsystemTypeEnum getSubsystemType() {
+        return SubsystemTypeEnum.ANT;
     }
 
     // handling received message data
@@ -69,12 +48,17 @@ public abstract class AntSensor extends Sensor
 
     @Override
 	public void receiveMessage(BroadcastDataMessage message) {
+        // sensor just stopped while message received.. ignore it!
+        if (channel == null) {
+            return;
+        }
+
         if (setLastMessageTime() == 0) {
             logger.debug("First " + getPrettyName() + " message received, sensorId=" + getSensorId());
             if (getSensorId() == 0) {
                 // if sensorId is a mask, just get real value and update configuration
                 // when new sensorId is received, notification about sensor ready is sent
-                new AntSensorIdQuery(subsystem, this, channel).start();
+                new AntSensorIdQuery(this, channel).start();
             } else {
                 // imediatelly send notification about sensor ready
                 MessageBus.INSTANCE.send(Messages.HANDLER, this);
@@ -85,62 +69,50 @@ public abstract class AntSensor extends Sensor
         storeReceivedData(getLastMessageTime(), data);
     }
 
-	@Override
-	public void callback(Messages message, Object o) {
-		switch (message) {
-            case CONFIG_CHANGED:
-                logger.debug("Configuration changed for " + getPrettyName() + " #" + getSensorId());
-                // if sensorId was changed, it might be important to restart the channel
-                // No single property exist for sensors, it must be handled by INSTANCE..
-                if (UserPreferences.INSTANCE.getSensorId(getPrettyName()) != getSensorId()) {
-                    logger.debug("Sensor id changed to " + UserPreferences.INSTANCE.getSensorId(getPrettyName()));
-                    setSensorId(UserPreferences.INSTANCE.getSensorId(getPrettyName()));
-                    // if channel exist.. just recreate it in order to get proper messages.
-                    if (channel != null) {
-                        logger.debug("Restart channel for " + getPrettyName() + " #" + getSensorId());
-                        subsystem.closeChannel(channel);
-                        setLastMessageTime(0);
-                        channel = subsystem.createChannel(getSensorId(), this);
-                    }
-                }
-                configChanged(UserPreferences.INSTANCE);
-                break;
+    @Override
+    public void setSensorId(int sensorId) {
+        synchronized(this) {
+            // channel is recreated only if non-zero id is replaced with another
+            // non-zero id..
+            if ((channel != null) && (getSensorId() != 0) && (getSensorId() != sensorId)) {
+                // to avoid race condition with handling messages, all messages
+                // (from the "past") must be discarded
+                Channel chn = channel;
+                channel = null;
+                ((AntSubsystemIntf) getSubsystem()).closeChannel(chn);
+                logger.debug("Restart channel for " + getPrettyName() + " #" + sensorId);
+                setLastMessageTime(0);
+                assert getSubsystem() != null : "Subsystem doesn't exist";
+                channel = ((AntSubsystemIntf) getSubsystem()).createChannel(sensorId, this);
+            }
+            // store new id..
+            super.setSensorId(sensorId);
+        }
+    }
 
-            case SUBSYSTEM:
-                if (((SubsystemIntf) o).getType() == SubsystemTypeEnum.ANT) {
-                    if (subsystem == null) {
-                        subsystem = (AntSubsystemIntf) o;
-                    } else if (subsystem != o) {
-                        logger.error("Different subsystem of type ANT found?!?!");
-                        return;
-                    }
-                    if (subsystem.isOpen()) {
-                        if (channel == null) {
-                            logger.debug("Subsystem started, create channel for " + getSensorId());
-                            channel = subsystem.createChannel(sensorId, this);
-                        }
-                    } else {
-                        if (channel != null) {
-                            logger.debug("Subsystem stopped, close channel for " + getSensorId());
-                            subsystem.closeChannel(channel);
-                            channel = null;
-                            setLastMessageTime(0);
-                        }
-                    }
-                }
-                break;
-            case SUBSYSTEM_REMOVED:
-                if (subsystem == (AntSubsystemIntf) o) {
-                    logger.debug("ANT Subsystem removed");
-                    if (channel != null) {
-                        logger.debug("Subsystem removed, close channel for " + getSensorId());
-                        subsystem.closeChannel(channel);
-                        channel = null;
-                        setLastMessageTime(0);
-                    }
-                    subsystem = null;
-                }
-                break;
+    @Override
+    public void subsystemState(boolean enabled) {
+        if (enabled) {
+            assert (channel == null) : "Channel already created";
+            logger.debug("Subsystem started, create channel for " + getSensorId());
+            channel = ((AntSubsystemIntf) getSubsystem()).createChannel(getSensorId(), this);
+        } else {
+            if (channel != null) {
+                logger.debug("Subsystem stopped, close channel for " + getSensorId());
+                ((AntSubsystemIntf) getSubsystem()).closeChannel(channel);
+                channel = null;
+            }
+        }
+    }
+
+    @Override
+    public void handleChannelId(Channel channel, int sensorId) {
+        // if response is from requested channel..
+        if ((this.channel == channel) && (getSensorId() == 0)) {
+            setSensorId(sensorId);
+            // this call configChanged callback
+            UserPreferences.INSTANCE.setSensorId(getPrettyName(), sensorId);
+            MessageBus.INSTANCE.send(Messages.HANDLER, this);
         }
     }
 }

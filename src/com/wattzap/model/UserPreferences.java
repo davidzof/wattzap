@@ -34,6 +34,8 @@ import com.wattzap.model.power.PowerProfiles;
  *
  */
 public enum UserPreferences {
+    RUNNING("running", false),
+
     RESISTANCE("resistance", 1),
     VIRTUAL_POWER("virtualPower", 0),
     DEBUG("debug", false),
@@ -47,7 +49,7 @@ public enum UserPreferences {
 
     LANG("lang", "EN"),
 
-    EVAL_TIME("evalTime", 240, true),
+    EVAL_TIME("evalTime", 240),
     SERIAL("ssn", ""),
     REGKEY("rsnn", ""),
 
@@ -62,8 +64,11 @@ public enum UserPreferences {
 
     DB_VERSION("dbVersion", "1.2"),
 
-    // special property for sensors, cannot be get/set outside callback
-    SENSOR("sensor"),
+    // special property for sensors, used for notification about sensorId change
+    // for specified sensorName.
+    SENSORS("sensors"),
+    // special property, not handled by the database
+    PAIRING("pairing", false),
 
     // backward compability, cannot be get/set
 	INSTANCE;
@@ -72,6 +77,8 @@ public enum UserPreferences {
         SERIAL.forAll = true;
         REGKEY.forAll = true;
         EVAL_TIME.forAll = true;
+        EVAL_TIME.intCrypted = true;
+        PAIRING.keptInDB = false;
     }
 
 	// why it must be always specified?? Are there system settings
@@ -79,6 +86,7 @@ public enum UserPreferences {
     private static String user = System.getProperty("user.name");
 
     // TODO with the use of LANG property.. and with callbacks..
+    // it must be shifted somewhere else (Messages enum??)
 	public static ResourceBundle messages;
     static {
 		messages = ResourceBundle.getBundle("MessageBundle", LANG.getLocale());
@@ -94,13 +102,15 @@ public enum UserPreferences {
     private boolean intCrypted = false;
     private String strVal = null;
     private Boolean boolVal = null;
+    private Boolean keptInDB = true;
 
     private UserPreferences() {
-        this.name = null;
+        this(null);
     }
     private UserPreferences(String name) {
         this.name = name;
         this.initialized = true;
+        this.keptInDB = false;
     }
     private UserPreferences(String name, String val) {
         this.name = name;
@@ -115,11 +125,6 @@ public enum UserPreferences {
         this.name = name;
         intVal = val;
     }
-    private UserPreferences(String name, int val, boolean crypt) {
-        this.name = name;
-        intVal = val;
-        intCrypted = crypt;
-    }
     private UserPreferences(String name, boolean val) {
         this.name = name;
         boolVal = val;
@@ -130,72 +135,104 @@ public enum UserPreferences {
         return name;
     }
     public String getString() {
-        assert (strVal != null) : name + " is not a string";
-        if (!initialized) {
-            strVal = get(forAll ? "" : user, name, strVal);
-            initialized = true;
+        synchronized(this) {
+            assert (strVal != null) : name + " is not a string";
+            if (!initialized) {
+                if (keptInDB) {
+                    strVal = get(forAll ? "" : user, name, strVal);
+                }
+                initialized = true;
+            }
+            return strVal;
         }
-        return strVal;
     }
     public void setString(String val) {
-        if (!getString().equals(val)) {
-            strVal = val;
-            set(forAll ? "" : user, name, val);
-            MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+        synchronized(this) {
+            if (!getString().equals(val)) {
+                strVal = val;
+                if (keptInDB) {
+                    set(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
         }
     }
     public int getInt() {
-        assert (intVal != null) : name + " is not an integer";
-        if (!initialized) {
-            if (intCrypted) {
-                intVal = getIntCrypt(forAll ? "" : user, name, intVal);
-            } else {
-                intVal = getInt(forAll ? "" : user, name, intVal);
+        synchronized(this) {
+            assert (intVal != null) : name + " is not an integer";
+            if (!initialized) {
+                if (keptInDB) {
+                    if (intCrypted) {
+                        intVal = getIntCrypt(forAll ? "" : user, name, intVal);
+                    } else {
+                        intVal = getInt(forAll ? "" : user, name, intVal);
+                    }
+                }
+                initialized = true;
             }
-            initialized = true;
+            return intVal;
         }
-        return intVal;
     }
     public void setInt(int val) {
-        if (getInt()!= val) {
-            intVal = val;
-            if (intCrypted) {
-                setIntCrypt(forAll ? "" : user, name, val);
-            } else {
-                setInt(forAll ? "" : user, name, val);
+        synchronized(this) {
+            if (getInt()!= val) {
+                intVal = val;
+                if (keptInDB) {
+                    if (intCrypted) {
+                        setIntCrypt(forAll ? "" : user, name, val);
+                    } else {
+                        setInt(forAll ? "" : user, name, val);
+                    }
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
             }
-            MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
         }
     }
     public double getDouble() {
-        assert (doubleVal != null) : name + " is not a double";
-        if (!initialized) {
-            doubleVal = getDouble(forAll ? "" : user, name, doubleVal);
-            initialized = true;
+        synchronized(this) {
+            assert (doubleVal != null) : name + " is not a double";
+            if (!initialized) {
+                if (keptInDB) {
+                    doubleVal = getDouble(forAll ? "" : user, name, doubleVal);
+                }
+                initialized = true;
+            }
+            return doubleVal;
         }
-        return doubleVal;
     }
     public void setDouble(double val) {
-        double diff = getDouble() - val;
-        if ((diff < -doubleDiff) || (diff > doubleDiff)) {
-            doubleVal = val;
-            setDouble(forAll ? "" : user, name, val);
-            MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+        synchronized(this) {
+            double diff = getDouble() - val;
+            if ((diff < -doubleDiff) || (diff > doubleDiff)) {
+                doubleVal = val;
+                if (keptInDB) {
+                    setDouble(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
         }
     }
     public boolean getBool() {
-        assert (boolVal != null) : name + " is not a bool";
-        if (!initialized) {
-            boolVal = getBoolean(forAll ? "" : user, name, boolVal);
-            initialized = true;
+        synchronized(this) {
+            assert (boolVal != null) : name + " is not a bool";
+            if (!initialized) {
+                if (keptInDB) {
+                    boolVal = getBoolean(forAll ? "" : user, name, boolVal);
+                }
+                initialized = true;
+            }
+            return boolVal;
         }
-        return boolVal;
     }
     public void setBool(boolean val) {
-        if (getBool() != val) {
-            boolVal = val;
-            setBoolean(forAll ? "" : user, name, val);
-            MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+        synchronized(this) {
+            if (getBool() != val) {
+                boolVal = val;
+                if (keptInDB) {
+                    setBoolean(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
         }
     }
 
@@ -204,36 +241,44 @@ public enum UserPreferences {
 
 
 
-	public Rectangle getMainBounds() {
-		int width = getInt("", "mainWidth", 1200);
-		int height = getInt("", "mainHeight", 650);
-		int x = getInt("", "mainX", 0);
-		int y = getInt("", "mainY", 0);
+	// These functions are called only by GUI
+    public Rectangle getMainBounds() {
+		int width = getInt(user, "mainWidth", 1200);
+		int height = getInt(user, "mainHeight", 650);
+		int x = getInt(user, "mainX", 0);
+		int y = getInt(user, "mainY", 0);
 		Rectangle r = new Rectangle(x, y, width, height);
 		return r;
 	}
 	public void setMainBounds(Rectangle r) {
-		setInt("", "mainHeight", r.height);
-		setInt("", "mainWidth", r.width);
-		setInt("", "mainX", r.x);
-		setInt("", "mainY", r.y);
+		setInt(user, "mainHeight", r.height);
+		setInt(user, "mainWidth", r.width);
+		setInt(user, "mainX", r.x);
+		setInt(user, "mainY", r.y);
 	}
 	public Rectangle getVideoBounds() {
-		int width = getInt("", "videoWidth", 800);
-		int height = getInt("", "videoHeight", 600);
-		int x = getInt("", "videoX", 0);
-		int y = getInt("", "videoY", 650);
+		int width = getInt(user, "videoWidth", 800);
+		int height = getInt(user, "videoHeight", 600);
+		int x = getInt(user, "videoX", 0);
+		int y = getInt(user, "videoY", 650);
 		Rectangle r = new Rectangle(x, y, width, height);
 		return r;
 	}
 	public void setVideoBounds(Rectangle r) {
-		setInt("", "videoHeight", r.height);
-		setInt("", "videoWidth", r.width);
-		setInt("", "videoX", r.x);
-		setInt("", "videoY", r.y);
+		setInt(user, "videoHeight", r.height);
+		setInt(user, "videoWidth", r.width);
+		setInt(user, "videoX", r.x);
+		setInt(user, "videoY", r.y);
 	}
 
 
+
+    public boolean isStarted() {
+        return RUNNING.getBool();
+    }
+    public void setStarted(boolean started) {
+        RUNNING.setBool(started);
+    }
 
     public boolean isAntEnabled() {
 		return ANT_ENABLED.getBool();
@@ -296,7 +341,7 @@ public enum UserPreferences {
         METRIC.setBool(value);
 	}
 
-	public boolean isANTUSB() {
+	public boolean isAntUSBM() {
         return ANT_USBM.getBool();
 	}
 	public void setAntUSBM(boolean value) {
@@ -321,28 +366,20 @@ public enum UserPreferences {
 	}
 
 	public VirtualPowerEnum getVirtualPower() {
-        int vp = VIRTUAL_POWER.getInt();
-        if ((vp < 0) || (vp >= VirtualPowerEnum.values().length)) {
-            vp = 0;
-            VIRTUAL_POWER.setInt(vp);
-        }
-		return VirtualPowerEnum.values()[vp];
+		return VirtualPowerEnum.values()[VIRTUAL_POWER.getInt()];
 	}
 	public void setVirtualPower(VirtualPowerEnum value) {
         VIRTUAL_POWER.setInt(value.ordinal());
 	}
 
-    private Power powerProfile = null;
 	public Power getPowerProfile() {
-		if (powerProfile == null) {
-    		String profile = POWER_PROFILE.getString();
-			powerProfile = PowerProfiles.INSTANCE.getProfile(profile);
-		}
-		return powerProfile;
+        synchronized(POWER_PROFILE) {
+            String profile = POWER_PROFILE.getString();
+            return PowerProfiles.INSTANCE.getProfile(profile);
+        }
 	}
 	public void setPowerProfile(String profile) {
         POWER_PROFILE.setString(profile);
-        powerProfile = PowerProfiles.INSTANCE.getProfile(profile);
 	}
 
 	public int getResistance() {
@@ -368,12 +405,14 @@ public enum UserPreferences {
 
     // Registration Stuff
 	public String getSerial() {
-        String serial = SERIAL.getString();
-        if (serial.isEmpty()) {
-            serial = UUID.randomUUID().toString();
-            SERIAL.setString(serial);
-		}
-		return serial;
+        synchronized(SERIAL) {
+            String serial = SERIAL.getString();
+            if (serial.isEmpty()) {
+                serial = UUID.randomUUID().toString();
+                SERIAL.setString(serial);
+            }
+            return serial;
+        }
 	}
 
 	public boolean isRegistered() {
@@ -415,24 +454,38 @@ public enum UserPreferences {
 		setInt(user, "hrmid", i);
 	}
 
-    // TODO add getSensors, set/getSensorProfile(profile enum..)
-    // but this is quite bigger issue and need a bit more work..
+    public boolean isPairingEnabled() {
+        return PAIRING.getBool();
+    }
+    public void setPairing(boolean enabled) {
+        PAIRING.setBool(enabled);
+    }
+
     public void setSensorId(String sensorName, int sensorId) {
-        System.err.println("set " + sensorName + "=" + sensorId);
-        SENSOR.strVal = sensorName;
-        SENSOR.intVal = sensorId;
-        MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSOR);
-        SENSOR.strVal = null;
-        SENSOR.intVal = null;
-        setInt(user, "*" + sensorName, sensorId);
+        // sensor id might be changed from multiple threads at once:
+        // the most "dangerous" one is SensorID query thread: multiple
+        // sensors might report id more or less same time
+        // This notification must be synchronized, or assertions are raised.
+        synchronized(SENSORS) {
+            if (getInt(user, "*" + sensorName, 0)  != sensorId) {
+                setInt(user, "*" + sensorName, sensorId);
+                SENSORS.strVal = sensorName;
+                SENSORS.intVal = sensorId;
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSORS);
+                SENSORS.strVal = null;
+                SENSORS.intVal = null;
+            }
+        }
     }
     public int getSensorId(String sensorName) {
-        int sensorId = getInt(user, "*" + sensorName, 0);
-        System.err.println("return " + sensorName + "=" + sensorId);
-        return sensorId;
+        synchronized(SENSORS) {
+            return getInt(user, "*" + sensorName, 0);
+        }
 	}
     public void removeSensor(String sensorName) {
-        set(user, "*" + sensorName, null);
+        synchronized(SENSORS) {
+            set(user, "*" + sensorName, null);
+        }
     }
 
 

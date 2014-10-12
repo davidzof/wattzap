@@ -286,9 +286,9 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
             // only if subsystem switched or subsystem mode changed.
             case CONFIG_CHANGED:
                 UserPreferences prefs = (UserPreferences) o;
-                if ((prefs.isAntEnabled() != enabled) || (prefs.isANTUSB() != usbM)) {
+                if ((prefs.isAntEnabled() != enabled) || (prefs.isAntUSBM() != usbM)) {
                     enabled = prefs.isAntEnabled();
-                    usbM = prefs.isANTUSB();
+                    usbM = prefs.isAntUSBM();
                     boolean reopen = false;
                     switch (runLevel) {
                         case OPENED:
@@ -365,10 +365,9 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
         }
 
         channels.remove(channel);
-        if (channel.isFree()) {
-            channel.close();
-            channel.unassign();
-            node.freeChannel(channel);
-        }
+        channel.removeAllRxListeners();
+        channel.close();
+        channel.unassign();
+        node.freeChannel(channel);
     }
 }

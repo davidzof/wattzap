@@ -139,11 +139,11 @@ public class Main implements Runnable {
 
         new AntSubsystem(popupMsg).initialize();
 
-        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor().initialize();
+        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
 
-        SourceDataProcessorIntf hrm = new HeartRateSensor().initialize();
+        SourceDataProcessorIntf hrm = new HeartRateSensor("hrm").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
 
         // default telemetry is busy with processing all source data. It is not

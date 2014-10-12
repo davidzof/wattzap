@@ -31,7 +31,6 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     private int resistance;
     private boolean autoResistance;
     private boolean initialize;
-    private VirtualPowerEnum virtualPower;
     private RouteReader routeData = null;
     private Power power = null;
 
@@ -59,10 +58,11 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        if (initialize || (virtualPower != prefs.getVirtualPower())) {
-            virtualPower = prefs.getVirtualPower();
-            activate(virtualPower == VirtualPowerEnum.SPEED_TO_POWER);
+        // activate/deactivate on virtual power setting
+        if (initialize || (prefs == UserPreferences.VIRTUAL_POWER)) {
+            activate(prefs.getVirtualPower().active() == this);
         }
+
         if (initialize) {
             if (prefs.getResistance() == 0) {
                 resistance = 1;

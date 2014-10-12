@@ -18,22 +18,19 @@ package com.wattzap.model.ant;
 
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 
 /**
  *
  * @author Jarek
  */
 public class HeartRateSensor extends AntSensor {
-
-	private final static Logger logger = LogManager.getLogger("AHRM");
-
     private static final int HRM_CHANNEL_PERIOD = 8070;
 	private static final int HRM_DEVICE_TYPE = 120; // 0x78
 
-    public HeartRateSensor() {
-        setPrettyName("hrm");
+    private int bits = -1;
+
+    public HeartRateSensor(String name) {
+        setPrettyName(name);
     }
 
     @Override
@@ -53,15 +50,13 @@ public class HeartRateSensor extends AntSensor {
 
     @Override
     public void storeReceivedData(long time, int[] data) {
-        String msg = "Process message for " + getPrettyName() + " #" + getSensorId() + "::";
-        for (int i = 0; i < data.length; i++) {
-            msg += "[" + data[i] + "]";
-        }
-        logger.debug(msg);
+        if (data[6] != bits) {
+            bits = data[6];
 
-        int rate = data[7];
-		if ((40 < rate) && (rate <= 220)) {
-            setValue(SourceDataEnum.HEART_RATE, rate);
+            int rate = data[7];
+            if ((40 < rate) && (rate <= 220)) {
+                setValue(SourceDataEnum.HEART_RATE, rate);
+            }
         }
     }
 

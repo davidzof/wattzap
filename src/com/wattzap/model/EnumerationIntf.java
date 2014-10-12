@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.view.prefs;
+package com.wattzap.model;
 
 /**
  *

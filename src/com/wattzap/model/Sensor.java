@@ -21,13 +21,18 @@ import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 
 /**
- *
+ * General class acting as a sensor. It hanldes "connected" subsystem, sensor id
+ * for configField editor and general behaviour of setting the data with validity.
+ * All derived classes must handle configChanged and subsystemState callbacks
+ * properly.
  * @author Jarek
  */
 public abstract class Sensor extends SourceDataProcessor
     implements MessageCallback, SensorIntf
 {
     protected final long[] modifications = new long[SourceDataEnum.values().length];
+    private int sensorId; // synchronized
+    private SubsystemIntf subsystem = null;
 
     public Sensor() {
         // initialize all values to not modified
@@ -59,6 +64,7 @@ public abstract class Sensor extends SourceDataProcessor
     @Override
     public SourceDataProcessorIntf initialize() {
         // message registration
+        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
 
@@ -69,19 +75,81 @@ public abstract class Sensor extends SourceDataProcessor
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
 
         // will receive SUBSYSTEM notification in a second
+        setSensorId(UserPreferences.INSTANCE.getSensorId(getPrettyName()));
 
         return this;
     }
 
     @Override
     public void release() {
+        MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
         MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.unregister(Messages.SUBSYSTEM_REMOVED, this);
 
         // sensor not ready anymore
         setLastMessageTime(0);
+
         // request handler removal
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
         MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
     }
+
+    @Override
+    public SubsystemIntf getSubsystem() {
+        return subsystem;
+    }
+
+    @Override
+    public int getSensorId() {
+        synchronized (this) {
+            return sensorId;
+        }
+    }
+
+    @Override
+    public void setSensorId(int sId) {
+        synchronized (this) {
+            sensorId = sId;
+        }
+    }
+
+    @Override
+	public void callback(Messages message, Object o) {
+		switch (message) {
+            case CONFIG_CHANGED:
+                UserPreferences property = (UserPreferences) o;
+                if ((property == UserPreferences.SENSORS) && (getPrettyName().equals(property.getString()))) {
+                    setSensorId(property.getSensorId(getPrettyName()));
+                }
+                configChanged(property);
+                break;
+            case SUBSYSTEM:
+                if (((SubsystemIntf) o).getType() == getSubsystemType()) {
+                    if (subsystem == null) {
+                        subsystem = (SubsystemIntf) o;
+                    } else if (subsystem != o) {
+                        System.err.println("Different subsystem of type " +
+                                getSubsystemType() + " found?!?!");
+                        return;
+                    }
+                    if (subsystem.isOpen()) {
+                        subsystemState(true);
+                    } else {
+                        subsystemState(false);
+                        setLastMessageTime(0);
+                    }
+                }
+                break;
+            case SUBSYSTEM_REMOVED:
+                if (subsystem == (SubsystemIntf) o) {
+                    subsystemState(false);
+                    setLastMessageTime(0);
+                    // subsystem not available anymore
+                    subsystem = null;
+                }
+                break;
+        }
+    }
+    public abstract void subsystemState(boolean enabled);
+
 }

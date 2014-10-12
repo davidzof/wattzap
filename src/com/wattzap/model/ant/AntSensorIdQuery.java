@@ -16,11 +16,6 @@
  */
 package com.wattzap.model.ant;
 
-import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.Messages;
-import com.wattzap.model.UserPreferences;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.cowboycoders.ant.Channel;
 
 /**
@@ -31,39 +26,19 @@ import org.cowboycoders.ant.Channel;
 // never returns back. Don't struggle with changing in parallel from
 // config panel and from here.
 public class AntSensorIdQuery extends Thread {
-    private static Logger logger = LogManager.getLogger("SensorId");
-
     private final AntSubsystemIntf subsystem;
     private final AntSensorIntf sensor;
     private final Channel channel;
-    private final long startTime;
 
-    public AntSensorIdQuery(AntSubsystemIntf subsystem, AntSensorIntf sensor, Channel channel) {
-        this.subsystem = subsystem;
+    public AntSensorIdQuery(AntSensorIntf sensor, Channel channel) {
+        this.subsystem = (AntSubsystemIntf) sensor.getSubsystem();
         this.sensor = sensor;
         this.channel = channel;
-        startTime = System.currentTimeMillis();
-        logger.debug("AntSensor ID query created for " + sensor.getPrettyName());
-    }
-
-    @Override
-    public void start() {
-        logger.debug("AntSensor ID query started for " + sensor.getPrettyName());
-        super.start();
+        assert sensor.getPrettyName() != null : "Sensor without a name";
     }
 
     @Override
     public void run() {
-        logger.debug("AntSensor ID query update sensor ID for " + sensor.getPrettyName());
-        int sId = subsystem.getChannelId(channel);
-        logger.debug("Received " + sId + " after " + (System.currentTimeMillis() - startTime) + "for " + sensor.getPrettyName());
-
-        // replace only if 0 is still set (this is value was not changed from GUI)
-        if (sensor.getSensorId() == 0) {
-            sensor.setSensorId(sId);
-            // this should call configChanged callback
-            UserPreferences.INSTANCE.setSensorId(sensor.getPrettyName(), sId);
-            MessageBus.INSTANCE.send(Messages.HANDLER, sensor);
-        }
+        sensor.handleChannelId(channel, subsystem.getChannelId(channel));
     }
 }

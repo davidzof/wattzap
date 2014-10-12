@@ -50,7 +50,7 @@ public class Preferences extends JFrame implements ActionListener {
 		// Personal Data
         jtp.addTab(userPrefs.messages.getString("personal_data"), new UserPanel());
 		// ANT+ Pairing
-        jtp.addTab("ANT+", new AntPanel());
+        jtp.addTab(userPrefs.messages.getString("sensors"), new SensorsPanel());
 		// Trainer Profiles
 		jtp.addTab("Trainer", new TurboPanel());
 

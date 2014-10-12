@@ -20,5 +20,14 @@ package com.wattzap.model;
  * @author Jarek
  */
 public interface SensorIntf extends SourceDataProcessorIntf {
+    // subsystem handling
+    SubsystemIntf getSubsystem();
+    SubsystemTypeEnum getSubsystemType();
+
+    // general sensorId handling
+    int getSensorId();
+    void setSensorId(int sensorId);
+
+    // configuration changed
     void configChanged(UserPreferences property);
 }

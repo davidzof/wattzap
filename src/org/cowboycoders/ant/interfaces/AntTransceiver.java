@@ -136,7 +136,7 @@ public class AntTransceiver extends AbstractAntTransceiver {
 		doInit(deviceNumber, deviceId);
 
 	}
-	
+
 	public AntTransceiver(int deviceNumber) {
 		// this.deviceNumber = deviceNumber;
 		doInit(deviceNumber, DEVICE_ID);
@@ -192,18 +192,25 @@ public class AntTransceiver extends AbstractAntTransceiver {
 		UsbDevice device = devices.get(deviceNumber);
 
 		this.device = device;
-	}
+    }
 
+    private static final String digits = "0123456789abcdef";
 	private void logData(Level level, byte[] data, String tag) {
-		StringBuffer logBuffer = new StringBuffer();
+        if (LOGGER.isLoggable(level)) {
+            StringBuffer logBuffer = new StringBuffer(tag.length() + 2 + 3 * data.length + 3);
+            logBuffer.append(tag);
+            logBuffer.append(" :");
 
-		for (Byte b : data) {
-			logBuffer.append(String.format("%x ", b));
-		}
+            for (Byte b : data) {
+                logBuffer.append(' ');
+                logBuffer.append(digits.charAt((b >> 4) & 0x0f));
+                logBuffer.append(digits.charAt(b & 0x0f));
+            }
 
-		logBuffer.append((String.format("\n")));
+            logBuffer.append((String.format("\n")));
 
-		LOGGER.log(level, tag + " : " + logBuffer);
+            LOGGER.log(level, logBuffer.toString());
+        }
 	}
 
 	public class UsbReader extends Thread {
@@ -252,7 +259,7 @@ public class AntTransceiver extends AbstractAntTransceiver {
 
 		/**
 		 * Gets the next message and notifies interested listeners.
-		 * 
+		 *
 		 * @param data
 		 *            - message data
 		 * @param len
@@ -317,13 +324,13 @@ public class AntTransceiver extends AbstractAntTransceiver {
 			}
 		}
 
-		
+
 		/*
 		 * Two Modifications (David George - 11/June/2013)
-		 * 
+		 *
 		 * 1. continue if we get a USB Exception on read from lower layers, this
 		 * is a timeout and we don't care
-		 * 
+		 *
 		 * 2. use returned data length to make code more efficient (hopefully).
 		 * No more searching for SYNC bytes in zero data
 		 */
@@ -389,7 +396,7 @@ public class AntTransceiver extends AbstractAntTransceiver {
 	}
 
 	/**
-	 * 
+	 *
 	 * @param _interface
 	 *            interface to claim / release
 	 * @param claim

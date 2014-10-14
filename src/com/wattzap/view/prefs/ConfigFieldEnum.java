@@ -89,7 +89,11 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
         if (value.getSelectedIndex() < 0) {
             return;
         }
-        setProperty(enumeration.getValues()[value.getSelectedIndex()]);
+        EnumerationIntf e = enumeration.getValues()[value.getSelectedIndex()];
+        if (!e.isValid()) {
+            System.err.println("Value " + e + " is not valid");
+        }
+        setProperty(e);
     }
     public abstract void setProperty(EnumerationIntf val);
 }

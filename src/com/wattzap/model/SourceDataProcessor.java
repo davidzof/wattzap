@@ -48,7 +48,7 @@ public abstract class SourceDataProcessor
     }
 
     @Override
-    public void activate(boolean active) {
+    public void setActive(boolean active) {
         assert false : "Only telemetryProcessors can be activated";
     }
 

@@ -69,19 +69,41 @@ public enum TelemetryProvider implements MessageCallback
     private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
     static {
         pauseMsgKeys.put(-1, "not_started");
+        // normal training condition
+        pauseMsgKeys.put(0, null);
+        // speed is zero during normal training
         pauseMsgKeys.put(1, "no_movement");
+        // pause button was pressed
         pauseMsgKeys.put(2, "manual_pause");
+
+        // race preparation, wheelSpeed must be detected
+        pauseMsgKeys.put(10, "race_prepare");
+        // countdown
+        pauseMsgKeys.put(20, "9");
+        pauseMsgKeys.put(21, "8");
+        pauseMsgKeys.put(22, "7");
+        pauseMsgKeys.put(23, "6");
+        pauseMsgKeys.put(24, "5");
+        pauseMsgKeys.put(25, "4");
+        pauseMsgKeys.put(26, "3");
+        pauseMsgKeys.put(27, "2");
+        pauseMsgKeys.put(28, "1");
+        pauseMsgKeys.put(29, "race_start");
+        // normal race condition, any pause is not allowed
+        pauseMsgKeys.put(30, null);
+
+        // end of training. Set by video handler, cannot be overriden
         pauseMsgKeys.put(100, "end_of_training");
     }
     public static String pauseMsg(Telemetry t, boolean nullIfUnknown) {
-        if (!pauseMsgKeys.containsKey(t.getPaused())) {
+        String key = pauseMsgKeys.get(t.getPaused());
+        if (key == null) {
             if (nullIfUnknown) {
                 return null;
             } else {
                 return String.format("unknown[%d]", t.getPaused());
             }
         }
-        String key = pauseMsgKeys.get(t.getPaused());
         if (UserPreferences.INSTANCE.messages.containsKey(key)) {
             return UserPreferences.INSTANCE.messages.getString(key);
         }
@@ -297,6 +319,7 @@ public enum TelemetryProvider implements MessageCallback
                 }
                 break;
             case HANDLER_REMOVED:
+                // remove handler from the list
                 logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " removed");
                 handlers.remove((SourceDataProcessorIntf) o);
                 if (o instanceof MessageCallback) {

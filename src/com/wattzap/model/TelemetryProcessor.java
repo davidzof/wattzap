@@ -50,7 +50,7 @@ public abstract class TelemetryProcessor
     }
 
     @Override
-    public void activate(boolean active) {
+    public void setActive(boolean active) {
         if (active) {
             setLastMessageTime(-1);
         } else {

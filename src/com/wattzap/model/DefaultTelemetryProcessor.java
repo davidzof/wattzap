@@ -30,7 +30,6 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     private double totalWeight = 85.0;
     private int resistance;
     private boolean autoResistance;
-    private boolean initialize;
     private RouteReader routeData = null;
     private Power power = null;
 
@@ -41,12 +40,13 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
     @Override
     public SourceDataProcessorIntf initialize() {
-        initialize = true;
         super.initialize();
         MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
-        // set default resistance..
-        setValue(SourceDataEnum.RESISTANCE, resistance);
-        initialize = false;
+
+        // config changed is called before handler registration to initialize
+        // all properties.. so it must be called once again to proper activate
+        // this handler...
+        configChanged(UserPreferences.VIRTUAL_POWER);
         return this;
     }
 
@@ -59,11 +59,13 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     @Override
     public void configChanged(UserPreferences prefs) {
         // activate/deactivate on virtual power setting
-        if (initialize || (prefs == UserPreferences.VIRTUAL_POWER)) {
-            activate(prefs.getVirtualPower().active() == this);
+        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.VIRTUAL_POWER)) {
+            setActive(prefs.getVirtualPower().findActiveHandler() == this);
         }
-
-        if (initialize) {
+        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.POWER_PROFILE)) {
+            power = prefs.getPowerProfile();
+        }
+        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.RESISTANCE)) {
             if (prefs.getResistance() == 0) {
                 resistance = 1;
                 autoResistance = true;
@@ -72,9 +74,8 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
                 autoResistance = false;
             }
         }
-
+        // it can be updated every configChanged without checking the property..
         totalWeight = prefs.getTotalWeight();
-        power = prefs.getPowerProfile();
     }
 
     @Override
@@ -103,7 +104,7 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     @Override
     public void storeTelemetryData(Telemetry t) {
         // We have a time value and rotation value, lets calculate the speed
-        int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
+        int powerWatts = power.getPower(t.getWheelSpeed(), resistance);
         setValue(SourceDataEnum.POWER, powerWatts);
 
         // if we have GPX Data and Simulspeed is enabled calculate speed
@@ -140,6 +141,9 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
         if (autoResistance) {
             // Best matching (this is wheelSpeed best matches speed) shall be selected
             setValue(SourceDataEnum.RESISTANCE, 1);
+        } else {
+            // set default resistance..
+            setValue(SourceDataEnum.RESISTANCE, resistance);
         }
 
         // set pause at end of route or when no running, otherwise unpause

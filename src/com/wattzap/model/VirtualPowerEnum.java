@@ -33,11 +33,8 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     // compute wheel speed which is necessary to run video with 1:1 speed
     VIDEO_SPEED("videoSpeed");
 
-    // TODO add handler classes, checking whether enabled, etc..
-
     private final String key;
     private final Class clazz;
-    private SourceDataProcessorIntf handler;
 
     private VirtualPowerEnum(String key) {
         this(key, null);
@@ -45,7 +42,6 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     private VirtualPowerEnum(String key, Class clazz) {
         this.key = key;
         this.clazz = clazz;
-        this.handler = null;
     }
 
     @Override
@@ -55,7 +51,8 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
 
     @Override
     public boolean isValid() {
-        return true;
+        // valid is handler exists
+        return findActiveHandler() != null;
     }
 
     @Override
@@ -64,30 +61,15 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     }
 
     @Override
-    public SourceDataProcessorIntf active() {
-        return handler;
-    }
-
-    public static void setActive(SourceDataProcessorIntf handler, boolean removed) {
-        for (VirtualPowerEnum e : VirtualPowerEnum.values()) {
-            if (handler.getClass().equals(e.clazz)) {
-                if (removed) {
-                    if ((e.handler == null) || (e.handler != handler)) {
-                        System.err.println("Cannot remove " + e.getKey() +
-                            " handler " + handler.getPrettyName());
-                    } else {
-                        e.handler = null;
-                    }
-                } else {
-                    if ((e.handler != null) && (e.handler != handler)) {
-                        System.err.println("Cannot set " + e.getKey() +
-                                " handler " + handler.getPrettyName());
-                    } else {
-                        e.handler = handler;
-                    }
-                }
-                break;
+    public SourceDataProcessorIntf findActiveHandler() {
+        if (clazz == null) {
+            return null;
+        }
+        for (SourceDataProcessorIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
+            if (handler.getClass().equals(clazz)) {
+                return handler;
             }
         }
+        return null;
     }
 }

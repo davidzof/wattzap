@@ -48,7 +48,7 @@ public interface SourceDataProcessorIntf
     String getPrettyName();
     void setPrettyName(String name);
 
-    void activate(boolean active);
+    void setActive(boolean active);
 
    /* Which data handler provides. If handler provides these data, it is
     * available in related source selector. If not, it doesn't deliver the

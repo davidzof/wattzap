@@ -148,12 +148,16 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
 
         // set pause at end of route or when no running, otherwise unpause
         if (noMoreRoute) {
-            setValue(SourceDataEnum.PAUSE, 100.0);
+            setValue(SourceDataEnum.PAUSE, 100.0); // end of training
             setValue(SourceDataEnum.SPEED, 0.0);
         } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
-            setValue(SourceDataEnum.PAUSE, 1.0);
+            if (t.getTime() == 0) {
+                setValue(SourceDataEnum.PAUSE, 1.0); // start training
+            } else {
+                setValue(SourceDataEnum.PAUSE, 2.0); // keep moving
+            }
         } else {
-            setValue(SourceDataEnum.PAUSE, 0.0);
+            setValue(SourceDataEnum.PAUSE, 0.0); // running!
         }
     }
 

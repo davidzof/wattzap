@@ -15,6 +15,8 @@
 */
 package com.wattzap.model;
 
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -23,16 +25,15 @@ import java.util.List;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import com.wattzap.model.power.Power;
 import com.wattzap.utils.ReflexiveClassLoader;
 
 /**
  * Load all available route readers
- * 
+ *
  * @author David George
- * 
+ *
  *         (c) 19 September 2014, David George / Wattzap.com
- * 
+ *
  */
 public enum Readers {
 	INSTANCE;
@@ -77,4 +78,14 @@ public enum Readers {
 		}
 
 	}
+    static public boolean readFile(String fileName) {
+        String ext = fileName.substring(fileName.length() - 3);
+        RouteReader track = Readers.INSTANCE.getReader(ext);
+        if (track != null) {
+            track.load(fileName);
+            MessageBus.INSTANCE.send(Messages.GPXLOAD, track);
+            return true;
+        }
+        return false;
+    }
 }

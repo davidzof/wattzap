@@ -46,12 +46,12 @@ public enum TelemetryProvider implements MessageCallback
     private final Map<SourceDataEnum, SensorIntf> sensors = new HashMap<>();
 
     /* current "location" and training time, filled in telemetry to be reported */
-    private final Telemetry t = new Telemetry();
+    private Telemetry t = null;
     private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
 
     private Thread runner = null;
-    private int[] lastProvides = new int[SourceDataEnum.values().length];
+    private int[] lastHandlersNum = new int[SourceDataEnum.values().length];
 
     public TelemetryProvider initialize() {
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
@@ -68,13 +68,14 @@ public enum TelemetryProvider implements MessageCallback
 
     private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
     static {
-        pauseMsgKeys.put(-1, "not_started");
+        pauseMsgKeys.put(-1, "initialize");
         // normal training condition
         pauseMsgKeys.put(0, null);
+        pauseMsgKeys.put(1, "start_training");
         // speed is zero during normal training
-        pauseMsgKeys.put(1, "no_movement");
+        pauseMsgKeys.put(2, "no_movement");
         // pause button was pressed
-        pauseMsgKeys.put(2, "manual_pause");
+        pauseMsgKeys.put(3, "manual_pause");
 
         // race preparation, wheelSpeed must be detected
         pauseMsgKeys.put(10, "race_prepare");
@@ -141,15 +142,18 @@ public enum TelemetryProvider implements MessageCallback
      * Next step.. set indicators
      */
     private void threadLoop() {
-        logger.debug("TelemetryProvider started");
-        for (int i = 0; i < lastProvides.length; i++) {
-            lastProvides[i] = -1;
+        Thread.currentThread().setName("TelemetryProvider");
+        for (int i = 0; i < lastHandlersNum.length; i++) {
+            lastHandlersNum[i] = -1;
         }
+        t = new Telemetry();
+        MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
         // Wait all handlers reinitialize to show what is wrong with configuration.
-        // One cannot start at once, but nobody does :)
         try {
             Thread.sleep(5000);
         } catch (InterruptedException e) {
+            // if start discarded.. just break telemetry processing
+            Thread.currentThread().interrupt();
         }
 
         while (!Thread.currentThread().isInterrupted()) {
@@ -157,12 +161,12 @@ public enum TelemetryProvider implements MessageCallback
 
             for (SourceDataEnum prop : SourceDataEnum.values()) {
                 double value = prop.getDefault();
-                int provides = 0;
+                int handlersNum = 0;
 
                 SensorIntf sensor = getSensor(prop);
                 if ((sensor != null) && (sensor.provides(prop))) {
                     if (sensor.getModificationTime(prop) >= start - 5000) {
-                        provides++;
+                        handlersNum++;
                         value = sensor.getValue(prop);
                     }
                 }
@@ -170,7 +174,7 @@ public enum TelemetryProvider implements MessageCallback
                 for (SourceDataProcessorIntf handler :  handlers) {
                     // if handler is active and provides property
                     if ((handler.getLastMessageTime() == -1) && (handler.provides(prop))) {
-                        provides++;
+                        handlersNum++;
                         if (prop == SourceDataEnum.PAUSE) {
                             if (value < handler.getValue(prop)) {
                                 value = handler.getValue(prop);
@@ -181,17 +185,17 @@ public enum TelemetryProvider implements MessageCallback
                     }
                 }
                 // check if number of handlers for property has changed
-                if (provides != lastProvides[prop.ordinal()]) {
-                    if (lastProvides[prop.ordinal()] < 0) {
-                        if ((provides != 1) && (prop != SourceDataEnum.PAUSE)) {
+                if (handlersNum != lastHandlersNum[prop.ordinal()]) {
+                    if (lastHandlersNum[prop.ordinal()] < 0) {
+                        if ((handlersNum != 1) && (prop != SourceDataEnum.PAUSE)) {
                             logger.warn("Number of handlers providing " + prop
-                                    + " is " + provides);
+                                    + " is " + handlersNum);
                         }
                     } else {
                         logger.warn("Number of handlers providing " + prop
-                                + " changed " + lastProvides[prop.ordinal()] + "->" + provides);
+                                + " changed " + lastHandlersNum[prop.ordinal()] + "->" + handlersNum);
                     }
-                    lastProvides[prop.ordinal()] = provides;
+                    lastHandlersNum[prop.ordinal()] = handlersNum;
                 }
                 // and set value in the telemetry
                 switch (prop) {
@@ -252,7 +256,6 @@ public enum TelemetryProvider implements MessageCallback
                 runtime += timePassed;
             }
         }
-        logger.debug("TelemetryProvider stopped");
     }
 
     @Override
@@ -291,11 +294,9 @@ public enum TelemetryProvider implements MessageCallback
                         return;
                     }
                 }
-                logger.debug("TelemetryProvider subsystem " + ((SubsystemIntf) o).getType() + " created");
                 subsystems.add((SubsystemIntf) o);
                 break;
             case SUBSYSTEM_REMOVED:
-                logger.debug("TelemetryProvider subsystem " + ((SubsystemIntf) o).getType() + " removed");
                 subsystems.remove((SubsystemIntf) o);
                 break;
 
@@ -307,7 +308,6 @@ public enum TelemetryProvider implements MessageCallback
                         return;
                     }
                 }
-                logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " created");
                 // add handler and notify about all available subsystems
                 handlers.add((SourceDataProcessorIntf) o);
                 if (o instanceof MessageCallback) {
@@ -320,7 +320,6 @@ public enum TelemetryProvider implements MessageCallback
                 break;
             case HANDLER_REMOVED:
                 // remove handler from the list
-                logger.debug("TelemetryProvider handler " + ((SourceDataProcessorIntf) o).getPrettyName()+ " removed");
                 handlers.remove((SourceDataProcessorIntf) o);
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, (MessageCallback) o)) {
@@ -333,15 +332,12 @@ public enum TelemetryProvider implements MessageCallback
 
 
             case STARTPOS:
-                logger.debug("TelemetryProvider position " + (Double) o);
                 distance = (Double) o;
                 break;
             case GPXLOAD:
-                logger.debug("TelemetryProvider file load");
                 distance = 0.0;
                 break;
             case CLOSE:
-                logger.debug("TelemetryProvider file closed");
                 distance = 0.0;
                 break;
         }

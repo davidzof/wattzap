@@ -36,6 +36,7 @@ public class SpeedAndCadenceSensor extends AntSensor {
     int wRlast = 0;
     int cTlast = 0;
     int cRlast = 0;
+    long lastTime = 0;
 
     // wheel circumference [mm], taken from configuration
     double wheelSize = 1496.0;
@@ -82,40 +83,44 @@ public class SpeedAndCadenceSensor extends AntSensor {
 
         int wTD = wT - wTlast; // time delta
         // "from time to time".. it hapens that time is back several seconds
-        if (wTD < -5000) {
+        if (wTD < 0) {
             wTD += 65536;
-        } else if (wTD < 0) {
-            msg += " wTD=" + wTD;
         }
 		int wRD = wR - wRlast; // wheel rotations within the time
-        if (wRD < -10) {
+        if (wRD < -5000) {
             wRD += 65536;
-        } else if (wRD < 0) {
-            msg += " wRD=" + wRD;
         }
-        // "from time to time".. it hapens that time is back several seconds
-        // let's try to synchronize with this bogus value..
-        if ((wRD < 0) || (wTD < 0)) {
-            wTlast = wT;
-            wRlast = wR;
-        }
+
+        long dT = time - lastTime;
+
         // wheel rotation detected.. and time delta is NOT zero
         // Sometimes time doesn't advance when rotation is detected (buggy sensor?)
         if ((wRD > 0) && (wTD > 0)) {
             // first rotation (after pause or in session) might have very short
             // update time, so it must be discarded and speed 0 must be reported.
             // Proper speed is reported just next update.
-            if (time > getModificationTime(SourceDataEnum.WHEEL_SPEED) + 5000) {
-                setValue(SourceDataEnum.WHEEL_SPEED, 0.0);
-                msg += " first speed update";
+            if (dT > 5000) {
+                msg += " first speed update after " + dT + "ms pause";
             } else {
                 double speed = // [km/h]
                         3.6 * ((double) wRD * wheelSize / 1000.0) / ((double) wTD / 1024.0);
                 setValue(SourceDataEnum.WHEEL_SPEED, speed);
                 msg += " speed=" + speed;
+
+                // check difference between current time and message time
+                // it shall be more or less same
+                dT = (long) (((time - lastTime) / 1000.0) * 1024.0) - wTD;
+                if (dT < 0) {
+                    dT = -dT;
+                }
+                if (dT > 512) {
+                    msg += " dT=" + dT;
+                    dT = -1;
+                }
             }
             wTlast = wT;
             wRlast = wR;
+            lastTime = time;
         }
 
         int cTD = cT - cTlast; // time delta
@@ -147,7 +152,7 @@ public class SpeedAndCadenceSensor extends AntSensor {
             cTlast = cT;
             cRlast = cR;
         }
-        if ((wTD < 0) || (wRD < 0) || (cTD < 0) || (cRD < 0)) {
+        if ((wTD < 0) || (wRD < 0) || (cTD < 0) || (cRD < 0) || (dT < 0)) {
             System.err.println(msg);
         } else {
             logger.debug(msg);

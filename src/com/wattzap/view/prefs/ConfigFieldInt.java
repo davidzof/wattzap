@@ -25,7 +25,7 @@ import javax.swing.JTextField;
  *
  * @author Jarek
  */
-public abstract class ConfigFieldInt implements ConfigFieldIntf {
+public class ConfigFieldInt implements ConfigFieldIntf {
     private final UserPreferences property;
 
     private final JTextField value;
@@ -60,7 +60,9 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
             value.setText(String.format("%d", getProperty()));
         }
     }
-    public abstract int getProperty();
+    public int getProperty() {
+        return property.getInt();
+    }
 
 
     @Override
@@ -83,5 +85,7 @@ public abstract class ConfigFieldInt implements ConfigFieldIntf {
     public boolean isValid(int val) {
         return true;
     }
-    public abstract void setProperty(int val);
+    public void setProperty(int val) {
+        property.setInt(val);
+    }
 }

@@ -26,7 +26,7 @@ import javax.swing.JTextField;
  *
  * @author Jarek
  */
-public abstract class ConfigFieldDouble implements ConfigFieldIntf {
+public class ConfigFieldDouble implements ConfigFieldIntf {
     private final UserPreferences property;
     private final String format;
 
@@ -104,7 +104,9 @@ public abstract class ConfigFieldDouble implements ConfigFieldIntf {
             value.setText(String.format(locale, format, getProperty() / conversion));
         }
     }
-    public abstract double getProperty();
+    public double getProperty() {
+        return property.getDouble();
+    }
 
     @Override
     public void fieldChanged() {
@@ -126,5 +128,7 @@ public abstract class ConfigFieldDouble implements ConfigFieldIntf {
     public boolean isValid(double val) {
         return true;
     }
-    public abstract void setProperty(double val);
+    public void setProperty(double val) {
+        property.setDouble(val);
+    }
 }

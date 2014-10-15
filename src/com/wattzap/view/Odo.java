@@ -22,7 +22,6 @@ import java.util.Date;
 import java.util.TimeZone;
 
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import net.miginfocom.swing.MigLayout;
@@ -33,12 +32,10 @@ import org.apache.log4j.Logger;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.RouteReader;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
-import com.wattzap.model.power.Power;
 
 /*
  * @author David George (c) Copyright 2013
@@ -67,20 +64,20 @@ public class Odo extends JPanel implements MessageCallback {
     };
 
     private enum ValueCol {
-        SPEED("speed", "%.1f", KMTOMILES),
-        VSPEED("trainer_speed", "%.1f", KMTOMILES),
-        DISTANCE("distance", "%.3f", KMTOMILES),
+        SPEED("speed", 1, KMTOMILES),
+        VSPEED("trainer_speed", 1, KMTOMILES),
+        DISTANCE("distance", 3, KMTOMILES),
         POWER("power"),
-        SLOPE("slope", "%.1f"),
+        SLOPE("slope", 1),
         HR("heartrate"),
         CADENCE("cadence"),
-        ALTITUDE("altitude", "%.0f", MTOFEET),
+        ALTITUDE("altitude", 0, MTOFEET),
         RESISTANCE("resistance"),
         CHRONO("stopwatch");
 
         private String labelKey;
         private JLabel label;
-        private String format;
+        private int prec;
         private double metricCor;
         private JLabel text;
         private int colorIndex;
@@ -89,15 +86,15 @@ public class Odo extends JPanel implements MessageCallback {
 
         // for integers and time
         private ValueCol(String labelKey) {
-            this(labelKey, null);
+            this(labelKey, 0);
         }
         // for doubles without metric handling
-        private ValueCol(String labelKey, String format) {
-            this(labelKey, format, 1.0);
+        private ValueCol(String labelKey, int prec) {
+            this(labelKey, prec, 1.0);
         }
-        private ValueCol(String labelKey, String format, double metricCor) {
+        private ValueCol(String labelKey, int prec, double metricCor) {
             this.labelKey = labelKey;
-            this.format = format;
+            this.prec = prec;
             this.metricCor = metricCor;
             this.label = null;
             this.text = null;
@@ -106,12 +103,12 @@ public class Odo extends JPanel implements MessageCallback {
             this.added = false;
         }
 
-        public void setParams(String labelKey, String format, double metricCor) {
+        public void setParams(String labelKey, int prec, double metricCor) {
             if ((label != null) && (!this.labelKey.equals(labelKey))) {
                 label.setText(userPrefs.messages.getString(labelKey));
             }
             this.labelKey = labelKey;
-            this.format = format;
+            this.prec = prec;
             this.metricCor = metricCor;
         }
 
@@ -132,17 +129,40 @@ public class Odo extends JPanel implements MessageCallback {
                 this.colorIndex = index;
             }
         }
+
         public void setValue(int value, int color) {
             if (added) {
-                setValue(String.format("%d", value), color);
+                setValue("" + value, color);
             }
+        }
+        // one String.format("%.1f") takes about 1ms, so it must be replaced
+        // with something faster..
+        private static final char digits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+        private String format(double value) {
+            StringBuilder buf = new StringBuilder(10);
+            int val = (int) value;
+            value -= val;
+            do {
+                buf.insert(0, digits[val % 10]);
+                val /= 10;
+            } while (val != 0);
+            if (prec != 0) {
+                buf.append('.');
+                for (int i = 0; i < prec; i++) {
+                    value *= 10;
+                    val = (int) value;
+                    value -= val;
+                    buf.append(digits[val]);
+                }
+            }
+            return buf.toString();
         }
         public void setValue(double value, int color) {
             if (added) {
                 if (userPrefs.isMetric()) {
-                    setValue(String.format(format, value), color);
+                    setValue(format(value), color);
                 } else {
-                    setValue(String.format(format, value / metricCor), color);
+                    setValue(format(value / metricCor), color);
                 }
             }
         }
@@ -198,10 +218,7 @@ public class Odo extends JPanel implements MessageCallback {
 
 
 
-    private int routeType = RouteReader.SLOPE;
-	private double totalDistance = 0;
 	private TrainingItem current = null;
-	Power power;
 
 	public Odo() {
 		super();
@@ -221,19 +238,16 @@ public class Odo extends JPanel implements MessageCallback {
         ValueCol.ALTITUDE.setVisible(true);
         ValueCol.CHRONO.setVisible(true);
 
-        Telemetry t = new Telemetry();
-        callback(Messages.TELEMETRY, t);
+        // fill with "empty" values
+        callback(Messages.TELEMETRY, new Telemetry());
         ValueCol.rebuild(this);
 
         MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
-		MessageBus.INSTANCE.register(Messages.START, this);
 	}
 
 	@Override
 	public void callback(Messages message, Object o) {
-		switch (message) {
-		case TELEMETRY:
+		if (message == Messages.TELEMETRY) {
 			Telemetry t = (Telemetry) o;
             paused = (TelemetryProvider.pauseMsg(t) != null);
 
@@ -253,52 +267,6 @@ public class Odo extends JPanel implements MessageCallback {
             ValueCol.SLOPE.setValue(t.getGradient(), 0);
             ValueCol.ALTITUDE.setValue(t.getElevation(), 0);
             ValueCol.CHRONO.setValue(t.getTime(), 0);
-
-
-            /*
-            switch (routeType) {
-                case RouteReader.POWER:
-                    elevationLabel.setText(String.format("%.1f",
-                        (totalDistance - t.getDistance()) / KMTOMILES));
-                    break;
-			}
-            */
-			break;
-
-
-
-		case GPXLOAD:
-            /*
-			RouteReader routeData = (RouteReader) o;
-			routeType = routeData.routeType();
-			switch (routeType) {
-                case RouteReader.POWER:
-                    levelText.setText(userPrefs.messages.getString("distance_left"));
-                    slopeText.setVisible(false);
-                    slopeLabel.setVisible(false);
-                    break;
-                case RouteReader.SLOPE:
-                    levelText.setText(userPrefs.messages.getString("altitude"));
-                    slopeText.setVisible(true);
-                    slopeLabel.setVisible(true);
-                    break;
-            }
-
-			totalDistance = routeData.getDistanceMeters() / 1000.0;
-            */
-			break;
-
-        case START:
-			// code to see if we are registered
-			if (!userPrefs.isRegistered() && (userPrefs.getEvalTime()) <= 0) {
-				logger.info("Out of time " + userPrefs.getEvalTime());
-				JOptionPane.showMessageDialog(this,
-						userPrefs.messages.getString("trial_expired"),
-						userPrefs.messages.getString("warning"),
-						JOptionPane.WARNING_MESSAGE);
-				userPrefs.shutDown();
-				System.exit(0);
-			}
-		}
+        }
 	}
 }

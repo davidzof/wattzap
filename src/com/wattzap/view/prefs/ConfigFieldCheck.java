@@ -23,7 +23,7 @@ import javax.swing.JCheckBox;
  *
  * @author Jarek
  */
-public abstract class ConfigFieldCheck implements ConfigFieldIntf {
+public class ConfigFieldCheck implements ConfigFieldIntf {
     private final UserPreferences property;
 
     private final JCheckBox value;
@@ -53,12 +53,16 @@ public abstract class ConfigFieldCheck implements ConfigFieldIntf {
             value.setSelected(getProperty());
         }
     }
-    public abstract boolean getProperty();
+    public boolean getProperty() {
+        return property.getBool();
+    }
 
 
     @Override
     public void fieldChanged() {
         setProperty(value.isSelected());
     }
-    public abstract void setProperty(boolean val);
+    public void setProperty(boolean val) {
+        property.setBool(val);
+    }
 }

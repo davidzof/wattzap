@@ -34,8 +34,6 @@ import com.wattzap.model.power.PowerProfiles;
  *
  */
 public enum UserPreferences {
-    RUNNING("running", false),
-
     RESISTANCE("resistance", 1),
     VIRTUAL_POWER("virtualPower", 0),
     DEBUG("debug", false),
@@ -55,6 +53,12 @@ public enum UserPreferences {
 
     TRAININGS_DIR("trainingLocation", getWD() + "/Trainings"),
     VIDEO_DIR("videoLocation", getWD() + "/Routes"),
+
+    RUNNING("running", false),
+    AUTO_START("autostart", false),
+    LAST_FILENAME("last_filename", ""),
+    LOAD_LAST("load_last", false),
+
 
     ANT_ENABLED("ant_enabled", true),
     ANT_USBM("antusbm", false),
@@ -402,6 +406,19 @@ public enum UserPreferences {
 	public void setTrainingDir(String s) {
         TRAININGS_DIR.setString(s);
 	}
+
+    public String getDefaultFilename() {
+        if ((!LOAD_LAST.getBool()) || (LAST_FILENAME.getString().isEmpty())) {
+            return null;
+        }
+        return getRouteDir() + "/" + LAST_FILENAME.getString();
+    }
+
+    public boolean autostart() {
+        return AUTO_START.getBool();
+    }
+
+
 
     // Registration Stuff
 	public String getSerial() {

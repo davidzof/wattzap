@@ -43,9 +43,11 @@ import org.apache.log4j.PatternLayout;
 import com.omniscient.log4jcontrib.swingappender.SwingAppender;
 import com.sun.jna.NativeLibrary;
 import com.wattzap.controller.MenuItem;
+import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
 import com.wattzap.model.DefaultTelemetryProcessor;
+import com.wattzap.model.Readers;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataProcessorIntf;
 import com.wattzap.model.TelemetryProvider;
@@ -227,17 +229,15 @@ public class Main implements Runnable {
 		TrainingController trainingController = new TrainingController(
 				trainingDisplay, frame);
 
-		if (userPrefs.isAntEnabled()) {
-			// Submenu: training
-			JMenuItem trainMenuItem = new JMenuItem(
-					userPrefs.messages.getString("open"));
-			trainMenuItem.setActionCommand(TrainingController.open);
-			trainingMenu.add(trainMenuItem);
+        // Submenu: training
+        JMenuItem trainMenuItem = new JMenuItem(userPrefs.messages.getString("open"));
+        trainMenuItem.setActionCommand(TrainingController.open);
+        trainingMenu.add(trainMenuItem);
 
-			TrainingPicker tPicker = new TrainingPicker(frame);
-			trainMenuItem.addActionListener(tPicker);
-		}
-		JMenu analizeMenuItem = new JMenu(
+        TrainingPicker tPicker = new TrainingPicker(frame);
+        trainMenuItem.addActionListener(tPicker);
+
+        JMenu analizeMenuItem = new JMenu(
 				userPrefs.messages.getString("analyze"));
 		trainingMenu.add(analizeMenuItem);
 
@@ -282,6 +282,16 @@ public class Main implements Runnable {
 		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		// frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		frame.setVisible(true);
+
+        // some small "automatization": autoload last file
+        String file = userPrefs.getDefaultFilename();
+        if (file != null) {
+            Readers.readFile(file);
+        }
+        // and start everything
+        if (userPrefs.autostart()) {
+            MessageBus.INSTANCE.send(Messages.START, new Double(0.0));
+        }
 	}
 
 	private static Level setLogLevel() {

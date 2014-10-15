@@ -30,17 +30,15 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.Messages;
 import com.wattzap.model.Readers;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
 
 /**
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * Speed and Cadence ANT+ processor.
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -81,16 +79,10 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 		int retVal = showOpenDialog(frame);
 		File file = getSelectedFile();
 		try {
-			if (retVal == JFileChooser.APPROVE_OPTION) {
+			if ((retVal == JFileChooser.APPROVE_OPTION) &&
+                    Readers.readFile(file.getAbsolutePath())) {
 				UserPreferences.INSTANCE.setRouteDir(file.getParent());
-				RouteReader track;
-				String ext = file.getName().substring(
-						file.getName().length() - 3);
-				track = Readers.INSTANCE.getReader(ext);
-				if (track != null) {
-					track.load(file.getAbsolutePath());
-					MessageBus.INSTANCE.send(Messages.GPXLOAD, track);
-				}
+                UserPreferences.LAST_FILENAME.setString(file.getName());
 			} else {
 				logger.info("Open command cancelled by user.");
 			}

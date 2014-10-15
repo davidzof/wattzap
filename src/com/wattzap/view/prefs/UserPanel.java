@@ -20,78 +20,22 @@ import com.wattzap.model.UserPreferences;
 // TODO: Add video directory location
 public class UserPanel extends ConfigPanel {
     private static final double LBSTOKG = 0.45359237;
-    private UserPreferences userPrefs = UserPreferences.INSTANCE;
-
 
 	public UserPanel() {
         super();
 
         add(new ConfigFieldDouble(this, UserPreferences.WEIGHT, "your_weight",
-                "%.1f", "kg", "lbs", LBSTOKG) {
-            @Override
-            public double getProperty() {
-                return userPrefs.getWeight();
-            }
-            @Override
-            public void setProperty(double val) {
-                userPrefs.setWeight(val);
-            }
-        });
-
+                "%.1f", "kg", "lbs", LBSTOKG));
         add(new ConfigFieldDouble(this, UserPreferences.BIKE_WEIGHT, "bike_weight",
-                "%.1f", "kg", "lbs", LBSTOKG) {
-            @Override
-            public double getProperty() {
-                return userPrefs.getBikeWeight();
-            }
-            @Override
-            public void setProperty(double val) {
-                userPrefs.setBikeWeight(val);
-            }
-        });
+                "%.1f", "kg", "lbs", LBSTOKG));
 
-        add(new ConfigFieldInt(this, UserPreferences.WHEEL_SIZE, "wheel_size") {
-            @Override
-            public int getProperty() {
-                return userPrefs.getWheelsize();
-            }
-            @Override
-            public void setProperty(int val) {
-                userPrefs.setWheelsize(val);
-            }
-        });
+        add(new ConfigFieldInt(this, UserPreferences.WHEEL_SIZE, "wheel_size"));
+        add(new ConfigFieldInt(this, UserPreferences.HR_MAX, "fthr"));
+        add(new ConfigFieldInt(this, UserPreferences.MAX_POWER, "ftp"));
 
-        add(new ConfigFieldInt(this, UserPreferences.HR_MAX, "fthr") {
-            @Override
-            public int getProperty() {
-                return userPrefs.getMaxHR();
-            }
-            @Override
-            public void setProperty(int val) {
-                userPrefs.setMaxHR(val);
-            }
-        });
+        add(new ConfigFieldCheck(this, UserPreferences.METRIC, "metric"));
 
-        add(new ConfigFieldInt(this, UserPreferences.MAX_POWER, "ftp") {
-            @Override
-            public int getProperty() {
-                return userPrefs.getMaxPower();
-            }
-            @Override
-            public void setProperty(int val) {
-                userPrefs.setMaxPower(val);
-            }
-        });
-
-        add(new ConfigFieldCheck(this, UserPreferences.METRIC, "metric") {
-            @Override
-            public boolean getProperty() {
-                return userPrefs.isMetric();
-            }
-            @Override
-            public void setProperty(boolean val) {
-                userPrefs.setMetric(val);
-            }
-        });
+        add(new ConfigFieldCheck(this, UserPreferences.LOAD_LAST, "load_last"));
+        add(new ConfigFieldCheck(this, UserPreferences.AUTO_START, "autostart"));
 	}
 }

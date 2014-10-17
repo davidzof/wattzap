@@ -140,12 +140,21 @@ public class Odo extends JPanel implements MessageCallback {
         private static final char digits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
         private String format(double value) {
             StringBuilder buf = new StringBuilder(10);
+            boolean negative = false;
+            if (value < 0.0) {
+                negative = true;
+                value = -value;
+            }
+
             int val = (int) value;
             value -= val;
             do {
                 buf.insert(0, digits[val % 10]);
                 val /= 10;
             } while (val != 0);
+            if (negative) {
+                buf.insert(0, '-');
+            }
             if (prec != 0) {
                 buf.append('.');
                 for (int i = 0; i < prec; i++) {

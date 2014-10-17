@@ -25,12 +25,12 @@ import com.wattzap.model.dto.Telemetry;
  *
  * @author Jarek
  */
-public abstract class TelemetryProcessor
-    extends SourceDataProcessor
+public abstract class TelemetryHandler
+    extends SourceDataHandler
     implements MessageCallback
 {
     @Override
-    public SourceDataProcessorIntf initialize() {
+    public SourceDataHandlerIntf initialize() {
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 

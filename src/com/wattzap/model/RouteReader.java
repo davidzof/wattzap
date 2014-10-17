@@ -22,7 +22,7 @@ import com.wattzap.model.dto.Point;
 
 /*
  * Interface for loading route files
- * 
+ *
  * @author David George (c) Copyright 2013
  * @date 19 November 2013
  */
@@ -30,25 +30,27 @@ public interface RouteReader {
 	// Slope (Integer) 0 = Watt program, 1 = Slope program, 2 = Pulse (HR)
 	public final static int POWER = 0;
 	public final static int SLOPE = 1;
-	
+
 	public String getExtension();
-	
+
 	public String getFilename();
 
-	public String getName();
+    public String getVideoFile();
+
+    public String getName();
 
 	public GPXFile getGpxFile();
 
 	/**
 	 * Used by profile view, gives distance/altitude values
-	 * 
+	 *
 	 * @return
 	 */
 	public XYSeries getSeries();
 
 	/**
 	 * Returns Point immediately before distance
-	 * 
+	 *
 	 * @return
 	 */
 	public Point[] getPoints();
@@ -60,16 +62,16 @@ public interface RouteReader {
 
 	/**
 	 * Returns a Point relative to the start of the track, resets current point
-	 * 
+	 *
 	 * @param distance
 	 * @return
 	 */
 	public Point getAbsolutePoint(double distance);
-	
+
 	public void load(String filename);
 
 	public void close();
-	
+
 	public double getDistanceMeters();
 
 	public int routeType();

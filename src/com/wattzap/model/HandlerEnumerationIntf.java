@@ -21,5 +21,5 @@ package com.wattzap.model;
  * @author Jarek
  */
 public interface HandlerEnumerationIntf extends EnumerationIntf {
-    SourceDataProcessorIntf findActiveHandler();
+    SourceDataHandlerIntf findActiveHandler();
 }

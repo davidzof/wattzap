@@ -73,14 +73,22 @@ public class GPXReader implements RouteReader {
 		return minSlope;
 	}
 
+	@Override
 	public String getFilename() {
 		return fileName;
 	}
 
+	@Override
+	public String getVideoFile() {
+		return fileName + ".avi";
+	}
+
+	@Override
 	public String getName() {
 		return fileName;
 	}
 
+	@Override
 	public GPXFile getGpxFile() {
 		return gpxFile;
 	}
@@ -115,6 +123,7 @@ public class GPXReader implements RouteReader {
 	 * return points[currentPoint]; }
 	 */
 
+    // TODO getPoint() uses bisection, return values shall be mediana for distance
 	public Point getPoint(double distance) {
 		while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
 			currentPoint++;

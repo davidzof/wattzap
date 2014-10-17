@@ -155,7 +155,7 @@ public class SpeedAndCadenceSensor extends AntSensor {
         if ((wTD < 0) || (wRD < 0) || (cTD < 0) || (cRD < 0) || (dT < 0)) {
             System.err.println(msg);
         } else {
-            logger.debug(msg);
+            //logger.debug(msg);
         }
     }
 

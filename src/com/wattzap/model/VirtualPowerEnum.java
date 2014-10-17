@@ -22,7 +22,7 @@ package com.wattzap.model;
  */
 public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     // computes power from wheelSpeed
-    SPEED_TO_POWER("speed2power", DefaultTelemetryProcessor.class),
+    SPEED_TO_POWER("speed2power", DefaultTelemetryHandler.class),
     // computes wheel speed from power. If (any) power sensor is not
     // available, it is impossible to run in this mode.
     POWER_TO_SPEED("power2speed"),
@@ -61,11 +61,11 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     }
 
     @Override
-    public SourceDataProcessorIntf findActiveHandler() {
+    public SourceDataHandlerIntf findActiveHandler() {
         if (clazz == null) {
             return null;
         }
-        for (SourceDataProcessorIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
+        for (SourceDataHandlerIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
             if (handler.getClass().equals(clazz)) {
                 return handler;
             }

@@ -17,41 +17,53 @@ package com.wattzap.utils;
 
 /**
  * Rolling Average Calculator
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
 public class Rolling {
 
-    private int size;
-    private double total = 0d;
-    private int index = 0;
+    private final int size;
+    private final double samples[];
+
     private int count = 0;
-    private double samples[];
+    private int index = 0;
 
     public Rolling(int size) {
         this.size = size;
         samples = new double[size];
-        for (int i = 0; i < size; i++) samples[i] = 0d;
+    }
+
+    public void clear() {
+        index = 0;
+        count = 0;
     }
 
     public double add(double x) {
-        total -= samples[index];
-        samples[index] = x;
-        total += x;
-        if (++index == size) {
+        samples[index++] = x;
+        if (index == size) {
         	index = 0; // cheaper than modulus
         }
         count++;
-        
+
         return getAverage();
     }
 
+    private double sum(int n) {
+        double total = 0.0;
+        while (n > 0) {
+            total += samples[--n];
+        }
+        return total;
+    }
+
     public double getAverage() {
-    	if (count < size) {
-    		return total / count;	// while it is filling up initially
+        if (count == 0) {
+            return 1.0;
+        } else if (count < size) {
+    		return sum(count) / count;	// while it is filling up initially
     	} else {
-    		return total / size;
+    		return sum(size) / size;
     	}
-    }   
+    }
 }

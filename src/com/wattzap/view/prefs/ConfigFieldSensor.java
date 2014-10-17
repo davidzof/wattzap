@@ -18,7 +18,7 @@ package com.wattzap.view.prefs;
 
 import com.wattzap.model.SensorIntf;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.SourceDataProcessorIntf;
+import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import java.awt.Color;
@@ -71,7 +71,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
 
         // initialize the sensor to change id
         this.sensor = null;
-        for (SourceDataProcessorIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
+        for (SourceDataHandlerIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
             if ((handler instanceof SensorIntf) && (name.equals(handler.getPrettyName()))) {
                 this.sensor = (SensorIntf) handler;
                 break;

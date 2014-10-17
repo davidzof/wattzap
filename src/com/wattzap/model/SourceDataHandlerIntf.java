@@ -37,10 +37,10 @@ package com.wattzap.model;
  *
  * @author Jarek
  */
-public interface SourceDataProcessorIntf
+public interface SourceDataHandlerIntf
 {
     // initialize handler: register messages, fill internal data, etc
-    SourceDataProcessorIntf initialize();
+    SourceDataHandlerIntf initialize();
     // un-initialize hander: unregister messages, stop channels, etc
     void release();
 

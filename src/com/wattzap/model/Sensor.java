@@ -27,7 +27,7 @@ import com.wattzap.controller.Messages;
  * properly.
  * @author Jarek
  */
-public abstract class Sensor extends SourceDataProcessor
+public abstract class Sensor extends SourceDataHandler
     implements MessageCallback, SensorIntf
 {
     protected final long[] modifications = new long[SourceDataEnum.values().length];
@@ -62,7 +62,7 @@ public abstract class Sensor extends SourceDataProcessor
     }
 
     @Override
-    public SourceDataProcessorIntf initialize() {
+    public SourceDataHandlerIntf initialize() {
         // message registration
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);

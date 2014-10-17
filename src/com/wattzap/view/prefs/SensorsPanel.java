@@ -19,7 +19,7 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.EnumerationIntf;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.SourceDataProcessorIntf;
+import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
@@ -148,8 +148,7 @@ public class SensorsPanel extends ConfigPanel {
         if (m == Messages.HANDLER) {
             List<ConfigFieldSensor> sensorFields = getSensorFields();
             for (ConfigFieldSensor sensorField : sensorFields) {
-                if (sensorField.getName().equals(
-                        ((SourceDataProcessorIntf) o).getPrettyName())) {
+                if (sensorField.getName().equals(((SourceDataHandlerIntf) o).getPrettyName())) {
                     sensorField.updateSensor();
                 }
             }

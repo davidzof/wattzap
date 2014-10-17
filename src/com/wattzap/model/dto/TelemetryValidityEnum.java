@@ -28,8 +28,8 @@ package com.wattzap.model.dto;
  */
 public enum TelemetryValidityEnum {
     NOT_SET,
-    TOO_SMALL,
     OK,
+    TOO_SMALL,
     TOO_BIG,
     WRONG
 }

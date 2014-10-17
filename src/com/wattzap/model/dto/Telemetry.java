@@ -25,6 +25,8 @@ import com.wattzap.model.TelemetryProvider;
  */
 public class Telemetry {
 	private double speed = 0.0;
+    private double wheelSpeed = 0.0;
+    private double videoSpeed = 0.0;
 	private int cadence = 0;
 	private double distance = 0.0;
 	private int power = 0;
@@ -34,7 +36,6 @@ public class Telemetry {
 	private double longitude = 181;
 	private int heartRate = 0;
 	private long time = 0;
-    private double wheelSpeed = 0.0;
     private int resistance = 1;
     private int paused = -1; // not_started
 
@@ -94,6 +95,21 @@ public class Telemetry {
 		this.speed = speed;
 	}
 
+	public double getWheelSpeed() {
+		return wheelSpeed;
+	}
+	public void setWheelSpeed(double v) {
+		wheelSpeed = v;
+
+	}
+
+	public double getVideoSpeed() {
+		return videoSpeed;
+	}
+	public void setVideoSpeed(double speed) {
+		this.videoSpeed = speed;
+	}
+
 	public int getCadence() {
 		return cadence;
 	}
@@ -106,14 +122,6 @@ public class Telemetry {
 	}
 	public void setDistance(double distance) {
 		this.distance = distance;
-	}
-
-	public double getWheelSpeed() {
-		return wheelSpeed;
-	}
-	public void setWheelSpeed(double v) {
-		wheelSpeed = v;
-
 	}
 
 	public int getResistance() {

@@ -15,6 +15,8 @@
 */
 package com.wattzap.view;
 
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -22,9 +24,6 @@ import java.util.List;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JOptionPane;
-import javax.swing.JSlider;
-import javax.swing.event.ChangeEvent;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.apache.log4j.LogManager;
@@ -33,6 +32,7 @@ import org.apache.log4j.Logger;
 import com.wattzap.model.Readers;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
+import javax.swing.JOptionPane;
 
 /**
  * (c) 2013 David George / Wattzap.com
@@ -43,7 +43,6 @@ import com.wattzap.model.UserPreferences;
  * @date 11 June 2013
  */
 public class RouteFilePicker extends JFileChooser implements ActionListener {
-	private static final long serialVersionUID = 1L;
 	JFrame frame;
 
 	private static Logger logger = LogManager.getLogger("Route File Picker");
@@ -62,13 +61,13 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 			}
 			fileTypes.append(readers.get(i).getExtension());
 		}
-
-		File cwd = new File(UserPreferences.INSTANCE.getRouteDir());
-		setCurrentDirectory(cwd);
 		FileNameExtensionFilter filter = new FileNameExtensionFilter(
 				"Supported file types (" + fileTypes.toString() + ")",
 				extensions);
 		setFileFilter(filter);
+
+		File cwd = new File(UserPreferences.INSTANCE.getRouteDir());
+		setCurrentDirectory(cwd);
 	}
 
 	@Override
@@ -77,28 +76,21 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 		logger.debug(command);
 
 		int retVal = showOpenDialog(frame);
-		File file = getSelectedFile();
-		try {
-			if ((retVal == JFileChooser.APPROVE_OPTION) &&
-                    Readers.readFile(file.getAbsolutePath())) {
-				UserPreferences.INSTANCE.setRouteDir(file.getParent());
+        if (retVal == JFileChooser.APPROVE_OPTION) {
+    		File file = getSelectedFile();
+            RouteReader reader = Readers.readFile(file.getAbsolutePath());
+            if (reader != null) {
+                UserPreferences.INSTANCE.setRouteDir(file.getParent());
                 UserPreferences.LAST_FILENAME.setString(file.getName());
-			} else {
-				logger.info("Open command cancelled by user.");
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			JOptionPane.showMessageDialog(frame,
-					ex.getMessage() + " " + file.getAbsolutePath(), "Error",
-					JOptionPane.ERROR_MESSAGE);
-		}
-	}
-
-	/** Listen to the slider. */
-	public void stateChanged(ChangeEvent e) {
-		JSlider source = (JSlider) e.getSource();
-		if (!source.getValueIsAdjusting()) {
-			int fps = (int) source.getValue();
-		}
+                MessageBus.INSTANCE.send(Messages.GPXLOAD, reader);
+            } else {
+                logger.error("Cannot open " + file.getAbsolutePath());
+                JOptionPane.showMessageDialog(frame,
+                        Readers.getLastMessage() + " " + file.getAbsolutePath(),
+                        "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        } else {
+            logger.info("Open command user returned " + retVal);
+        }
 	}
 }

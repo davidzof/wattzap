@@ -20,8 +20,8 @@ package com.wattzap.model;
  *
  * @author Jarek
  */
-public abstract class SourceDataProcessor
-    implements SourceDataProcessorIntf
+public abstract class SourceDataHandler
+    implements SourceDataHandlerIntf
 {
     protected final double[] values = new double[SourceDataEnum.values().length];
 
@@ -29,7 +29,7 @@ public abstract class SourceDataProcessor
     private long lastMessageTime = 0;
     private String prettyName;
 
-    public SourceDataProcessor() {
+    public SourceDataHandler() {
         // initialize all values to not modified
         for (int i = 0; i < values.length; i++) {
             values[i] = 0.0;

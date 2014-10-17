@@ -46,10 +46,11 @@ import com.wattzap.controller.MenuItem;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
-import com.wattzap.model.DefaultTelemetryProcessor;
+import com.wattzap.model.DefaultTelemetryHandler;
 import com.wattzap.model.Readers;
+import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.SourceDataProcessorIntf;
+import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.ant.AntSubsystem;
@@ -141,16 +142,16 @@ public class Main implements Runnable {
 
         new AntSubsystem(popupMsg).initialize();
 
-        SourceDataProcessorIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
+        SourceDataHandlerIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
 
-        SourceDataProcessorIntf hrm = new HeartRateSensor("hrm").initialize();
+        SourceDataHandlerIntf hrm = new HeartRateSensor("hrm").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
 
         // default telemetry is busy with processing all source data. It is not
         // activated if simulSpeed is selected.
-        new DefaultTelemetryProcessor().initialize();
+        new DefaultTelemetryHandler().initialize();
 
         JPanel odo = new Odo();
 
@@ -283,12 +284,15 @@ public class Main implements Runnable {
 		// frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		frame.setVisible(true);
 
-        // some small "automatization": autoload last file
+        // autoload last file
         String file = userPrefs.getDefaultFilename();
         if (file != null) {
-            Readers.readFile(file);
+            RouteReader reader = Readers.readFile(file);
+            if (reader != null) {
+                MessageBus.INSTANCE.send(Messages.GPXLOAD, reader);
+            }
         }
-        // and start everything
+        // start training
         if (userPrefs.autostart()) {
             MessageBus.INSTANCE.send(Messages.START, new Double(0.0));
         }

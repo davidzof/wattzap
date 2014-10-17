@@ -42,7 +42,7 @@ public enum TelemetryProvider implements MessageCallback
     private final List<SubsystemIntf> subsystems = new ArrayList<>();
 
     // list of handlers for source data (read from subsystems, or computed on telemetry..)
-    private final List<SourceDataProcessorIntf> handlers = new ArrayList<>();
+    private final List<SourceDataHandlerIntf> handlers = new ArrayList<>();
     private final Map<SourceDataEnum, SensorIntf> sensors = new HashMap<>();
 
     /* current "location" and training time, filled in telemetry to be reported */
@@ -68,6 +68,7 @@ public enum TelemetryProvider implements MessageCallback
 
     private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
     static {
+        pauseMsgKeys.put(-2, "stopped");
         pauseMsgKeys.put(-1, "initialize");
         // normal training condition
         pauseMsgKeys.put(0, null);
@@ -119,7 +120,7 @@ public enum TelemetryProvider implements MessageCallback
         return subsystems;
     }
     // all registered handlers: sensors, telemetryProcessors and others
-    public List<SourceDataProcessorIntf> getHandlers() {
+    public List<SourceDataHandlerIntf> getHandlers() {
         return handlers;
     }
 
@@ -127,7 +128,7 @@ public enum TelemetryProvider implements MessageCallback
     public SensorIntf getSensor(SourceDataEnum data) {
         return sensors.get(data);
     }
-    public void setSensor(SourceDataEnum data, SourceDataProcessorIntf sensor) {
+    public void setSensor(SourceDataEnum data, SourceDataHandlerIntf sensor) {
         if (sensor == null) {
             sensors.remove(data);
         } else {
@@ -146,7 +147,11 @@ public enum TelemetryProvider implements MessageCallback
         for (int i = 0; i < lastHandlersNum.length; i++) {
             lastHandlersNum[i] = -1;
         }
+        // send "dummy" telemetry, without any data except time and position.
+        // it would be filled in a few seconds.
         t = new Telemetry();
+        t.setDistance(distance);
+        t.setTime(runtime);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
         // Wait all handlers reinitialize to show what is wrong with configuration.
         try {
@@ -171,7 +176,7 @@ public enum TelemetryProvider implements MessageCallback
                     }
                 }
 
-                for (SourceDataProcessorIntf handler :  handlers) {
+                for (SourceDataHandlerIntf handler :  handlers) {
                     // if handler is active and provides property
                     if ((handler.getLastMessageTime() == -1) && (handler.provides(prop))) {
                         handlersNum++;
@@ -256,6 +261,9 @@ public enum TelemetryProvider implements MessageCallback
                 runtime += timePassed;
             }
         }
+        // stopped, show proper message
+        t.setPaused(-2);
+        MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
     }
 
     @Override
@@ -302,14 +310,14 @@ public enum TelemetryProvider implements MessageCallback
 
             case HANDLER:
                 // check if subsystem already added
-                for (SourceDataProcessorIntf existing : handlers) {
+                for (SourceDataHandlerIntf existing : handlers) {
                     // compare references, not objects!
                     if (existing == o) {
                         return;
                     }
                 }
                 // add handler and notify about all available subsystems
-                handlers.add((SourceDataProcessorIntf) o);
+                handlers.add((SourceDataHandlerIntf) o);
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM, (MessageCallback) o)) {
                         for (SubsystemIntf subsystem: subsystems) {
@@ -320,7 +328,7 @@ public enum TelemetryProvider implements MessageCallback
                 break;
             case HANDLER_REMOVED:
                 // remove handler from the list
-                handlers.remove((SourceDataProcessorIntf) o);
+                handlers.remove((SourceDataHandlerIntf) o);
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, (MessageCallback) o)) {
                         for (SubsystemIntf subsystem: subsystems) {

@@ -15,8 +15,6 @@
 */
 package com.wattzap.model;
 
-import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.Messages;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -78,14 +76,26 @@ public enum Readers {
 		}
 
 	}
-    static public boolean readFile(String fileName) {
+
+    private static String lastMessage = null;
+    public static String getLastMessage() {
+        return lastMessage;
+    }
+    static public RouteReader readFile(String fileName) {
         String ext = fileName.substring(fileName.length() - 3);
         RouteReader track = Readers.INSTANCE.getReader(ext);
         if (track != null) {
-            track.load(fileName);
-            MessageBus.INSTANCE.send(Messages.GPXLOAD, track);
-            return true;
+            try {
+                track.load(fileName);
+                lastMessage = null;
+                return track;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                lastMessage = ex.getLocalizedMessage();
+            }
+        } else {
+            lastMessage = "Unknown reader";
         }
-        return false;
+        return null;
     }
 }

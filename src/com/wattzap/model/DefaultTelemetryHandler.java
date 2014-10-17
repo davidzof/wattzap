@@ -26,7 +26,7 @@ import com.wattzap.model.power.Power;
  *
  * @author Jarek
  */
-public class DefaultTelemetryProcessor extends TelemetryProcessor {
+public class DefaultTelemetryHandler extends TelemetryHandler {
     private double totalWeight = 85.0;
     private int resistance;
     private boolean autoResistance;
@@ -39,7 +39,7 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
     }
 
     @Override
-    public SourceDataProcessorIntf initialize() {
+    public SourceDataHandlerIntf initialize() {
         super.initialize();
         MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 
@@ -151,7 +151,7 @@ public class DefaultTelemetryProcessor extends TelemetryProcessor {
             setValue(SourceDataEnum.PAUSE, 100.0); // end of training
             setValue(SourceDataEnum.SPEED, 0.0);
         } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
-            if (t.getTime() == 0) {
+            if (t.getTime() < 1000) {
                 setValue(SourceDataEnum.PAUSE, 1.0); // start training
             } else {
                 setValue(SourceDataEnum.PAUSE, 2.0); // keep moving

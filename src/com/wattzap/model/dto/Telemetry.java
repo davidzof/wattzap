@@ -16,13 +16,14 @@
 package com.wattzap.model.dto;
 
 import com.wattzap.model.SourceDataEnum;
+import java.io.Serializable;
 
 /**
  * Data object containing all the data produced by handlers.
  *
  * @author Jarek
  */
-public class Telemetry {
+public class Telemetry implements Serializable {
     private final double[] values;
     private final TelemetryValidityEnum[] validity;
 

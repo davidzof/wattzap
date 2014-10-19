@@ -144,7 +144,6 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         // handle pause
         String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
         if (pauseMsg != null) {
-            System.err.println("Pause:: " + pauseMsg);
             Dimension size = mPlayer.getVideoDimension();
             if (size != null) {
                 mPlayer.setMarqueeSize(size.height / 8);
@@ -194,6 +193,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
 
         // dont check rate if both last and current are very small..
+        // it is only when no movements are detected..
         if ((rate < 0.001) && (lastRate < 0.001)) {
             return;
         }
@@ -212,7 +212,8 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         }
 	}
     private boolean changedRate(double rate, double change) {
-        return ((rate < lastRate * (1.0 - change)) || (rate >= lastRate * (1.0 + change)));
+        return ((rate < lastRate * (1.0 - change)) ||
+                (rate >= lastRate * (1.0 + change)));
     }
 
     private void playVideo(String videoFile) {

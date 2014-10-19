@@ -137,6 +137,12 @@ public enum TelemetryProvider implements MessageCallback
         }
     }
 
+    public void setDistanceTime(double distance, long time) {
+        this.distance = distance;
+        this.runtime = time;
+        MessageBus.INSTANCE.send(Messages.STARTPOS, (Double) distance);
+    }
+
     /* Main loop: get all data, process it and send current telemetry, then sleep some time.
      * Advance time and distance as well.
      * Next step.. set indicators

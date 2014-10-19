@@ -131,15 +131,13 @@ public class Main implements Runnable {
 	@Override
 	public void run() {
 		MainFrame frame = new MainFrame();
-        PopupMessageIntf popupMsg = new PopupMessage(frame);
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-
-		// frame.setSize(screenSize.width, screenSize.height-100);
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		frame.setBounds(userPrefs.getMainBounds());
 
         // telemetry privider receives all subsystems/sensors/processors
         TelemetryProvider.INSTANCE.initialize();
 
+        PopupMessageIntf popupMsg = new PopupMessage(frame);
         new AntSubsystem(popupMsg).initialize();
 
         SourceDataHandlerIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
@@ -153,6 +151,7 @@ public class Main implements Runnable {
         // activated if simulSpeed is selected.
         new DefaultTelemetryHandler().initialize();
 
+        // reusable panel for showing the telemetric data
         JPanel odo = new Odo();
 
 		// Performs an isregister check, be careful if we move below AboutPanel
@@ -164,7 +163,6 @@ public class Main implements Runnable {
 					userPrefs.messages.getString("warning"),
 					JOptionPane.INFORMATION_MESSAGE);
 			logger.info(e.getMessage());
-
 			videoPlayer = null;
 		}
 
@@ -173,12 +171,18 @@ public class Main implements Runnable {
 		contentPane.setBackground(Color.BLACK);
 		contentPane.setLayout(layout);
 
-		// create view
+		TrainingDisplay trainingDisplay = new TrainingDisplay(screenSize);
+		frame.add(trainingDisplay, "cell 0 0");
+
 		new Map(frame);
-		Profile profile = new Profile(screenSize);
+
+        Profile profile = new Profile(screenSize);
 		profile.setVisible(false);
 
 		// Menu Bar
+        TrainingController trainingController = new TrainingController(
+				trainingDisplay, frame);
+
 		JMenuBar menuBar = new JMenuBar();
 
 		JMenu appMenu = new JMenu("Application");
@@ -226,9 +230,6 @@ public class Main implements Runnable {
 		// Submenu: Training
 		JMenu trainingMenu = new JMenu(userPrefs.messages.getString("training"));
 		menuBar.add(trainingMenu);
-		TrainingDisplay trainingDisplay = new TrainingDisplay(screenSize);
-		TrainingController trainingController = new TrainingController(
-				trainingDisplay, frame);
 
         // Submenu: training
         JMenuItem trainMenuItem = new JMenuItem(userPrefs.messages.getString("open"));
@@ -267,8 +268,6 @@ public class Main implements Runnable {
 		recoverMenuItem.addActionListener(trainingController);
 
 		viewMenuItem.addActionListener(trainingController);
-
-		frame.add(trainingDisplay, "cell 0 0");
 
 		frame.setJMenuBar(menuBar);
 		// End Menu

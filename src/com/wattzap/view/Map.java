@@ -15,8 +15,6 @@
 */
 package com.wattzap.view;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 import javax.swing.JOptionPane;
 
@@ -29,12 +27,14 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.dto.TelemetryValidityEnum;
 
-/* 
+/*
  * Displays a map of the course and moves cross-hairs depending on position.
- * 
+ *
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  */
@@ -71,9 +71,14 @@ public class Map extends GPXPanel implements MessageCallback {
 
 		switch (message) {
 		case TELEMETRY:
-
 			Telemetry t = (Telemetry) o;
-
+            // don't show position if not present!
+            if ((t.getValidity(SourceDataEnum.LATITUDE) == TelemetryValidityEnum.NOT_PRESENT) ||
+                    (t.getValidity(SourceDataEnum.LATITUDE) == TelemetryValidityEnum.NOT_AVAILABLE) ||
+                    (t.getValidity(SourceDataEnum.LONGITUDE) == TelemetryValidityEnum.NOT_PRESENT) ||
+                    (t.getValidity(SourceDataEnum.LONGITUDE) == TelemetryValidityEnum.NOT_AVAILABLE)) {
+                return;
+            }
 			if (count++ % displayPeriod == 0) {
 				if (zoom == 13) {
 					zoom = 15;
@@ -91,17 +96,20 @@ public class Map extends GPXPanel implements MessageCallback {
 			setShowCrosshair(true);
 			repaint();
 			break;
-		case CLOSE:
+
+        case CLOSE:
 			if (this.isVisible()) {
+				setVisible(false);
 				frame.remove(this);
 				if (gpxFile != null) {
 					this.removeGPXFile(gpxFile);
+                    gpxFile = null;
 				}
-				setVisible(false);
 				frame.revalidate();
 			}
 			break;
-		case GPXLOAD:
+
+        case GPXLOAD:
 			// code to see if we are registered
 			if (!UserPreferences.INSTANCE.isRegistered()
 					&& (UserPreferences.INSTANCE.getEvalTime()) <= 0) {
@@ -117,25 +125,31 @@ public class Map extends GPXPanel implements MessageCallback {
 			}
 
 			count = 0;
-			frame.remove(this);
-			RouteReader routeData = (RouteReader) o;
-			gpxFile = routeData.getGpxFile();
+            if (isVisible()) {
+				setVisible(false);
+    			frame.remove(this);
+				if (gpxFile != null) {
+					this.removeGPXFile(gpxFile);
+                    gpxFile = null;
+				}
+            }
 
-			// TODO - change load message: gpxload, rlvload?
+            RouteReader routeData = (RouteReader) o;
+			gpxFile = routeData.getGpxFile();
 			if (gpxFile != null) {
 				double centerLon = gpxFile.getMinLon()
 						+ (gpxFile.getMaxLon() - gpxFile.getMinLon()) / 2;
 				double centerLat = gpxFile.getMinLat()
 						+ (gpxFile.getMaxLat() - gpxFile.getMinLat()) / 2;
+                // TODO set scale to see whole route..
 				setDisplayPositionByLatLon(centerLat, centerLon, 12);
-
-				this.addGPXFile(gpxFile);
-				// setSize(400, 400);
-
-				frame.add(this, "cell 0 0");
-				setVisible(true);
+				addGPXFile(gpxFile);
+    			repaint();
 			}
-			break;
+
+            frame.add(this, "cell 0 0");
+            setVisible(true);
+            break;
 		}
 	}
 }

@@ -88,10 +88,10 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
             case SPEED:
             case POWER:
 
-            // it shall be handled by TrainerHandler!
+            // it shall be published by TrainerHandler!
             case RESISTANCE:
 
-            // these shall be made by RouteHandler!
+            // these shall be published by RouteHandler!
             case ROUTE_SPEED:
             case ROUTE_TIME:
             case ALTITUDE:

@@ -81,7 +81,10 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
     @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
-            // main targets
+            // general
+            case PAUSE:
+
+                // main targets
             case SPEED:
             case POWER:
 
@@ -89,11 +92,12 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
             case RESISTANCE:
 
             // these shall be made by RouteHandler!
+            case ROUTE_SPEED:
+            case ROUTE_TIME:
             case ALTITUDE:
             case SLOPE:
             case LATITUDE:
             case LONGITUDE:
-            case PAUSE:
                 return true;
 
             default:
@@ -104,7 +108,7 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
     @Override
     public void storeTelemetryData(Telemetry t) {
         // We have a time value and rotation value, lets calculate the speed
-        int powerWatts = power.getPower(t.getWheelSpeed(), resistance);
+        int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
         setValue(SourceDataEnum.POWER, powerWatts);
 
         // if we have GPX Data and Simulspeed is enabled calculate speed
@@ -126,6 +130,8 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
                     System.out.println("Route type is " + routeData.routeType());
                 }
 
+                setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());
+                setValue(SourceDataEnum.ROUTE_TIME, p.getTime());
                 setValue(SourceDataEnum.ALTITUDE, p.getElevation());
                 setValue(SourceDataEnum.SLOPE, p.getGradient());
                 setValue(SourceDataEnum.LATITUDE, p.getLatitude());
@@ -168,7 +174,9 @@ public class DefaultTelemetryHandler extends TelemetryHandler {
                 routeData = (RouteReader) o;
                 /* no break */
             case STARTPOS:
-                setValue(SourceDataEnum.PAUSE, 0);
+                if (routeData != null) {
+                    routeData.close();
+                }
                 break;
         }
         super.callback(m, o);

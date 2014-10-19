@@ -15,19 +15,19 @@
 */
 package com.wattzap.view.prefs;
 
+import com.wattzap.model.Constants;
 import com.wattzap.model.UserPreferences;
 
 // TODO: Add video directory location
 public class UserPanel extends ConfigPanel {
-    private static final double LBSTOKG = 0.45359237;
 
 	public UserPanel() {
         super();
 
         add(new ConfigFieldDouble(this, UserPreferences.WEIGHT, "your_weight",
-                "%.1f", "kg", "lbs", LBSTOKG));
+                "%.1f", "kg", "lbs", Constants.LBSTOKG));
         add(new ConfigFieldDouble(this, UserPreferences.BIKE_WEIGHT, "bike_weight",
-                "%.1f", "kg", "lbs", LBSTOKG));
+                "%.1f", "kg", "lbs", Constants.LBSTOKG));
 
         add(new ConfigFieldInt(this, UserPreferences.WHEEL_SIZE, "wheel_size"));
         add(new ConfigFieldInt(this, UserPreferences.HR_MAX, "fthr"));

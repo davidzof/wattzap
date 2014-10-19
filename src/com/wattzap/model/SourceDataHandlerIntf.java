@@ -48,6 +48,7 @@ public interface SourceDataHandlerIntf
     String getPrettyName();
     void setPrettyName(String name);
 
+    /* activate telemetryHandler */
     void setActive(boolean active);
 
    /* Which data handler provides. If handler provides these data, it is
@@ -60,21 +61,22 @@ public interface SourceDataHandlerIntf
    /* Access to handled data. */
    double getValue(SourceDataEnum data);
 
-   /* get last change time of the value. Time > than 5s means no updates
-    * and indicator becomes orange.
-    * Special "behaviour" must be done for values without indication (like
-    * cadence in S&C sensor), they are always updated when non-zero value
-    * is received.. or when crank rotates (number of revolutions changed)
+   /* Sensor: get last change time of the value. Time > than 5s means no updates
+    * and indicator becomes orange. Value shown in ODO is grayed as well.
+    * Telemetry handler: check current value (if too big or too little). Negative
+    * value means too_little, positive too_big, zero value meets criteria. In
+    * ODO these values are indicated as red (too little) or blue (too big).
     */
    long getModificationTime(SourceDataEnum data);
 
-   /* Get last just (handled) message time. If ==0, no messages were received
-    * at all (and sensor indicator is gray), if no message received for last
-    * 10 seconds indicator becomes red.
+   /* Sensor: Get last just (handled) message time. If ==0, no messages were
+    * received at all (and sensor indicator is gray), if any message was read
+    * before 10s sensor indicator becomes red..
     * Otherwise indicator show orange (value not updated for last 5 seconds) or
     * green (value updated recently).
-    * If handler doesn't handle any messages, it returns -1, what means no indicator
-    * shall be shown.
+    * Telemetry handler: If it returns 0, handler is not active. No data is
+    * taken from this handler. -1 value means handler is active and provides
+    * all the data.
     */
    long getLastMessageTime();
 }

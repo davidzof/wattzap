@@ -41,32 +41,10 @@ public class SensorsPanel extends ConfigPanel {
         // register messages
         MessageBus.INSTANCE.register(Messages.HANDLER, this);
 
-        add(new ConfigFieldCheck(this, UserPreferences.ANT_ENABLED, "ant_enabled") {
-            @Override
-            public boolean getProperty() {
-                return userPrefs.isAntEnabled();
-            }
-            @Override
-            public void setProperty(boolean val) {
-                userPrefs.setAntEnabled(val);
-            }
-        });
-        add(new ConfigFieldCheck(this, UserPreferences.ANT_USBM, "ant_usbm") {
-            @Override
-            public boolean getProperty() {
-                return userPrefs.isAntUSBM();
-            }
-            @Override
-            public void setProperty(boolean val) {
-                userPrefs.setAntUSBM(val);
-            }
-        });
+        add(new ConfigFieldCheck(this, UserPreferences.ANT_ENABLED, "ant_enabled"));
+        add(new ConfigFieldCheck(this, UserPreferences.ANT_USBM, "ant_usbm"));
 
         add(new ConfigFieldCheck(this, UserPreferences.PAIRING, "pairing") {
-            @Override
-            public boolean getProperty() {
-                return userPrefs.isPairingEnabled();
-            }
             @Override
             public void setProperty(boolean val) {
                 userPrefs.setPairing(val);
@@ -75,11 +53,12 @@ public class SensorsPanel extends ConfigPanel {
         });
 
         // build panels for all existing sensors
-        add(new ConfigFieldSensor(this, "sandc", SourceDataEnum.WHEEL_SPEED, "%.1f", "km/h", 1.6, "mph"));
+        add(new ConfigFieldSensor(this, "sandc", SourceDataEnum.WHEEL_SPEED));
         add(new ConfigFieldSensor(this, "hrm", SourceDataEnum.HEART_RATE));
         // new panels shall be added here..
 
-        add(new ConfigFieldEnum(this, UserPreferences.VIRTUAL_POWER, "virtual_power", VirtualPowerEnum.FTP_SIMULATION) {
+        add(new ConfigFieldEnum(this, UserPreferences.VIRTUAL_POWER,
+                "virtual_power", VirtualPowerEnum.FTP_SIMULATION) {
             @Override
             public EnumerationIntf getProperty() {
                 return userPrefs.getVirtualPower();

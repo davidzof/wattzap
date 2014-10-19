@@ -65,10 +65,13 @@ public abstract class SourceDataHandler
             values[data.ordinal()] = value;
         }
     }
-    /* WARNING Not usable for telemetryProcessors, only valid for sensors */
+    /**
+     * @return -1 value is too small
+     * @return 0  value is ok
+     * @return 1  value is too big
+     */
     @Override
     public long getModificationTime(SourceDataEnum data) {
-        assert false : "Only sensors handle property modification time";
         return 0;
     }
 

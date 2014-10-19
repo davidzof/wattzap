@@ -20,6 +20,7 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.dto.TelemetryValidityEnum;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,12 +47,10 @@ public enum TelemetryProvider implements MessageCallback
     private final Map<SourceDataEnum, SensorIntf> sensors = new HashMap<>();
 
     /* current "location" and training time, filled in telemetry to be reported */
-    private Telemetry t = null;
     private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
 
     private Thread runner = null;
-    private int[] lastHandlersNum = new int[SourceDataEnum.values().length];
 
     public TelemetryProvider initialize() {
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
@@ -97,13 +96,13 @@ public enum TelemetryProvider implements MessageCallback
         // end of training. Set by video handler, cannot be overriden
         pauseMsgKeys.put(100, "end_of_training");
     }
-    public static String pauseMsg(Telemetry t, boolean nullIfUnknown) {
-        String key = pauseMsgKeys.get(t.getPaused());
+    public static String pauseMsg(int v, boolean nullIfUnknown) {
+        String key = pauseMsgKeys.get(v);
         if (key == null) {
             if (nullIfUnknown) {
                 return null;
             } else {
-                return String.format("unknown[%d]", t.getPaused());
+                return String.format("unknown[%d]", v);
             }
         }
         if (UserPreferences.INSTANCE.messages.containsKey(key)) {
@@ -112,7 +111,7 @@ public enum TelemetryProvider implements MessageCallback
         return key;
     }
     public static String pauseMsg(Telemetry t) {
-        return pauseMsg(t, true);
+        return pauseMsg(t.getPaused(), true);
     }
 
     // subsystems to be handled
@@ -143,16 +142,17 @@ public enum TelemetryProvider implements MessageCallback
      * Next step.. set indicators
      */
     private void threadLoop() {
-        Thread.currentThread().setName("TelemetryProvider");
+        int[] lastHandlersNum = new int[SourceDataEnum.values().length];
         for (int i = 0; i < lastHandlersNum.length; i++) {
             lastHandlersNum[i] = -1;
         }
         // send "dummy" telemetry, without any data except time and position.
         // it would be filled in a few seconds.
-        t = new Telemetry();
+        Telemetry t = new Telemetry(-1);
         t.setDistance(distance);
         t.setTime(runtime);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
+
         // Wait all handlers reinitialize to show what is wrong with configuration.
         try {
             Thread.sleep(5000);
@@ -161,34 +161,84 @@ public enum TelemetryProvider implements MessageCallback
             Thread.currentThread().interrupt();
         }
 
+        // telemetry filled by sensors and handlers
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
 
+            // clean up the telemetry, it is filled by handlers from the scratch
+            t = new Telemetry();
+
+            // time and distance always are ok? What about power?
+            t.setTime(runtime);
+            t.setDistance(distance);
+
             for (SourceDataEnum prop : SourceDataEnum.values()) {
+                TelemetryValidityEnum validity = TelemetryValidityEnum.NOT_PRESENT;
                 double value = prop.getDefault();
                 int handlersNum = 0;
 
                 SensorIntf sensor = getSensor(prop);
                 if ((sensor != null) && (sensor.provides(prop))) {
                     if (sensor.getModificationTime(prop) >= start - 5000) {
-                        handlersNum++;
+                        validity = TelemetryValidityEnum.OK;
                         value = sensor.getValue(prop);
+                        handlersNum++;
+                    } else {
+                        validity = TelemetryValidityEnum.NOT_AVAILABLE;
                     }
                 }
 
                 for (SourceDataHandlerIntf handler :  handlers) {
-                    // if handler is active and provides property
+                    // if telemetryHandler is active and provides property
                     if ((handler.getLastMessageTime() == -1) && (handler.provides(prop))) {
-                        handlersNum++;
                         if (prop == SourceDataEnum.PAUSE) {
+                            // pause.. cannot be too_small or too_big :)
+                            validity = TelemetryValidityEnum.OK;
                             if (value < handler.getValue(prop)) {
                                 value = handler.getValue(prop);
                             }
                         } else {
+                            TelemetryValidityEnum target;
+                            if (handler.getModificationTime(prop) < 0) {
+                                target = TelemetryValidityEnum.TOO_SMALL;
+                            } else if (handler.getModificationTime(prop) > 0) {
+                                target = TelemetryValidityEnum.TOO_BIG;
+                            } else {
+                                target = TelemetryValidityEnum.OK;
+                            }
+                            switch (validity) {
+                                case NOT_PRESENT:
+                                case NOT_AVAILABLE:
+                                case OK:
+                                    validity = target;
+                                    break;
+                                case TOO_BIG:
+                                case TOO_SMALL:
+                                    if (validity != target) {
+                                        validity = TelemetryValidityEnum.WRONG;
+                                    }
+                                    break;
+                                case WRONG:
+                                    // stays wrong..
+                                    break;
+                            }
                             value = handler.getValue(prop);
                         }
+                        handlersNum++;
                     }
                 }
+                if ((prop == SourceDataEnum.DISTANCE) || (prop == SourceDataEnum.TIME)) {
+                    if (validity != TelemetryValidityEnum.NOT_PRESENT) {
+                        logger.error(prop.getName() + " set by handler, " +
+                                "value " + prop.format(value, false) + " discarded!");
+                        t.setValidity(prop, validity);
+                    } else {
+                        // not_present doesn't replace current values
+                    }
+                } else {
+                    t.setDouble(prop, value, validity);
+                }
+
                 // check if number of handlers for property has changed
                 if (handlersNum != lastHandlersNum[prop.ordinal()]) {
                     if (lastHandlersNum[prop.ordinal()] < 0) {
@@ -198,51 +248,12 @@ public enum TelemetryProvider implements MessageCallback
                         }
                     } else {
                         logger.warn("Number of handlers providing " + prop
-                                + " changed " + lastHandlersNum[prop.ordinal()] + "->" + handlersNum);
+                                + " changed " + lastHandlersNum[prop.ordinal()]
+                                + "->" + handlersNum);
                     }
                     lastHandlersNum[prop.ordinal()] = handlersNum;
                 }
-                // and set value in the telemetry
-                switch (prop) {
-                    case WHEEL_SPEED:
-                        t.setWheelSpeed(value);
-                        break;
-                    case CADENCE:
-                        t.setCadence((int)value);
-                        break;
-                    case HEART_RATE:
-                        t.setHeartRate((int)value);
-                        break;
-                    case POWER:
-                        t.setPower((int)value);
-                        break;
-                    case RESISTANCE:
-                        t.setResistance((int)value);
-                        break;
-                    case SLOPE:
-                        t.setGradient(value);
-                        break;
-                    case ALTITUDE:
-                        t.setElevation(value);
-                        break;
-                    case LATITUDE:
-                        t.setLatitude(value);
-                        break;
-                    case LONGITUDE:
-                        t.setLongitude(value);
-                        break;
-                    case SPEED:
-                        t.setSpeed(value);
-                        break;
-                    case PAUSE:
-                        t.setPaused((int)value);
-                        break;
-                    default:
-                        assert false : "Telemetry provider doesn't handle " + prop;
-                }
             }
-            t.setTime(runtime);
-            t.setDistance(distance);
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
             // sleep some time
@@ -261,7 +272,7 @@ public enum TelemetryProvider implements MessageCallback
                 runtime += timePassed;
             }
         }
-        // stopped, show proper message
+        // stopped, show proper message with last values
         t.setPaused(-2);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
     }
@@ -271,13 +282,13 @@ public enum TelemetryProvider implements MessageCallback
         switch (m) {
             case START:
                 if (runner == null) {
-                    logger.debug("TelemetryProvider start requested");
                     runner = new Thread() {
                         @Override
                         public void run() {
                             threadLoop();
                         }
                     };
+                    runner.setName("TelemetryProvider");
                     runner.start();
                 } else {
                     logger.error("TelemetryProvider already started");
@@ -286,7 +297,6 @@ public enum TelemetryProvider implements MessageCallback
             case STOP:
                 // ask for save if distance bigger than 0
                 if (runner != null) {
-                    logger.debug("TelemetryProvider stop requested");
                     runner.interrupt();
                     runner = null;
                 } else {

@@ -17,12 +17,12 @@
 package com.wattzap.model;
 
 /**
- * List of states for "hardware" subsystems with sensors
+ * Class to keep all constant values used within app
  * @author Jarek
  */
-public enum SubsystemStateEnum {
-    NOT_INITIALIZED,
-    NOT_AVAILABLE,
-    CLOSED,
-    OPENED
+public class Constants {
+    // metric/imperial conversions
+    public static final double KMTOMILES = 1.609344;
+    public static final double MTOFEET = 0.3048;
+    public static final double LBSTOKG = 0.45359237;
 }

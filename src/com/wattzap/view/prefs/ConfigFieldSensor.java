@@ -33,10 +33,6 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
     private final String name;
     private final String fieldName;
     private final SourceDataEnum data;
-    private final String format;
-    private final String metricUnit;
-    private final double imperialConv;
-    private final String imperialUnit;
     private SensorIntf sensor;
 
     private final JTextField value;
@@ -45,29 +41,11 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
     public ConfigFieldSensor(ConfigPanel panel, String name) {
         this(panel, name, null);
     }
-    public ConfigFieldSensor(ConfigPanel panel, String name,
-            SourceDataEnum data) {
-        this(panel, name, data, "%.0f");
-    }
-    public ConfigFieldSensor(ConfigPanel panel, String name,
-            SourceDataEnum data, String format) {
-        this(panel, name, data, format, "");
-    }
-    public ConfigFieldSensor(ConfigPanel panel, String name,
-            SourceDataEnum data, String format, String metricUnit) {
-        this(panel, name, data, format, metricUnit, 1.0, metricUnit);
-    }
 
-    public ConfigFieldSensor(ConfigPanel panel, String name,
-            SourceDataEnum data, String format,
-            String metricUnit, double imperialConv, String imperialUnit) {
+    public ConfigFieldSensor(ConfigPanel panel, String name, SourceDataEnum data) {
         this.name = name;
         this.fieldName = "*" + name;
         this.data = data;
-        this.format = format;
-        this.metricUnit = metricUnit;
-        this.imperialConv = imperialConv;
-        this.imperialUnit = imperialUnit;
 
         // initialize the sensor to change id
         this.sensor = null;
@@ -94,7 +72,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         value.getDocument().putProperty("name", fieldName);
         value.getDocument().addDocumentListener(panel);
 
-        if ((data != null) && (format != null) && (!format.isEmpty())) {
+        if ((data != null) && (data.format(0.0, true) != null)) {
             current = new JLabel();
     		panel.add(value);
     		panel.add(current, "span");
@@ -154,25 +132,23 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         return (val >= 0) && (val < 65536);
     }
 
-    private int loopId = -1;
     public void updateSensor() {
-        loopId = (loopId + 1) % 10;
         if (current == null) {
             return;
         }
 
         if (sensor == null) {
-            current.setText("null/" + loopId);
+            current.setText("missing");
             return;
         }
 
         // if sensor doesn't work.. or requested data is not provided..
         if (sensor.getLastMessageTime() == 0) {
-            current.setText("disabled/" + loopId);
+            current.setText("disabled");
             return;
         }
         if (!sensor.provides(data)) {
-            current.setText("not provided/" + loopId);
+            current.setText("closed");
             return;
         }
         // if sensor paired, just set sensor id..
@@ -181,20 +157,17 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         }
         // don't show value if sensor ID is different than
         if (sensor.getSensorId() != UserPreferences.SENSORS.getSensorId(name)) {
-            current.setText("differ/" + loopId);
+            current.setText("id conflict");
             return;
         }
 
         if (sensor.getModificationTime(data) + 10000 < System.currentTimeMillis()) {
-            current.setText("not updated/" + loopId);
+            current.setText("not updated");
             return;
         }
-        if (UserPreferences.METRIC.isMetric()) {
-            current.setText(String.format(format, sensor.getValue(data))
-                    + " " + metricUnit);
-        } else {
-            current.setText(String.format(format, sensor.getValue(data)
-                    / imperialConv) + " " + imperialUnit);
-        }
+
+        boolean metric = UserPreferences.METRIC.isMetric();
+        current.setText(
+            data.format(sensor.getValue(data), metric) + " " + data.getUnit(metric));
     }
 }

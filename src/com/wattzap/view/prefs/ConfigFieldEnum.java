@@ -31,7 +31,12 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
 
     private final JComboBox value;
 
-    public ConfigFieldEnum(ConfigPanel panel, UserPreferences property, String name, EnumerationIntf e) {
+    /*
+     * Enumeration value must be passed, it is easier than dealing with
+     * reflection (but.. it is possible I change it in close future..)
+     */
+    public ConfigFieldEnum(ConfigPanel panel, UserPreferences property,
+            String name, EnumerationIntf e) {
         this.property = property;
         this.enumeration = e;
 

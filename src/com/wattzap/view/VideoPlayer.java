@@ -38,7 +38,6 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.Rolling;
 import java.awt.Dimension;
@@ -63,19 +62,18 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
  * @author David George
  * @date 11 June 2013
  */
-public class VideoPlayer extends JFrame implements /* ChangeListener, */
-MessageCallback {
+public class VideoPlayer extends JFrame implements MessageCallback {
 	private static Logger logger = LogManager.getLogger("Video Player");
+
+	private final JFrame mainFrame;
+	private final JPanel odo;
 
     private EmbeddedMediaPlayer mPlayer;
 	private MediaPlayerFactory mediaPlayerFactory;
 	private Canvas canvas;
 
-	private RouteReader routeData = null;
-	JPanel odo;
-	JFrame mainFrame;
-
-    long len = -1;
+    private long len = -1;
+    private long lastTime = 0;
 	private double lastRate = 0.0;
     private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
     private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
@@ -121,13 +119,20 @@ MessageCallback {
 
         // initialize on first telemetry
         if (len == 0) {
-            mPlayer.start();
+            lastRate = 1.0;
+
 			mPlayer.enableOverlay(true);
+            mPlayer.start();
+            mPlayer.setRate((float) lastRate);
+            // TODO don't mute video if POWER training and config is set..
+            // Usefull for trainings with "sound guided" stuff (sufferfest,
+            // spinnerwalls, etc)
 			mPlayer.mute();
 
 			len = mPlayer.getLength(); // [ms]
             // if empty video, don't start it again
             if (len == 0) {
+                logger.error("Empty video, don't start it");
                 len = -1;
                 return;
             }
@@ -137,7 +142,6 @@ MessageCallback {
 		}
 
         // handle pause
-        // Why it doesn't show "welcome" message? Next run everything is ok..
         String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
         if (pauseMsg != null) {
             System.err.println("Pause:: " + pauseMsg);
@@ -158,20 +162,10 @@ MessageCallback {
             mPlayer.setPause(false);
         }
 
-        Point p = null;
-        if (routeData != null) {
-            p = routeData.getPoint(t.getDistance());
-        }
-        // if outside the route.. just pause, pause message is already
-        // displayed.. Even no possibility to set proper position, indeed
-        if (p == null) {
-            return;
-        }
-
 		// check position: time for video position and for gpx must be
         // more or less same. Otherwise resync.
         long videoTime  = (long) (len * mPlayer.getPosition());
-        long routeTime = p.getTime();
+        long routeTime = t.getRouteTime();
         long deltaTime = videoTime - routeTime;
         if ((deltaTime < -10000) || (10000 < deltaTime)) {
             logger.warn("Setting expected position " + routeTime +
@@ -182,10 +176,10 @@ MessageCallback {
 
         // compute ratio for video
         bikeSpeed.add(t.getSpeed());
-        if (p.getSpeed() >= 1.0) {
-            // "advertisments" are ignored, usually they are skipped by
-            // setPosition()..
-            routeSpeed.add(p.getSpeed());
+        // "advertisments" are ignored, usually they are skipped by
+        // setPosition(). Don't include them in average route speed
+        if (t.getRouteSpeed() >= 1.0) {
+            routeSpeed.add(t.getRouteSpeed());
         }
         double rate = bikeSpeed.getAverage() / routeSpeed.getAverage();
         // "add" deltaTime correction. deltaTime is -10..10[s]. Don't increase
@@ -195,18 +189,31 @@ MessageCallback {
         logger.debug(String.format(
                 "speed=%.1f/%.1f videoSpeed=%.1f/%.1f deltaTime=%d rate=%.3f lastRate=%.3f",
                 t.getSpeed(), bikeSpeed.getAverage(),
-                p.getSpeed(), routeSpeed.getAverage(),
+                t.getRouteSpeed(), routeSpeed.getAverage(),
                 deltaTime, rate, lastRate));
+
+
+        // dont check rate if both last and current are very small..
+        if ((rate < 0.001) && (lastRate < 0.001)) {
+            return;
+        }
 
         // and finally set new rate if changed much. 20% in change is ok?
         // when setRate is called some artefacts are shown on the screen (some
         // frames are lost or what? synchronization issue in vlc?)
-        if ((rate < 0.8 * lastRate) || (rate >= 1.25 * lastRate)) {
+        long currentTime = System.currentTimeMillis();
+        if (changedRate(rate, 0.2) ||
+                (currentTime - lastTime > 5000) && changedRate(rate, 0.1) ||
+                (currentTime - lastTime > 10000) && changedRate(rate, 0.05)) {
+            logger.debug("Change rate after " + (currentTime - lastTime));
+            lastTime = currentTime;
             lastRate = rate;
             mPlayer.setRate((float) rate);
-            logger.debug("Change rate...");
         }
 	}
+    private boolean changedRate(double rate, double change) {
+        return ((rate < lastRate * (1.0 - change)) || (rate >= lastRate * (1.0 + change)));
+    }
 
     private void playVideo(String videoFile) {
         if (videoFile != null) {
@@ -260,26 +267,18 @@ MessageCallback {
                 mPlayer.setPause(true);
             }
 			break;
-        // when start.. first telemetry will "wake" up the video
 
         case GPXLOAD:
             // initialize video on new route
-			routeData = (RouteReader) o;
+			RouteReader routeData = (RouteReader) o;
             if (routeData != null) {
                 playVideo(routeData.getVideoFile());
-            }
-			break;
-
-        case STARTPOS:
-            // "restart" point in the route, it will "refresh" on telemetry
-			if (routeData != null) {
-                routeData.close();
             }
 			break;
 
         case CLOSE:
             playVideo(null);
 			break;
-		}
+        }
 	}
 }

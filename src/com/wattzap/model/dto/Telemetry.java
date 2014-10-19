@@ -15,138 +15,205 @@
 */
 package com.wattzap.model.dto;
 
-import com.wattzap.model.TelemetryProvider;
+import com.wattzap.model.SourceDataEnum;
 
 /**
- * Data object for telemetry coming from the ANT Speed, Cadence and Heart Rate Sensors
+ * Data object containing all the data produced by handlers.
  *
- * @author David George (c) Copyright 2013
- * @date 19 June 2013
+ * @author Jarek
  */
 public class Telemetry {
-	private double speed = 0.0;
-    private double wheelSpeed = 0.0;
-    private double videoSpeed = 0.0;
-	private int cadence = 0;
-	private double distance = 0.0;
-	private int power = 0;
-	private double elevation = 0;
-	private double gradient = 0;
-	private double latitude = 91;
-	private double longitude = 181;
-	private int heartRate = 0;
-	private long time = 0;
-    private int resistance = 1;
-    private int paused = -1; // not_started
+    private final double[] values;
+    private final TelemetryValidityEnum[] validity;
+
+    public Telemetry() {
+        values = new double[SourceDataEnum.values().length];
+        validity = new TelemetryValidityEnum[values.length];
+        for (SourceDataEnum val : SourceDataEnum.values()) {
+            values[val.ordinal()] = val.getDefault();
+            validity[val.ordinal()] = TelemetryValidityEnum.NOT_PRESENT;
+        }
+    }
+    public Telemetry(int pause) {
+        this();
+        // all fields are "visible", but without a data
+        values[SourceDataEnum.PAUSE.ordinal()] = (double) pause;
+        for (SourceDataEnum val : SourceDataEnum.values()) {
+            validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
+        }
+    }
+
+    public TelemetryValidityEnum getValidity(SourceDataEnum en) {
+        return validity[en.ordinal()];
+    }
+    public void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
+        validity[en.ordinal()] = valid;
+    }
+
+    public double getDouble(SourceDataEnum en) {
+        return values[en.ordinal()];
+    }
+    public void setDouble(SourceDataEnum en, double v, TelemetryValidityEnum valid) {
+        values[en.ordinal()] = v;
+        validity[en.ordinal()] = valid;
+    }
+    public void setDouble(SourceDataEnum en, double v) {
+        setDouble(en, v, TelemetryValidityEnum.OK);
+    }
+
+    public int getInt(SourceDataEnum en) {
+        return (int) values[en.ordinal()];
+    }
+    public void setInt(SourceDataEnum en, int v, TelemetryValidityEnum valid) {
+        values[en.ordinal()] = (double) v;
+        validity[en.ordinal()] = valid;
+    }
+    public void setInt(SourceDataEnum en, int v) {
+        setInt(en, v, TelemetryValidityEnum.OK);
+    }
+
+    public long getLong(SourceDataEnum en) {
+        return (long) values[en.ordinal()];
+    }
+    public void setLong(SourceDataEnum en, long v, TelemetryValidityEnum valid) {
+        values[en.ordinal()] = (double) v;
+        validity[en.ordinal()] = valid;
+    }
+    public void setLong(SourceDataEnum en, long v) {
+        setLong(en, v, TelemetryValidityEnum.OK);
+    }
+
 
     public long getTime() {
-        return time;
+        return getLong(SourceDataEnum.TIME);
 	}
 	public void setTime(long time) {
-		this.time = time;
+        setLong(SourceDataEnum.TIME, time);
 	}
 
 	public int getHeartRate() {
-		return heartRate;
+        return getInt(SourceDataEnum.HEART_RATE);
 	}
 	public void setHeartRate(int heartRate) {
-		this.heartRate = heartRate;
+		setInt(SourceDataEnum.HEART_RATE, heartRate);
 	}
 
 	public double getLatitude() {
-		return latitude;
+        return getDouble(SourceDataEnum.LATITUDE);
 	}
 	public void setLatitude(double latitude) {
-		this.latitude = latitude;
+		setDouble(SourceDataEnum.LATITUDE, latitude);
 	}
 
 	public double getLongitude() {
-		return longitude;
+        return getDouble(SourceDataEnum.LONGITUDE);
 	}
 	public void setLongitude(double longitude) {
-		this.longitude = longitude;
+		setDouble(SourceDataEnum.LONGITUDE, longitude);
 	}
 
 	public double getElevation() {
-		return elevation;
+        return getDouble(SourceDataEnum.ALTITUDE);
 	}
 	public void setElevation(double elevation) {
-		this.elevation = elevation;
+		setDouble(SourceDataEnum.ALTITUDE, elevation);
 	}
 
 	public double getGradient() {
-		return gradient;
+        return getDouble(SourceDataEnum.SLOPE);
 	}
 	public void setGradient(double gradient) {
-		this.gradient = gradient;
+		setDouble(SourceDataEnum.SLOPE, gradient);
 	}
 
 	public int getPower() {
-		return power;
+        return getInt(SourceDataEnum.POWER);
 	}
 	public void setPower(int power) {
-		this.power = power;
+		setInt(SourceDataEnum.POWER, power);
 	}
 
 	public double getSpeed() {
-		return speed;
+        return getDouble(SourceDataEnum.SPEED);
 	}
 	public void setSpeed(double speed) {
-		this.speed = speed;
+		setDouble(SourceDataEnum.SPEED, speed);
 	}
 
 	public double getWheelSpeed() {
-		return wheelSpeed;
+        return getDouble(SourceDataEnum.WHEEL_SPEED);
 	}
-	public void setWheelSpeed(double v) {
-		wheelSpeed = v;
+	public void setWheelSpeed(double wspeed) {
+		setDouble(SourceDataEnum.WHEEL_SPEED, wspeed);
+	}
 
+	public double getRouteSpeed() {
+        return getDouble(SourceDataEnum.ROUTE_SPEED);
 	}
-
-	public double getVideoSpeed() {
-		return videoSpeed;
-	}
-	public void setVideoSpeed(double speed) {
-		this.videoSpeed = speed;
-	}
+    public long getRouteTime() {
+        return getLong(SourceDataEnum.ROUTE_TIME);
+    }
 
 	public int getCadence() {
-		return cadence;
+        return getInt(SourceDataEnum.CADENCE);
 	}
 	public void setCadence(int cadence) {
-		this.cadence = cadence;
+		setInt(SourceDataEnum.CADENCE, cadence);
 	}
 
 	public double getDistance() {
-		return distance;
+        return getDouble(SourceDataEnum.DISTANCE);
 	}
 	public void setDistance(double distance) {
-		this.distance = distance;
+		setDouble(SourceDataEnum.DISTANCE, distance);
 	}
 
 	public int getResistance() {
-		return resistance;
+        return getInt(SourceDataEnum.RESISTANCE);
 	}
-	public void setResistance(int v) {
-		resistance =  v;
+	public void setResistance(int resistance) {
+		setInt(SourceDataEnum.RESISTANCE, resistance);
 	}
 
     public int getPaused() {
-        return paused;
+        return getInt(SourceDataEnum.PAUSE);
     }
-    public void setPaused(int v) {
-        paused = v;
+    public void setPaused(int reason) {
+		setInt(SourceDataEnum.PAUSE, reason);
     }
 
 	@Override
 	public String toString() {
-		return "Telemetry [speed=" + speed + ", cadence=" + cadence
-				+ ", distance=" + distance + ", time=" + time / 1000
-                + ", power=" + power + ", wheelSpeed=" + wheelSpeed
-                + ", heartRate=" + heartRate + ", resistance=" + resistance
-				+ ", altitude=" + elevation + ", slope=" + gradient
-				+ ", latitude=" + latitude + ", longitude=" + longitude
-                + ", paused=\"" + TelemetryProvider.INSTANCE.pauseMsg(this, false) + "\""
-            + "]";
+        StringBuilder buf = new StringBuilder();
+        buf.append("Telemetry [");
+        String sep = "";
+        for (SourceDataEnum val : SourceDataEnum.values()) {
+            if ((val.getName() != null) && (getValidity(val) != TelemetryValidityEnum.NOT_PRESENT)) {
+                String str = val.format(getDouble(val), true); // metric
+                if (str != null) {
+                    buf.append(sep);
+                    buf.append(val.getName());
+                    buf.append('=');
+                    buf.append(str);
+                    switch (getValidity(val)) {
+                        case NOT_AVAILABLE:
+                            buf.append('?');
+                            break;
+                        case TOO_BIG:
+                            buf.append('+');
+                            break;
+                        case TOO_SMALL:
+                            buf.append('-');
+                            break;
+                        case WRONG:
+                            buf.append('!');
+                            break;
+                    }
+                    sep = ", ";
+                }
+            }
+        }
+        buf.append("]");
+        return buf.toString();
 	}
 }

@@ -1,4 +1,5 @@
-/* This file is part of Wattzap Community Edition.
+/*
+ * This file is part of Wattzap Community Edition.
  *
  * Wattzap Community Edtion is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -12,18 +13,27 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
-*/
-package com.wattzap.controller;
+ */
+package com.wattzap;
+
+import com.wattzap.model.UserPreferences;
+import com.wattzap.view.MainFrame;
+import javax.swing.JOptionPane;
 
 /**
- * Objects wanting to listen to messages on the message bus must implement this.
  *
- * (c) 2013 David George / Wattzap.com
- *
- * @author David George
- * @date 12 November 2013
+ * @author Jarek
  */
-public interface MessageCallback {
-	void callback(Messages m, Object o);
+public class PopupMessage implements PopupMessageIntf {
+    private MainFrame frame;
 
+    public PopupMessage(MainFrame frame) {
+        this.frame = frame;
+    }
+
+    public void showWarning(String src, String msg) {
+            JOptionPane.showMessageDialog(frame, src + " " + msg,
+                UserPreferences.INSTANCE.messages.getString("warning"),
+                JOptionPane.WARNING_MESSAGE);
+    }
 }

@@ -15,6 +15,8 @@
 */
 package com.wattzap.model;
 
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
 import java.awt.Rectangle;
 import java.util.List;
 import java.util.Locale;
@@ -27,351 +29,565 @@ import com.wattzap.model.power.PowerProfiles;
 
 /**
  * Singleton helper to read/write user preferences to a backing store
- * 
+ *
  * @author David George / 15 September 2013 (C) Copyright 2013
- * 
+ * @author Jarek
  */
 public enum UserPreferences {
+    RESISTANCE("resistance", 1),
+    VIRTUAL_POWER("virtualPower", 0),
+    DEBUG("debug", false),
+    MAX_POWER("maxpower", 250),
+    HR_MAX("maxhr", 180),
+
+    // 2133 is 700Cx23
+    WHEEL_SIZE("wheelsize", 2133),
+    BIKE_WEIGHT("bikeweight", 10.0, 0.1),
+    WEIGHT("weight", 75.0, 0.1),
+
+    LANG("lang", "EN"),
+
+    EVAL_TIME("evalTime", 240),
+    SERIAL("ssn", ""),
+    REGKEY("rsnn", ""),
+
+    TRAININGS_DIR("trainingLocation", getWD() + "/Trainings"),
+    VIDEO_DIR("videoLocation", getWD() + "/Routes"),
+
+    RUNNING("running", false),
+    AUTO_START("autostart", false),
+    LAST_FILENAME("last_filename", ""),
+    LOAD_LAST("load_last", false),
+
+
+    ANT_ENABLED("ant_enabled", true),
+    ANT_USBM("antusbm", false),
+
+    METRIC("units", true),
+	POWER_PROFILE("profile", "Tacx Satori / Blue Motion"),
+
+    DB_VERSION("dbVersion", "1.2"),
+
+    // special property for sensors, used for notification about sensorId change
+    // for specified sensorName.
+    SENSORS("sensors"),
+    // special property, not handled by the database
+    PAIRING("pairing", false),
+
+    @Deprecated
+    SIMUL_SPEED("simulSpeed", false),
+
+    // backward compability, cannot be get/set
 	INSTANCE;
-	private Power powerProfile;
-	String user;
-	private final DataStore ds;
-	private static int evalTime = 240;
-	private static String workingDirectory = null;
-	private static String userDataDirectory = null;
-	private static final String cryptKey = "afghanistanbananastan";
-	private static final double LBSTOKG = 0.45359237;
-	public ResourceBundle messages;
-	private boolean antEnabled = true;
-	private boolean antUSBM = false;
-	
-	private UserPreferences() {
-		user = System.getProperty("user.name");
-		String wd = getWD();
-		ds = new DataStore(wd, cryptKey);
 
-		Locale currentLocale;
+    static {
+        SERIAL.forAll = true;
+        REGKEY.forAll = true;
+        EVAL_TIME.forAll = true;
+        EVAL_TIME.intCrypted = true;
+        PAIRING.keptInDB = false;
+    }
 
-		currentLocale = Locale.getDefault();
-		currentLocale = Locale.ENGLISH;
-		messages = ResourceBundle.getBundle("MessageBundle", currentLocale);
+	// why it must be always specified?? Are there system settings
+    // and user settings? Hmm. serial? evalTime? What else?
+    private static String user = System.getProperty("user.name");
 
+    // TODO with the use of LANG property.. and with callbacks..
+    // it must be shifted somewhere else (Messages enum??)
+	public static ResourceBundle messages;
+    static {
+		messages = ResourceBundle.getBundle("MessageBundle", LANG.getLocale());
+    }
+
+    // property values
+    private final String name;
+    private boolean forAll = false;
+    private boolean initialized = false;
+    private Double doubleVal = null;
+    private double doubleDiff = 0.0;
+    private Integer intVal = null;
+    private boolean intCrypted = false;
+    private String strVal = null;
+    private Boolean boolVal = null;
+    private Boolean keptInDB = true;
+
+    private UserPreferences() {
+        this(null);
+    }
+    private UserPreferences(String name) {
+        this.name = name;
+        this.initialized = true;
+        this.keptInDB = false;
+    }
+    private UserPreferences(String name, String val) {
+        this.name = name;
+        strVal = val;
+    }
+    private UserPreferences(String name, double val, double diff) {
+        this.name = name;
+        doubleVal = val;
+        doubleDiff = diff;
+    }
+    private UserPreferences(String name, int val) {
+        this.name = name;
+        intVal = val;
+    }
+    private UserPreferences(String name, boolean val) {
+        this.name = name;
+        boolVal = val;
+    }
+
+
+    public String getName() {
+        return name;
+    }
+    public String getString() {
+        synchronized(this) {
+            assert (strVal != null) : name + " is not a string";
+            if (!initialized) {
+                if (keptInDB) {
+                    strVal = get(forAll ? "" : user, name, strVal);
+                }
+                initialized = true;
+            }
+            return strVal;
+        }
+    }
+    public void setString(String val) {
+        synchronized(this) {
+            if (!getString().equals(val)) {
+                strVal = val;
+                if (keptInDB) {
+                    set(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
+        }
+    }
+    public int getInt() {
+        synchronized(this) {
+            assert (intVal != null) : name + " is not an integer";
+            if (!initialized) {
+                if (keptInDB) {
+                    if (intCrypted) {
+                        intVal = getIntCrypt(forAll ? "" : user, name, intVal);
+                    } else {
+                        intVal = getInt(forAll ? "" : user, name, intVal);
+                    }
+                }
+                initialized = true;
+            }
+            return intVal;
+        }
+    }
+    public void setInt(int val) {
+        synchronized(this) {
+            if (getInt()!= val) {
+                intVal = val;
+                if (keptInDB) {
+                    if (intCrypted) {
+                        setIntCrypt(forAll ? "" : user, name, val);
+                    } else {
+                        setInt(forAll ? "" : user, name, val);
+                    }
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
+        }
+    }
+    public double getDouble() {
+        synchronized(this) {
+            assert (doubleVal != null) : name + " is not a double";
+            if (!initialized) {
+                if (keptInDB) {
+                    doubleVal = getDouble(forAll ? "" : user, name, doubleVal);
+                }
+                initialized = true;
+            }
+            return doubleVal;
+        }
+    }
+    public void setDouble(double val) {
+        synchronized(this) {
+            double diff = getDouble() - val;
+            if ((diff < -doubleDiff) || (diff > doubleDiff)) {
+                doubleVal = val;
+                if (keptInDB) {
+                    setDouble(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
+        }
+    }
+    public boolean getBool() {
+        synchronized(this) {
+            assert (boolVal != null) : name + " is not a bool";
+            if (!initialized) {
+                if (keptInDB) {
+                    boolVal = getBoolean(forAll ? "" : user, name, boolVal);
+                }
+                initialized = true;
+            }
+            return boolVal;
+        }
+    }
+    public void setBool(boolean val) {
+        synchronized(this) {
+            if (getBool() != val) {
+                boolVal = val;
+                if (keptInDB) {
+                    setBoolean(forAll ? "" : user, name, val);
+                }
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, this);
+            }
+        }
+    }
+
+
+
+
+
+
+	// These functions are called only by GUI
+    public Rectangle getMainBounds() {
+		int width = getInt(user, "mainWidth", 1200);
+		int height = getInt(user, "mainHeight", 650);
+		int x = getInt(user, "mainX", 0);
+		int y = getInt(user, "mainY", 0);
+		Rectangle r = new Rectangle(x, y, width, height);
+		return r;
+	}
+	public void setMainBounds(Rectangle r) {
+		setInt(user, "mainHeight", r.height);
+		setInt(user, "mainWidth", r.width);
+		setInt(user, "mainX", r.x);
+		setInt(user, "mainY", r.y);
+	}
+	public Rectangle getVideoBounds() {
+		int width = getInt(user, "videoWidth", 800);
+		int height = getInt(user, "videoHeight", 600);
+		int x = getInt(user, "videoX", 0);
+		int y = getInt(user, "videoY", 650);
+		Rectangle r = new Rectangle(x, y, width, height);
+		return r;
+	}
+	public void setVideoBounds(Rectangle r) {
+		setInt(user, "videoHeight", r.height);
+		setInt(user, "videoWidth", r.width);
+		setInt(user, "videoX", r.x);
+		setInt(user, "videoY", r.y);
 	}
 
+
+
+    public boolean isStarted() {
+        return RUNNING.getBool();
+    }
+    public void setStarted(boolean started) {
+        RUNNING.setBool(started);
+    }
+
+    public boolean isAntEnabled() {
+		return ANT_ENABLED.getBool();
+	}
 	public void setAntEnabled(boolean v) {
-		antEnabled = v;
-	}
-
-	public boolean isAntEnabled() {
-		return antEnabled;
-	}
-
-	public void addWorkout(WorkoutData data) {
-		ds.saveWorkOut(user, data);
-	}
-
-	public WorkoutData getWorkout(String name) {
-		return ds.getWorkout(user, name);
-	}
-
-	public void deleteWorkout(String name) {
-		ds.deleteWorkout(user, name);
-	}
-
-	public List<WorkoutData> listWorkouts() {
-		return ds.listWorkouts(user);
+		ANT_ENABLED.setBool(v);
 	}
 
 	public String getDBVersion() {
-		return get("", "dbVersion", "1.2");
+        return DB_VERSION.getString();
 	}
-
 	public void setDBVersion(String v) {
-		set("", "dbVersion", v);
-	}
-
-	public Rectangle getMainBounds() {
-		int width = getInt("", "mainWidth", 1200);
-		int height = getInt("", "mainHeight", 650);
-		int x = getInt("", "mainX", 0);
-		int y = getInt("", "mainY", 0);
-
-		Rectangle r = new Rectangle(x, y, width, height);
-		return r;
-	}
-
-	public void setMainBounds(Rectangle r) {
-		setInt("", "mainHeight", r.height);
-		setInt("", "mainWidth", r.width);
-		setInt("", "mainX", r.x);
-		setInt("", "mainY", r.y);
-
-	}
-
-	public Rectangle getVideoBounds() {
-		int width = getInt("", "videoWidth", 800);
-		int height = getInt("", "videoHeight", 600);
-		int x = getInt("", "videoX", 0);
-		int y = getInt("", "videoY", 650);
-
-		
-		Rectangle r = new Rectangle(x, y, width, height);
-		return r;
-	}
-
-	public void setVideoBounds(Rectangle r) {
-		
-		setInt("", "videoHeight", r.height);
-		setInt("", "videoWidth", r.width);
-		setInt("", "videoX", r.x);
-		setInt("", "videoY", r.y);
+        DB_VERSION.setString(v);
 	}
 
 	public double getWeight() {
-		if (this.isMetric()) {
-			return getDouble("weight", 80.0);
-		} else {
-			// convert to lbs
-			return getDouble("weight", 80.0) / 0.45359237;
-		}
+		return WEIGHT.getDouble();
 	}
-
-	public double getWeightKG() {
-		return getDouble("weight", 80.0);
-	}
-
-	// always store as kg
 	public void setWeight(double weight) {
-		if (this.isMetric()) {
-			setDouble("weight", weight);
-		} else {
-			// convert to lbs
-			setDouble("weight", weight * 0.45359237);
-		}
+		WEIGHT.setDouble(weight);
 	}
-
 	public double getBikeWeight() {
-		if (this.isMetric()) {
-			return getDouble("bikeweight", 10.0);
-		} else {
-			// convert to lbs
-			return getDouble("bikeweight", 10.0) / 0.45359237;
-		}
+		return BIKE_WEIGHT.getDouble();
 	}
-
-	public double getTotalWeight() {
-		return getDouble("weight", 80.0) + getDouble("bikeweight", 10.0);
-	}
-
-	// always store as kg
 	public void setBikeWeight(double weight) {
-		if (this.isMetric()) {
-			setDouble("bikeweight", weight);
-		} else {
-			// convert to lbs
-			setDouble("bikeweight", weight * 0.45359237);
-		}
+        BIKE_WEIGHT.setDouble(weight);
+	}
+	public double getTotalWeight() {
+		return getWeight() + getBikeWeight();
 	}
 
-	// 2133 is 700Cx23
 	public int getWheelsize() {
-		return getInt(user, "wheelsize", 2133);
+		return WHEEL_SIZE.getInt();
 	}
-
 	public double getWheelSizeCM() {
-		return getInt(user, "wheelsize", 2133) / 10.0;
+		return getWheelsize() / 10.0;
 	}
-
 	public void setWheelsize(int wheelsize) {
-		setInt(user, "wheelsize", wheelsize);
+		WHEEL_SIZE.setInt(wheelsize);
 	}
 
 	public int getMaxHR() {
-		return getInt(user, "maxhr", 0);
+		return HR_MAX.getInt();
 	}
-
 	public void setMaxHR(int maxhr) {
-		setInt(user, "maxhr", maxhr);
+		HR_MAX.setInt(maxhr);
 	}
 
 	public int getMaxPower() {
-		return getInt(user, "maxpower", 0);
+        return MAX_POWER.getInt();
 	}
-
 	public void setMaxPower(int maxPower) {
-		setInt(user, "maxpower", maxPower);
+		MAX_POWER.setInt(maxPower);
 	}
 
 	public boolean isMetric() {
-		return getBoolean("units", true);
+        return METRIC.getBool();
+	}
+	public void setMetric(boolean value) {
+        METRIC.setBool(value);
 	}
 
-	public void setUnits(boolean value) {
-		setBoolean("units", value);
+	public boolean isAntUSBM() {
+        return ANT_USBM.getBool();
 	}
-	
-	public boolean isANTUSB() {
-		return getBoolean("antusbm", false);
-	}
-
 	public void setAntUSBM(boolean value) {
-		setBoolean("antusbm", value);
+		ANT_USBM.setBool(value);
 	}
+
+    public Locale getLocale() {
+        return Locale.forLanguageTag(LANG.getString());
+    }
+    public String getLang() {
+        return LANG.getString();
+    }
+    public void setLang(String lang) {
+        LANG.setString(lang);
+    }
 
 	public boolean isDebug() {
-		return getBoolean("debug", false);
+        return DEBUG.getBool();
 	}
-
 	public void setDebug(boolean value) {
-		setBoolean("debug", value);
+        DEBUG.setBool(value);
 	}
 
-	public boolean isVirtualPower() {
-		return getBoolean("virtualPower", false);
+	public VirtualPowerEnum getVirtualPower() {
+		return VirtualPowerEnum.values()[VIRTUAL_POWER.getInt()];
 	}
-
-	public void setVirtualPower(boolean value) {
-		setBoolean("virtualPower", value);
+	public void setVirtualPower(VirtualPowerEnum value) {
+        VIRTUAL_POWER.setInt(value.ordinal());
 	}
 
 	public Power getPowerProfile() {
-		String profile = get(user, "profile", "Tacx Satori / Blue Motion");
-
-		if (powerProfile == null) {
-			PowerProfiles pp = PowerProfiles.INSTANCE;
-			powerProfile = pp.getProfile(profile);
-		}
-		return powerProfile;
+        synchronized(POWER_PROFILE) {
+            String profile = POWER_PROFILE.getString();
+            return PowerProfiles.INSTANCE.getProfile(profile);
+        }
 	}
-
 	public void setPowerProfile(String profile) {
-		String p = get(user, "profile", null);
-		if (!profile.equals(p)) {
-			set(user, "profile", profile);
-			PowerProfiles pp = PowerProfiles.INSTANCE;
-			powerProfile = pp.getProfile(profile);
-		}
+        POWER_PROFILE.setString(profile);
 	}
 
 	public int getResistance() {
-		return getInt(user, "resistance", 1);
+        return RESISTANCE.getInt();
 	}
-
 	public void setResistance(int r) {
-		setInt(user, "resistance", r);
+        RESISTANCE.setInt(r);
 	}
 
-	public int getSCId() {
+	public String getRouteDir() {
+        return VIDEO_DIR.getString();
+	}
+	public void setRouteDir(String s) {
+        VIDEO_DIR.setString(s);
+	}
+
+	public String getTrainingDir() {
+        return TRAININGS_DIR.getString();
+	}
+	public void setTrainingDir(String s) {
+        TRAININGS_DIR.setString(s);
+	}
+
+    public String getDefaultFilename() {
+        if ((!LOAD_LAST.getBool()) || (LAST_FILENAME.getString().isEmpty())) {
+            return null;
+        }
+        return getRouteDir() + "/" + LAST_FILENAME.getString();
+    }
+
+    public boolean autostart() {
+        return AUTO_START.getBool();
+    }
+
+
+
+    // Registration Stuff
+	public String getSerial() {
+        synchronized(SERIAL) {
+            String serial = SERIAL.getString();
+            if (serial.isEmpty()) {
+                serial = UUID.randomUUID().toString();
+                SERIAL.setString(serial);
+            }
+            return serial;
+        }
+	}
+
+	public boolean isRegistered() {
+        return !REGKEY.getString().isEmpty();
+	}
+	public String getRegistrationKey() {
+        return REGKEY.getString();
+	}
+	public void setRegistrationKey(String key) {
+		REGKEY.setString(key);
+	}
+	public int getEvalTime() {
+        return EVAL_TIME.getInt();
+	}
+	public void setEvalTime(int t) {
+		EVAL_TIME.setInt(t);
+	}
+
+
+    @Deprecated
+    public boolean isVirtualPower() {
+        return SIMUL_SPEED.getBool();
+    }
+    @Deprecated
+    public void setVirtualPower(boolean ss) {
+        SIMUL_SPEED.setBool(ss);
+    }
+
+    // sensors handling
+	@Deprecated
+    public int getSCId() {
 		return getInt(user, "sandcId", 0);
 	}
 
+	@Deprecated
 	public void setSCId(int i) {
 		setInt(user, "sandcId", i);
 	}
 
+	@Deprecated
 	public int getHRMId() {
 		return getInt(user, "hrmid", 0);
 	}
 
+	@Deprecated
 	public void setHRMId(int i) {
 		setInt(user, "hrmid", i);
 	}
 
-	/** Registration Stuff **/
-	public String getSerial() {
-		String id = get("", "ssn", null);
+    public boolean isPairingEnabled() {
+        return PAIRING.getBool();
+    }
+    public void setPairing(boolean enabled) {
+        PAIRING.setBool(enabled);
+    }
 
-		if (id == null) {
-			// not yet initialized
-			id = UUID.randomUUID().toString();
-			set("", "ssn", id);
-
-		}
-		return id;
+    public void setSensorId(String sensorName, int sensorId) {
+        // sensor id might be changed from multiple threads at once:
+        // the most "dangerous" one is SensorID query thread: multiple
+        // sensors might report id more or less same time
+        // This notification must be synchronized, or assertions are raised.
+        synchronized(SENSORS) {
+            if (getInt(user, "*" + sensorName, 0)  != sensorId) {
+                setInt(user, "*" + sensorName, sensorId);
+                SENSORS.strVal = sensorName;
+                SENSORS.intVal = sensorId;
+                MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSORS);
+                SENSORS.strVal = null;
+                SENSORS.intVal = null;
+            }
+        }
+    }
+    public int getSensorId(String sensorName) {
+        synchronized(SENSORS) {
+            return getInt(user, "*" + sensorName, 0);
+        }
 	}
+    public void removeSensor(String sensorName) {
+        synchronized(SENSORS) {
+            set(user, "*" + sensorName, null);
+        }
+    }
 
-	public boolean isRegistered() {
-		if (get("", "rsnn", null) == null) {
-			// return false;
-			return false;
-		}
-		return true;
+
+
+
+    public void addWorkout(WorkoutData data) {
+		getDS().saveWorkOut(user, data);
 	}
-
-	public String getRegistrationKey() {
-		return get("", "rsnn", null);
+	public WorkoutData getWorkout(String name) {
+		return getDS().getWorkout(user, name);
 	}
-
-	public void setRegistrationKey(String key) {
-		set("", "rsnn", key);
+	public void deleteWorkout(String name) {
+		getDS().deleteWorkout(user, name);
 	}
-
-	public int getEvalTime() {
-		return getIntCrypt("", "evalTime", evalTime);
-	}
-
-	public void setEvalTime(int t) {
-		setIntCrypt("", "evalTime", t);
-	}
-
-	public String getRouteDir() {
-		return get("", "videoLocation", this.getWD() + "/Routes");
-	}
-
-	public void setRouteDir(String s) {
-		set("", "videoLocation", s);
-	}
-
-	public String getTrainingDir() {
-		return get("", "trainingLocation", this.getWD() + "/Trainings");
-	}
-
-	public void setTrainingDir(String s) {
-		set("", "trainingLocation", s);
+	public List<WorkoutData> listWorkouts() {
+		return getDS().listWorkouts(user);
 	}
 
 	// Data Access Functions
+	private static DataStore ds = null;
+    private DataStore getDS() {
+        if (ds == null) {
+        	String cryptKey = "afghanistanbananastan";
+            ds = new DataStore(getWD(), cryptKey);
+        }
+        return ds;
+    }
+	public void shutDown() {
+        if (ds != null) {
+    		ds.close();
+            ds = null;
+        }
+	}
 
-	private double getDouble(String key, double d) {
-		String v = ds.getProp(user, key);
+	private double getDouble(String user, String key, double d) {
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				d = Double.parseDouble(v);
 			} catch (Exception e) {
-				e.printStackTrace();
+                // silently delete the property: it is not valid
+                ds.deleteProp(user, key);
 			}
 		}
-
 		return d;
 	}
 
-	private void setDouble(String key, double d) {
+	private void setDouble(String user, String key, double d) {
 		ds.insertProp(user, key, Double.toString(d));
 	}
 
 	private int getInt(String user, String key, int i) {
-		String v = ds.getProp(user, key);
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				i = Integer.parseInt(v);
 			} catch (Exception e) {
-				e.printStackTrace();
+                // silently delete the property: it is not valid
+                ds.deleteProp(user, key);
 			}
 		}
-
 		return i;
 	}
 
 	private int getIntCrypt(String user, String key, int i) {
-		String v = ds.getPropCrypt(user, key);
+		String v = getDS().getPropCrypt(user, key);
 		if (v != null) {
 			try {
 				i = Integer.parseInt(v);
 			} catch (Exception e) {
-				e.printStackTrace();
+                // silently delete the property: it is not valid
+                ds.deleteProp(user, key);
 			}
 		}
-
 		return i;
 	}
 
@@ -379,87 +595,86 @@ public enum UserPreferences {
 		ds.insertProp(user, key, Integer.toString(i));
 	}
 
-	private void setIntCrypt(String user, String key, int i) {
+	private static void setIntCrypt(String user, String key, int i) {
 		ds.insertPropCrypt(user, key, Integer.toString(i));
 	}
 
-	private boolean getBoolean(String key, boolean b) {
-		String v = ds.getProp(user, key);
+	private boolean getBoolean(String user, String key, boolean b) {
+		String v = getDS().getProp(user, key);
 		if (v != null) {
 			try {
 				b = Boolean.parseBoolean(v);
 			} catch (Exception e) {
-				e.printStackTrace();
+                // silently delete the property: it is not valid
+                ds.deleteProp(user, key);
 			}
 		}
-
 		return b;
 	}
 
-	private void setBoolean(String key, boolean b) {
+	private void setBoolean(String user, String key, boolean b) {
 		ds.insertProp(user, key, Boolean.toString(b));
 	}
 
 	private String get(String user, String key, String s) {
-		String v = ds.getProp(user, key);
-		if (v != null) {
-			s = v;
+		String v = getDS().getProp(user, key);
+		if (v == null) {
+			v = s;
 		}
-
-		return s;
+		return v;
 	}
 
 	private void set(String user, String key, String s) {
-		ds.insertProp(user, key, s);
-	}
-
-	public void shutDown() {
-		ds.close();
+        if (s != null) {
+    		ds.insertProp(user, key, s);
+        } else {
+            ds.deleteProp(user, key);
+        }
 	}
 
 	/*
 	 * Stores common data files: database logfile Videos Trainings
-	 * 
+	 *
 	 * These directories are created by the Windows/Unix installer
-	 * 
+	 *
 	 * On Windows 7: C:\ProgramData\Wattzap On Windows XP: C:\Documents and
 	 * Settings\All Users\Application Data\Wattzap On Unix: ??? $home/.wattzap
 	 */
-	public String getWD() {
-		if (workingDirectory == null) {
-			// here, we assign the name of the OS, according to Java, to a
-			// variable...
-			String OS = (System.getProperty("os.name")).toUpperCase();
-			// to determine what the workingDirectory is.
-			// if it is some version of Windows
+	private static String workingDirectory = null;
+	public static String getWD() {
+        if (workingDirectory == null) {
+            // here, we assign the name of the OS, according to Java, to a
+            // variable...
+            String OS = (System.getProperty("os.name")).toUpperCase();
+            // to determine what the workingDirectory is.
+            // if it is some version of Windows
 
-			if (OS.contains("WIN")) {
-				// it is simply the location of the "AppData" folder
-				workingDirectory = System.getenv("ALLUSERSPROFILE");
+            if (OS.contains("WIN")) {
+                // it is simply the location of the "AppData" folder
+                workingDirectory = System.getenv("ALLUSERSPROFILE");
 
-				if (OS.contains("WINDOWS XP")) {
-					workingDirectory += "/Application Data/Wattzap";
-				} else {
-					workingDirectory += "/Wattzap";
+                if (OS.contains("WINDOWS XP")) {
+                    workingDirectory += "/Application Data/Wattzap";
+                } else {
+                    workingDirectory += "/Wattzap";
 
-				}
-			} else {
-				// in either case, we would start in the user's home directory
-				workingDirectory = System.getProperty("user.home")
-						+ "/.wattzap";
-			}
-		}
+                }
+            } else {
+                // in either case, we would start in the user's home directory
+                workingDirectory = System.getProperty("user.home") + "/.wattzap";
+            }
+        }
 		return workingDirectory;
 	}
 
 	/*
 	 * Stores User dependent data Workouts
-	 * 
+	 *
 	 * On Windows 7: C:\Users\$user\AppData\Roaming\Wattzap On Windows XP:
 	 * C:\Documents & Settings\$user\AppData\Wattzap On Unix: ??? $home/.wattzap
 	 */
-	public String getUserDataDirectory() {
-
+	private static String userDataDirectory = null;
+	public static String getUserDataDirectory() {
 		if (userDataDirectory == null) {
 			// here, we assign the name of the OS, according to Java, to a
 			// variable...
@@ -472,8 +687,7 @@ public enum UserPreferences {
 				userDataDirectory = System.getenv("APPDATA") + "/Wattzap";
 			} else {
 				// in either case, we would start in the user's home directory
-				userDataDirectory = System.getProperty("user.home")
-						+ "/wattzap";
+				userDataDirectory = System.getProperty("user.home") + "/wattzap";
 			}
 		}
 		return userDataDirectory;

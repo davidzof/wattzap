@@ -1,4 +1,5 @@
-/* This file is part of Wattzap Community Edition.
+/*
+ * This file is part of Wattzap Community Edition.
  *
  * Wattzap Community Edtion is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -12,18 +13,16 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
-*/
-package com.wattzap.controller;
+ */
+package com.wattzap.model;
 
 /**
- * Objects wanting to listen to messages on the message bus must implement this.
- *
- * (c) 2013 David George / Wattzap.com
- *
- * @author David George
- * @date 12 November 2013
+ * Class to keep all constant values used within app
+ * @author Jarek
  */
-public interface MessageCallback {
-	void callback(Messages m, Object o);
-
+public class Constants {
+    // metric/imperial conversions
+    public static final double KMTOMILES = 1.609344;
+    public static final double MTOFEET = 0.3048;
+    public static final double LBSTOKG = 0.45359237;
 }

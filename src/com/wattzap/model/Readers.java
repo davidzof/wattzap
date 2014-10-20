@@ -73,4 +73,26 @@ public enum Readers {
 		}
 
 	}
+
+    private static String lastMessage = null;
+    public static String getLastMessage() {
+        return lastMessage;
+    }
+    static public RouteReader readFile(String fileName) {
+        String ext = fileName.substring(fileName.length() - 3);
+        RouteReader track = Readers.INSTANCE.getReader(ext);
+        if (track != null) {
+            try {
+                track.load(fileName);
+                lastMessage = null;
+                return track;
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                lastMessage = ex.getLocalizedMessage();
+            }
+        } else {
+            lastMessage = "Unknown reader";
+        }
+        return null;
+    }
 }

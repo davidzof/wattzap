@@ -18,10 +18,12 @@ package com.wattzap.controller;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.Map;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Message Bus implementation
- * 
+ *
  * A Message Bus is a combination of a common data model, a common command set,
  * and a messaging infrastructure to allow different systems to communicate
  * through a shared set of interfaces. This is analogous to a communications bus
@@ -29,15 +31,16 @@ import java.util.Map;
  * between the CPU, main memory, and peripherals. Just as in the hardware
  * analogy, there are a number of pieces that come together to form the message
  * bus:
- * 
+ *
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 12 November 2013
  */
 public enum MessageBus {
 	INSTANCE;
-	Map<Messages, HashSet<MessageCallback>> objects;
+	private static final Logger logger = LogManager.getLogger("MessageBus");
+    private final Map<Messages, HashSet<MessageCallback>> objects;
 
 	MessageBus() {
 		objects = new EnumMap<Messages, HashSet<MessageCallback>>(
@@ -46,7 +49,7 @@ public enum MessageBus {
 
 	/**
 	 * Register a callback to receive specific messages
-	 * 
+	 *
 	 * @param m
 	 *            - Message type to register (from Messages enum)
 	 * @param o
@@ -64,15 +67,36 @@ public enum MessageBus {
 		listeners.add(o);
 	}
 
-	// TODO Implement this
-	public void unregister() {
-	};
+
+	public void unregister(MessageCallback o) {
+        for (HashSet<MessageCallback> listeners : objects.values()) {
+            listeners.remove(o);
+        }
+    }
+    public void unregister(Messages m, MessageCallback o) {
+		if (objects.containsKey(m)) {
+    		HashSet<MessageCallback> listeners = objects.get(m);
+        	listeners.remove(o);
+        }
+    }
+
+    public boolean isRegisterd(Messages m, MessageCallback o) {
+		if (!objects.containsKey(m)) {
+            return false;
+		}
+		HashSet<MessageCallback> listeners = objects.get(m);
+		return listeners.contains(o);
+    }
 
 	public void send(Messages m, Object o) {
 		HashSet<MessageCallback> listeners = objects.get(m);
 		if (listeners != null) {
 			for (MessageCallback callback : listeners) {
-				callback.callback(m, o);
+                try {
+    				callback.callback(m, o);
+                } catch (Exception e) {
+                    logger.fatal("Exception " + e, e);
+                }
 			}
 		}
 	}

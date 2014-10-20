@@ -27,11 +27,12 @@ import com.wattzap.utils.ReflexiveClassLoader;
 
 /**
  * Load all available power profiles
- * 
+ *
  * @author David George
- * 
+ *
  *         (c) 2013 David George / Wattzap.com
- * 
+ *
+ * TODO implement enumerationIntf for best handling in configPanel.
  */
 public enum PowerProfiles {
 	INSTANCE;

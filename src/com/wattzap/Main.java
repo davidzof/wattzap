@@ -43,19 +43,24 @@ import org.apache.log4j.PatternLayout;
 import com.omniscient.log4jcontrib.swingappender.SwingAppender;
 import com.sun.jna.NativeLibrary;
 import com.wattzap.controller.MenuItem;
+import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
+import com.wattzap.model.DefaultTelemetryHandler;
+import com.wattzap.model.Readers;
+import com.wattzap.model.RouteReader;
+import com.wattzap.model.SourceDataEnum;
+import com.wattzap.model.SourceDataHandlerIntf;
+import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.ant.AdvancedSpeedCadenceListener;
-import com.wattzap.model.ant.Ant;
-import com.wattzap.model.ant.DummySpeedCadenceListener;
-import com.wattzap.model.ant.HeartRateListener;
+import com.wattzap.model.ant.AntSubsystem;
+import com.wattzap.model.ant.HeartRateSensor;
+import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
-import com.wattzap.view.AntOdometer;
 import com.wattzap.view.ControlPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
-import com.wattzap.view.Odometer;
+import com.wattzap.view.Odo;
 import com.wattzap.view.Profile;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
@@ -65,9 +70,9 @@ import com.wattzap.view.training.TrainingPicker;
 
 /**
  * Main entry point
- * 
+ *
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -128,59 +133,66 @@ public class Main implements Runnable {
 	@Override
 	public void run() {
 		MainFrame frame = new MainFrame();
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-
-		// frame.setSize(screenSize.width, screenSize.height-100);
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		frame.setBounds(userPrefs.getMainBounds());
 
-		// Must be declared above Odometer
-		//AdvancedSpeedCadenceListener scListener = null;
-		JPanel odo = null;
-		try {
-			new Ant(new AdvancedSpeedCadenceListener(), new HeartRateListener()).register();
-			odo = new AntOdometer();
-		} catch (Exception e) {
-			JOptionPane.showMessageDialog(frame, "ANT+ " + e.getMessage(),
-					userPrefs.messages.getString("warning"),
-					JOptionPane.WARNING_MESSAGE);
-			logger.error("ANT+ " + e.getMessage());
-			new DummySpeedCadenceListener();
-			userPrefs.setAntEnabled(false);
-			odo = new Odometer();
-		}
+        // telemetry privider receives all subsystems/sensors/processors
+        TelemetryProvider.INSTANCE.initialize();
 
-		// Performs an isregister check, be careful if we move below AboutPanel
-		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);
-		try {
-			videoPlayer.init();
-		} catch (Exception e) {
-			JOptionPane.showMessageDialog(frame, e.getMessage(),
-					userPrefs.messages.getString("warning"),
-					JOptionPane.INFORMATION_MESSAGE);
-			logger.info(e.getMessage());
+        PopupMessageIntf popupMsg = new PopupMessage(frame);
+        new AntSubsystem(popupMsg).initialize();
 
-			videoPlayer = null;
-		}
+        SourceDataHandlerIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
 
-		MigLayout layout = new MigLayout("center", "[]10px[]", "");
+        SourceDataHandlerIntf hrm = new HeartRateSensor("hrm").initialize();
+        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
+
+        // default telemetry is busy with processing all source data. It is not
+        // activated if simulSpeed is selected.
+        new DefaultTelemetryHandler().initialize();
+
+        // build main window layout
+        MigLayout layout = new MigLayout("center", "[]10px[]", "");
 		Container contentPane = frame.getContentPane();
 		contentPane.setBackground(Color.BLACK);
 		contentPane.setLayout(layout);
 
-		// create view
-		new Map(frame);
-		Profile profile = new Profile(screenSize);
+		// show chart with training data
+        TrainingDisplay trainingDisplay = new TrainingDisplay(screenSize);
+		frame.add(trainingDisplay, "cell 0 0");
+
+		// map shows when training with gpx route is started.
+        new Map(frame);
+
+        // show route profile (either altitude.. or power, or anything else)
+        Profile profile = new Profile(screenSize);
 		profile.setVisible(false);
+		frame.add(profile, "cell 0 1, grow");
+
+        // reusable panel for showing the telemetric data (either in main window
+        // or in video window if visible)
+        JPanel odo = new Odo();
+		frame.add(odo, "cell 0 2, grow");
+
+		// start/stop buttons and time slider
+        ControlPanel cp = new ControlPanel();
+		frame.add(cp, "cell 0 3");
 
 		// Menu Bar
+        TrainingController trainingController = new TrainingController(
+				trainingDisplay, frame);
+
 		JMenuBar menuBar = new JMenuBar();
 
 		JMenu appMenu = new JMenu("Application");
 		menuBar.add(appMenu);
-		// Preferences
-		Preferences preferences = new Preferences();
+
+        // Preferences
 		JMenuItem prefMenuItem = new JMenuItem(
 				userPrefs.messages.getString("preferences"));
+		Preferences preferences = new Preferences();
 		prefMenuItem.addActionListener(preferences);
 		appMenu.add(prefMenuItem);
 
@@ -201,84 +213,93 @@ public class Main implements Runnable {
 		// Route
 		JMenu fileMenu = new JMenu(userPrefs.messages.getString("route"));
 		menuBar.add(fileMenu);
-		JMenuItem openMenuItem = new JMenuItem(
+
+        JMenuItem openMenuItem = new JMenuItem(
 				userPrefs.messages.getString("open"));
 		fileMenu.add(openMenuItem);
 		openMenuItem.setAccelerator(KeyStroke.getKeyStroke('O', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
-
 		RouteFilePicker picker = new RouteFilePicker(frame);
 		openMenuItem.addActionListener(picker);
 
 		MenuItem closeMenuItem = new MenuItem(Messages.CLOSE,
 				userPrefs.messages.getString("close"));
 		fileMenu.add(closeMenuItem);
-
 		closeMenuItem.setAccelerator(KeyStroke.getKeyStroke('C', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
 
 		// Submenu: Training
 		JMenu trainingMenu = new JMenu(userPrefs.messages.getString("training"));
 		menuBar.add(trainingMenu);
-		TrainingDisplay trainingDisplay = new TrainingDisplay(screenSize);
-		TrainingController trainingController = new TrainingController(
-				trainingDisplay, frame);
 
-		if (userPrefs.isAntEnabled()) {
-			// Submenu: training
-			JMenuItem trainMenuItem = new JMenuItem(
-					userPrefs.messages.getString("open"));
-			trainMenuItem.setActionCommand(TrainingController.open);
-			trainingMenu.add(trainMenuItem);
+        // Submenu: training
+        JMenuItem trainMenuItem = new JMenuItem(
+                userPrefs.messages.getString("open"));
+        trainMenuItem.setActionCommand(TrainingController.open);
+        trainingMenu.add(trainMenuItem);
+        TrainingPicker tPicker = new TrainingPicker(frame);
+        trainMenuItem.addActionListener(tPicker);
 
-			TrainingPicker tPicker = new TrainingPicker(frame);
-			trainMenuItem.addActionListener(tPicker);
-		}
-		JMenu analizeMenuItem = new JMenu(
+        JMenu analizeMenuItem = new JMenu(
 				userPrefs.messages.getString("analyze"));
 		trainingMenu.add(analizeMenuItem);
-		
+
 		JMenuItem analMenuItem = new JMenuItem(
 				userPrefs.messages.getString("analyze"));
 		analMenuItem.setActionCommand(TrainingController.analyze);
+		analMenuItem.addActionListener(trainingController);
 		analizeMenuItem.add(analMenuItem);
-	
+
 		JMenuItem saveMenuItem = new JMenuItem(
 				userPrefs.messages.getString("save"));
 		saveMenuItem.setActionCommand(TrainingController.save);
+		saveMenuItem.addActionListener(trainingController);
 		trainingMenu.add(saveMenuItem);
 
 		JMenuItem viewMenuItem = new JMenuItem(
 				userPrefs.messages.getString("view"));
 		viewMenuItem.setActionCommand(TrainingController.view);
+		viewMenuItem.addActionListener(trainingController);
 		trainingMenu.add(viewMenuItem);
 
 		JMenuItem recoverMenuItem = new JMenuItem(
 				userPrefs.messages.getString("recover"));
 		recoverMenuItem.setActionCommand(TrainingController.recover);
-		trainingMenu.add(recoverMenuItem);
-
-		analMenuItem.addActionListener(trainingController);
-		saveMenuItem.addActionListener(trainingController);
 		recoverMenuItem.addActionListener(trainingController);
-		
-		viewMenuItem.addActionListener(trainingController);
-
-		frame.add(trainingDisplay, "cell 0 0");
+		trainingMenu.add(recoverMenuItem);
 
 		frame.setJMenuBar(menuBar);
 		// End Menu
 
-		frame.add(profile, "cell 0 1, grow");
-		// by default add to telemetry frame
-		frame.add(odo, "cell 0 2, grow");
-
-		ControlPanel cp = new ControlPanel();
-		frame.add(cp, "cell 0 3");
-
 		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		// frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		frame.setVisible(true);
+
+		// video player window: handles everything via messages
+		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);
+		try {
+			videoPlayer.init();
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(frame, e.getMessage(),
+					userPrefs.messages.getString("warning"),
+					JOptionPane.INFORMATION_MESSAGE);
+			logger.info(e.getMessage());
+		}
+
+        // autoload last trainig file (if any was loaded and config check is
+        // enabled. All interrested handlers must exist.
+        String file = userPrefs.getDefaultFilename();
+        if (file != null) {
+            RouteReader reader = Readers.readFile(file);
+            if (reader != null) {
+                MessageBus.INSTANCE.send(Messages.GPXLOAD, reader);
+            }
+        }
+        // start training is autostart. What about overriding this option
+        // when recovery is available?
+        if (userPrefs.autostart()) {
+            MessageBus.INSTANCE.send(Messages.START, new Double(0.0));
+        }
 	}
 
 	private static Level setLogLevel() {

@@ -38,6 +38,8 @@ public abstract class RouteReader {
 
 	public abstract String getFilename();
 
+    public abstract String getVideoFile();
+
 	public abstract String getName();
 
 	public abstract GPXFile getGpxFile();
@@ -68,7 +70,7 @@ public abstract class RouteReader {
 
 	/**
 	 * Returns a Point relative to the start of the track, resets current point
-	 * 
+	 *
 	 * @param distance
 	 * @return
 	 */

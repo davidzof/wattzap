@@ -15,6 +15,7 @@
  */
 package com.wattzap.view;
 
+import com.wattzap.MsgBundle;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -67,7 +68,7 @@ import com.wattzap.view.graphs.SCHRGraph;
 
 /**
  * List of workouts stored in the system
- * 
+ *
  * @author David George (c) Copyright 17 January 2014
  * @date 17 April 2014
  */
@@ -167,84 +168,74 @@ public class Workouts extends JPanel implements ActionListener {
 		JMenuBar menuBar = new JMenuBar();
 		frame.setJMenuBar(menuBar);
 
-		JMenu summaryMenu = new JMenu(userPrefs.messages.getString("summary"));
+		JMenu summaryMenu = new JMenu(MsgBundle.getString("summary"));
 		summaryMenu.setMnemonic(KeyEvent.VK_S);
 		summaryMenu.setMargin(new Insets(0, 0, 0, 10));
 		menuBar.add(summaryMenu);
 		// MMP, hr/cad/pwr graph
 		// pwr/time, hr/time, cad, time
-		JMenuItem mmpMenuItem = new JMenuItem(
-				userPrefs.messages.getString("mmp"));
+		JMenuItem mmpMenuItem = new JMenuItem(MsgBundle.getString("mmp"));
 		mmpMenuItem.setActionCommand(mmpGraph);
 		summaryMenu.add(mmpMenuItem);
 		mmpMenuItem.addActionListener(this);
 
-		JMenuItem schrMenuItem = new JMenuItem(
-				userPrefs.messages.getString("schr"));
+		JMenuItem schrMenuItem = new JMenuItem(MsgBundle.getString("schr"));
 		schrMenuItem.setActionCommand(schrGraph);
 		summaryMenu.add(schrMenuItem);
 		schrMenuItem.addActionListener(this);
 
-		JMenuItem importMenuItem = new JMenuItem(
-				userPrefs.messages.getString("import"));
+		JMenuItem importMenuItem = new JMenuItem(MsgBundle.getString("import"));
 		importMenuItem.setActionCommand(importer);
 		summaryMenu.add(importMenuItem);
 		importMenuItem.addActionListener(this);
 
 		// 1sec...?
-		JMenu fatMenu = new JMenu(userPrefs.messages.getString("fatigue"));
+		JMenu fatMenu = new JMenu(MsgBundle.getString("fatigue"));
 		fatMenu.setMnemonic(KeyEvent.VK_F);
 		fatMenu.setMargin(new Insets(0, 0, 0, 10));
 		menuBar.add(fatMenu);
 
 		// pwr/cad, pwr/dist, speed/cadence
-		JMenu scatMenu = new JMenu(userPrefs.messages.getString("scatter"));
+		JMenu scatMenu = new JMenu(MsgBundle.getString("scatter"));
 		scatMenu.setMnemonic(KeyEvent.VK_A);
 		menuBar.add(scatMenu);
 		scatMenu.setMargin(new Insets(0, 0, 0, 10));
 		// menuBar.add(new JSeparator());
-		JMenuItem cpgMenuItem = new JMenuItem(
-				userPrefs.messages.getString("cpg"));
+		JMenuItem cpgMenuItem = new JMenuItem(MsgBundle.getString("cpg"));
 		cpgMenuItem.setActionCommand(scGraph);
 		scatMenu.add(cpgMenuItem);
 		cpgMenuItem.addActionListener(this);
 
-		JMenuItem powerWattsMenuItem = new JMenuItem(
-				userPrefs.messages.getString("poWt"));
+		JMenuItem powerWattsMenuItem = new JMenuItem(MsgBundle.getString("poWt"));
 		powerWattsMenuItem.setActionCommand(hrWattsGraph);
 		scatMenu.add(powerWattsMenuItem);
 		powerWattsMenuItem.addActionListener(this);
 
 		// distribution
-		JMenu distMenu = new JMenu(userPrefs.messages.getString("distribution"));
+		JMenu distMenu = new JMenu(MsgBundle.getString("distribution"));
 		distMenu.setMnemonic(KeyEvent.VK_D);
 		menuBar.add(distMenu);
-		JMenuItem pdgMenuItem = new JMenuItem(
-				userPrefs.messages.getString("power"));
+		JMenuItem pdgMenuItem = new JMenuItem(MsgBundle.getString("power"));
 		pdgMenuItem.setActionCommand(pdGraph);
 		distMenu.add(pdgMenuItem);
 		pdgMenuItem.addActionListener(this);
 
-		JMenuItem cadMenuItem = new JMenuItem(
-				userPrefs.messages.getString("cadence"));
+		JMenuItem cadMenuItem = new JMenuItem(MsgBundle.getString("cadence"));
 		cadMenuItem.setActionCommand(cdGraph);
 		distMenu.add(cadMenuItem);
 		cadMenuItem.addActionListener(this);
 
-		JMenuItem hrMenuItem = new JMenuItem(
-				userPrefs.messages.getString("heartrate"));
+		JMenuItem hrMenuItem = new JMenuItem(MsgBundle.getString("heartrate"));
 		hrMenuItem.setActionCommand(hrdGraph);
 		distMenu.add(hrMenuItem);
 		hrMenuItem.addActionListener(this);
 
-		JMenuItem tlMenuItem = new JMenuItem(
-				userPrefs.messages.getString("trainlevel"));
+		JMenuItem tlMenuItem = new JMenuItem(MsgBundle.getString("trainlevel"));
 		tlMenuItem.setActionCommand(tlGraph);
 		distMenu.add(tlMenuItem);
 		tlMenuItem.addActionListener(this);
 
-		JMenuItem tlhrMenuItem = new JMenuItem(
-				userPrefs.messages.getString("trainlevelhr"));
+		JMenuItem tlhrMenuItem = new JMenuItem(MsgBundle.getString("trainlevelhr"));
 		tlhrMenuItem.setActionCommand(tlhrGraph);
 		distMenu.add(tlhrMenuItem);
 		tlhrMenuItem.addActionListener(this);
@@ -311,16 +302,16 @@ public class Workouts extends JPanel implements ActionListener {
 				public int getKey(Telemetry t) {
 					return getKey(t.getPower());
 				}
-			}, 15, userPrefs.messages.getString("pdGr"),
-					userPrefs.messages.getString("poWtt"));
+			}, 15, MsgBundle.getString("pdGr"),
+					MsgBundle.getString("poWtt"));
 
 		} else if (cdGraph.equals(command)) {
 			DistributionGraph(new DistributionAccessor() {
 				public int getKey(Telemetry t) {
 					return getKey(t.getCadence());
 				}
-			}, 5, userPrefs.messages.getString("cDgr"),
-					userPrefs.messages.getString("cDrpm"));
+			}, 5, MsgBundle.getString("cDgr"),
+					MsgBundle.getString("cDrpm"));
 		} else if (hrdGraph.equals(command)) {
 			DistributionGraph(new DistributionAccessor() {
 				public int getKey(Telemetry t) {
@@ -330,8 +321,8 @@ public class Workouts extends JPanel implements ActionListener {
 
 					return getKey(t.getHeartRate());
 				}
-			}, 10, userPrefs.messages.getString("hrDgr"),
-					userPrefs.messages.getString("hrBpm"));
+			}, 10, MsgBundle.getString("hrDgr"),
+					MsgBundle.getString("hrBpm"));
 
 		} else if (tlGraph.equals(command)) {
 			// Training Zone Graph
@@ -367,9 +358,8 @@ public class Workouts extends JPanel implements ActionListener {
 				logger.info("Out of time "
 						+ UserPreferences.INSTANCE.getEvalTime());
 				JOptionPane.showMessageDialog(this,
-						UserPreferences.INSTANCE.messages
-								.getString("trial_expired"),
-						UserPreferences.INSTANCE.messages.getString("warning"),
+						MsgBundle.getString("trial_expired"),
+						MsgBundle.getString("warning"),
 						JOptionPane.WARNING_MESSAGE);
 				return;
 			}
@@ -638,8 +628,7 @@ public class Workouts extends JPanel implements ActionListener {
 		}
 
 		StringBuilder output = new StringBuilder();
-		output.append(UserPreferences.INSTANCE.messages.getString("delMsg")
-				+ "\n\n");
+		output.append(MsgBundle.getString("delMsg") + "\n\n");
 
 		int[] rows = new int[selectedRows.size()];
 		Iterator<Integer> row = selectedRows.iterator();

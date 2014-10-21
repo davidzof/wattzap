@@ -15,6 +15,7 @@
 */
 package com.wattzap.view;
 
+import com.wattzap.MsgBundle;
 import java.awt.Color;
 import java.awt.Font;
 
@@ -23,8 +24,6 @@ import javax.swing.JPanel;
 
 import net.miginfocom.swing.MigLayout;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
@@ -49,9 +48,6 @@ public class Odo extends JPanel implements MessageCallback {
 
     private static final int style = Font.BOLD | Font.ITALIC;
     private static final Font font = new Font("Arial", style, 30);
-
-	private static final Logger logger = LogManager.getLogger("Odometer");
-	private static final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
     private boolean paused = true;
     private boolean metric = true;
@@ -94,7 +90,7 @@ public class Odo extends JPanel implements MessageCallback {
                         label = new JLabel();
                         label.setFont(font1);
                         label.setForeground(textColor);
-                        label.setText(userPrefs.messages.getString(sourceData.getName()));
+                        label.setText(MsgBundle.getString(sourceData.getName()));
                         text = new JLabel();
                         text.setFont(font);
                     }

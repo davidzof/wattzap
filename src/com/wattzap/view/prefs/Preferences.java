@@ -15,6 +15,7 @@
 */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
@@ -27,7 +28,6 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JTabbedPane;
 
-import com.wattzap.model.UserPreferences;
 import java.awt.FlowLayout;
 import javax.swing.JPanel;
 
@@ -39,9 +39,8 @@ import javax.swing.JPanel;
  */
 
 public class Preferences extends JFrame implements ActionListener {
-    private static final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
-	public Preferences() {
+    public Preferences() {
 		setTitle("Preferences");
 		ImageIcon img = new ImageIcon("icons/preferences.jpg");
 		setIconImage(img.getImage());
@@ -55,16 +54,16 @@ public class Preferences extends JFrame implements ActionListener {
 		contentPane.setBackground(Color.lightGray);
 
 		// Personal Data
-        jtp.addTab(userPrefs.messages.getString("personal_data"), new UserPanel());
+        jtp.addTab(MsgBundle.getString("personal_data"), new UserPanel());
 		// ANT+ Pairing
-        jtp.addTab(userPrefs.messages.getString("sensors"), new SensorsPanel());
+        jtp.addTab(MsgBundle.getString("sensors"), new SensorsPanel());
 		// Trainer Profiles
-		jtp.addTab("Trainer", new TurboPanel());
+		jtp.addTab(MsgBundle.getString("trainers"), new TurboPanel());
 
         JPanel buttonPanel = new JPanel();
 		buttonPanel.setLayout(new FlowLayout());
 
-		JButton closeButton = new JButton(userPrefs.messages.getString("close"));
+		JButton closeButton = new JButton(MsgBundle.getString("close"));
 		closeButton.setPreferredSize(new Dimension(120, 30));
 		closeButton.setActionCommand("close");
 		closeButton.addActionListener(this);
@@ -82,12 +81,10 @@ public class Preferences extends JFrame implements ActionListener {
 		String command = e.getActionCommand();
         if ("Preferences".equals(command)) {
 			setVisible(true); // you can see me (again)!
-            return;
         }
 		if ("close".equals(command)) {
 			setVisible(false); // you can't see me!
 			dispose();
-			return;
 		}
 	}
 }

@@ -20,7 +20,6 @@ import com.wattzap.controller.Messages;
 import java.awt.Rectangle;
 import java.util.List;
 import java.util.Locale;
-import java.util.ResourceBundle;
 import java.util.UUID;
 
 import com.wattzap.model.dto.WorkoutData;
@@ -91,13 +90,6 @@ public enum UserPreferences {
 	// why it must be always specified?? Are there system settings
     // and user settings? Hmm. serial? evalTime? What else?
     private static String user = System.getProperty("user.name");
-
-    // TODO with the use of LANG property.. and with callbacks..
-    // it must be shifted somewhere else (Messages enum??)
-	public static ResourceBundle messages;
-    static {
-		messages = ResourceBundle.getBundle("MessageBundle", LANG.getLocale());
-    }
 
     // property values
     private final String name;

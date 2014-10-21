@@ -75,7 +75,7 @@ public abstract class AntSensor extends Sensor
             // channel is recreated only if non-zero id is replaced with another
             // non-zero id..
             if ((channel != null) && (getSensorId() != 0) && (getSensorId() != sensorId)) {
-                // to avoid race condition with handling messages, all messages
+                // to avoid race condition with handling MsgBundle, all MsgBundle
                 // (from the "past") must be discarded
                 Channel chn = channel;
                 channel = null;

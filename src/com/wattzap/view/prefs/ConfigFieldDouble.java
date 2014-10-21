@@ -16,6 +16,7 @@
  */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.model.UserPreferences;
 import java.awt.Color;
 import java.util.Locale;
@@ -59,11 +60,7 @@ public class ConfigFieldDouble implements ConfigFieldIntf {
         }
 
         JLabel label = new JLabel();
-        if (UserPreferences.INSTANCE.messages.containsKey(name)) {
-    		label.setText(UserPreferences.INSTANCE.messages.getString(name));
-        } else {
-            label.setText(name);
-        }
+        label.setText(MsgBundle.getString(name));
 		panel.add(label);
 
         value = new JTextField(20);

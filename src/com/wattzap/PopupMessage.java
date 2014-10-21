@@ -16,7 +16,6 @@
  */
 package com.wattzap;
 
-import com.wattzap.model.UserPreferences;
 import com.wattzap.view.MainFrame;
 import javax.swing.JOptionPane;
 
@@ -33,7 +32,6 @@ public class PopupMessage implements PopupMessageIntf {
 
     public void showWarning(String src, String msg) {
             JOptionPane.showMessageDialog(frame, src + " " + msg,
-                UserPreferences.INSTANCE.messages.getString("warning"),
-                JOptionPane.WARNING_MESSAGE);
+                MsgBundle.getString("warning"), JOptionPane.WARNING_MESSAGE);
     }
 }

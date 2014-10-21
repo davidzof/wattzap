@@ -16,6 +16,7 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -105,8 +106,8 @@ public enum TelemetryProvider implements MessageCallback
                 return String.format("unknown[%d]", v);
             }
         }
-        if (UserPreferences.INSTANCE.messages.containsKey(key)) {
-            return UserPreferences.INSTANCE.messages.getString(key);
+        if (MsgBundle.containsKey(key)) {
+            return MsgBundle.getString(key);
         }
         return key;
     }

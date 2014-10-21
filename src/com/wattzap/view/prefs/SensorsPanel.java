@@ -38,7 +38,7 @@ public class SensorsPanel extends ConfigPanel {
 
     public SensorsPanel() {
 		super();
-        // register messages
+        // register MsgBundle
         MessageBus.INSTANCE.register(Messages.HANDLER, this);
 
         add(new ConfigFieldCheck(this, UserPreferences.ANT_ENABLED, "ant_enabled"));

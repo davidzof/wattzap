@@ -37,6 +37,7 @@ import org.apache.log4j.Logger;
 import com.sun.tools.visualvm.charts.ChartFactory;
 import com.sun.tools.visualvm.charts.SimpleXYChartDescriptor;
 import com.sun.tools.visualvm.charts.SimpleXYChartSupport;
+import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -106,7 +107,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
     private void addItem(SimpleXYChartDescriptor descriptor,
             SourceDataEnum item, Color color, double lineWidth) {
 		descriptor.addItem(
-                userPrefs.messages.getString(item.getName()),
+                MsgBundle.getString(item.getName()),
                 color, (float) lineWidth, color, null, null);
 		addedItems.add(item);
     }
@@ -319,8 +320,12 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 			break;
 
         case CONFIG_CHANGED:
-            antEnabled = userPrefs.isAntEnabled();
-            rebuildChart();
+            UserPreferences pref = (UserPreferences) o;
+            if ((pref == UserPreferences.ANT_ENABLED) ||
+                    (pref == UserPreferences.INSTANCE)) {
+                antEnabled = userPrefs.isAntEnabled();
+                rebuildChart();
+            }
             break;
 
 		case START:

@@ -16,6 +16,7 @@
  */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.model.EnumerationIntf;
 import com.wattzap.model.UserPreferences;
 import javax.swing.JComboBox;
@@ -41,11 +42,7 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
         this.enumeration = e;
 
         JLabel label = new JLabel();
-        if (UserPreferences.INSTANCE.messages.containsKey(name)) {
-    		label.setText(UserPreferences.INSTANCE.messages.getString(name));
-        } else {
-            label.setText(name);
-        }
+        label.setText(MsgBundle.getString(name));
 		panel.add(label);
 
         value = new JComboBox();
@@ -59,8 +56,8 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
         value.removeAllItems();
         for (int i = 0; i < enumeration.getValues().length; i++) {
             EnumerationIntf en = enumeration.getValues()[i];
-            if (UserPreferences.INSTANCE.messages.containsKey(en.getKey())) {
-                value.addItem(UserPreferences.INSTANCE.messages.getString(en.getKey()));
+            if (MsgBundle.containsKey(en.getKey())) {
+                value.addItem(MsgBundle.getString(en.getKey()));
             } else {
                 value.addItem(en.getKey());
             }

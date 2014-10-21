@@ -16,6 +16,7 @@
  */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.model.SensorIntf;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataHandlerIntf;
@@ -61,11 +62,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
 
         // build the interface
         JLabel label = new JLabel();
-        if (UserPreferences.INSTANCE.messages.containsKey(name)) {
-    		label.setText(UserPreferences.INSTANCE.messages.getString(name));
-        } else {
-            label.setText(name);
-        }
+        label.setText(MsgBundle.getString(name));
 		panel.add(label);
 
         value = new JTextField(20);

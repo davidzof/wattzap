@@ -40,7 +40,7 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     private String changedProperty;
 
     public ConfigPanel() {
-        // register messages
+        // register MsgBundle
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
         // create layout

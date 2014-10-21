@@ -89,12 +89,12 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 	 * since the last rollover. Note that you have to account for rollovers of
 	 * both time and rotations which happen every 16 seconds/16384 revolutions.
 	 * <p>
-	 * There is another wrinkle. Messages are sent at at 4Hz rate. Below a
-	 * certain rate (240rpm) we will see messages with the same number of
-	 * rotations. This doesn't mean the wheel is stopped, just there was no new
-	 * data since the last reading. To distinguish this from a stopped wheel a
-	 * certain number of same value readings are ignored for speed or cadence
-	 * updates.
+ There is another wrinkle. Messages are sent at at 4Hz rate. Below a
+ certain rate (240rpm) we will see MsgBundle with the same number of
+ rotations. This doesn't mean the wheel is stopped, just there was no new
+ data since the last reading. To distinguish this from a stopped wheel a
+ certain number of same value readings are ignored for speed or cadence
+ updates.
 	 */
 	@Override
 	public void receiveMessage(BroadcastDataMessage message) {

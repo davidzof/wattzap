@@ -15,6 +15,7 @@
 */
 package com.wattzap.view;
 
+import com.wattzap.MsgBundle;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -31,11 +32,10 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
-import com.wattzap.model.UserPreferences;
 
 /**
  * (c) 2014 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 1 January 2014
  */
@@ -45,11 +45,9 @@ public class ControlPanel extends JPanel implements ActionListener,
 	private int start;
 
 	public ControlPanel() {
-		JButton stopButton = new JButton(UserPreferences.INSTANCE.messages
-				.getString("stop"));
+		JButton stopButton = new JButton(MsgBundle.getString("stop"));
 		stopButton.setActionCommand("stop");
-		JButton startButton = new JButton(UserPreferences.INSTANCE.messages
-				.getString("start"));
+		JButton startButton = new JButton(MsgBundle.getString("start"));
 		startButton.setActionCommand("start");
 
 		startButton.addActionListener(this);
@@ -61,8 +59,8 @@ public class ControlPanel extends JPanel implements ActionListener,
 
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
-		
-		
+
+
 	}
 
 	@Override
@@ -76,8 +74,8 @@ public class ControlPanel extends JPanel implements ActionListener,
 	}
 
 	/**
-	 * Listen to the slider. As it changes send START POSITION messages to any
-	 * listeners.
+	 * Listen to the slider. As it changes send START POSITION MsgBundle to any
+ listeners.
 	 */
 	public void stateChanged(ChangeEvent e) {
 		JSlider source = (JSlider) e.getSource();

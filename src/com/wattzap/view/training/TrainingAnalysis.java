@@ -15,12 +15,12 @@
  */
 package com.wattzap.view.training;
 
+import com.wattzap.MsgBundle;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.TreeMap;
@@ -37,10 +37,11 @@ import org.apache.log4j.Logger;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.WorkoutData;
+import java.util.List;
 
 /**
  * (c) 2014 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 1 January 2014
  */
@@ -85,8 +86,6 @@ public class TrainingAnalysis extends JFrame {
 
 	private static Logger logger = LogManager.getLogger("Training Analysis");
 
-	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
-
 	public TrainingAnalysis() {
 		super();
 
@@ -106,7 +105,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel fiveSecondPowerLabel = new JLabel();
 		fiveSecondPowerLabel.setFont(font1);
-		fiveSecondPowerLabel.setText(userPrefs.messages.getString("5secpow"));
+		fiveSecondPowerLabel.setText(MsgBundle.getString("5secpow"));
 		add(fiveSecondPowerLabel);
 
 		fiveSecondPower = new JLabel();
@@ -119,7 +118,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel oneMinutePowerLabel = new JLabel();
 		oneMinutePowerLabel.setFont(font1);
-		oneMinutePowerLabel.setText(userPrefs.messages.getString("1minpow"));
+		oneMinutePowerLabel.setText(MsgBundle.getString("1minpow"));
 		add(oneMinutePowerLabel);
 
 		oneMinutePower = new JLabel();
@@ -131,7 +130,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel fiveMinutePowerLabel = new JLabel();
 		fiveMinutePowerLabel.setFont(font1);
-		fiveMinutePowerLabel.setText(userPrefs.messages.getString("5minpow"));
+		fiveMinutePowerLabel.setText(MsgBundle.getString("5minpow"));
 		add(fiveMinutePowerLabel);
 
 		fiveMinutePower = new JLabel();
@@ -143,8 +142,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel twentyMinutePowerLabel = new JLabel();
 		twentyMinutePowerLabel.setFont(font1);
-		twentyMinutePowerLabel
-				.setText(userPrefs.messages.getString("20minpow"));
+		twentyMinutePowerLabel.setText(MsgBundle.getString("20minpow"));
 		add(twentyMinutePowerLabel);
 
 		twentyMinutePower = new JLabel();
@@ -154,34 +152,32 @@ public class TrainingAnalysis extends JFrame {
 		add(twentyMinutePower);
 		add(twentyMinuteWKG, "wrap");
 
-		if (userPrefs.isAntEnabled()) {
-			JLabel maxHeartRateLabel = new JLabel();
-			maxHeartRateLabel.setFont(font1);
-			maxHeartRateLabel.setText(userPrefs.messages.getString("maxhr"));
-			add(maxHeartRateLabel);
+        JLabel maxHeartRateLabel = new JLabel();
+        maxHeartRateLabel.setFont(font1);
+        maxHeartRateLabel.setText(MsgBundle.getString("maxhr"));
+        add(maxHeartRateLabel);
 
-			maxHeartRate = new JLabel();
-			maxHeartRate.setFont(font1);
-			add(maxHeartRate, "wrap");
+        maxHeartRate = new JLabel();
+        maxHeartRate.setFont(font1);
+        add(maxHeartRate, "wrap");
 
-			JLabel aveHeartRateLabel = new JLabel();
-			aveHeartRateLabel.setFont(font1);
-			aveHeartRateLabel.setText(userPrefs.messages.getString("avehr"));
-			add(aveHeartRateLabel);
+        JLabel aveHeartRateLabel = new JLabel();
+        aveHeartRateLabel.setFont(font1);
+        aveHeartRateLabel.setText(MsgBundle.getString("avehr"));
+        add(aveHeartRateLabel);
 
-			aveHeartRate = new JLabel();
-			aveHeartRate.setFont(font1);
-			add(aveHeartRate, "wrap");
+        aveHeartRate = new JLabel();
+        aveHeartRate.setFont(font1);
+        add(aveHeartRate, "wrap");
 
-			JLabel fTHRLabel = new JLabel();
-			fTHRLabel.setFont(font1);
-			fTHRLabel.setText(userPrefs.messages.getString("fthr"));
-			add(fTHRLabel);
+        JLabel fTHRLabel = new JLabel();
+        fTHRLabel.setFont(font1);
+        fTHRLabel.setText(MsgBundle.getString("fthr"));
+        add(fTHRLabel);
 
-			fTHR = new JLabel();
-			fTHR.setFont(font1);
-			add(fTHR, "wrap");
-		}
+        fTHR = new JLabel();
+        fTHR.setFont(font1);
+        add(fTHR, "wrap");
 
 		JLabel timeLabel = new JLabel();
 		timeLabel.setFont(font1);
@@ -194,7 +190,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel distanceLabel = new JLabel();
 		distanceLabel.setFont(font1);
-		distanceLabel.setText(userPrefs.messages.getString("distance"));
+		distanceLabel.setText(MsgBundle.getString("distance"));
 		add(distanceLabel);
 
 		distance = new JLabel();
@@ -203,7 +199,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel powerLabel = new JLabel();
 		powerLabel.setFont(font1);
-		powerLabel.setText(userPrefs.messages.getString("power"));
+		powerLabel.setText(MsgBundle.getString("power"));
 		add(powerLabel);
 
 		totalPower = new JLabel();
@@ -212,7 +208,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel aveLabel = new JLabel();
 		aveLabel.setFont(font1);
-		aveLabel.setText(userPrefs.messages.getString("avepow"));
+		aveLabel.setText(MsgBundle.getString("avepow"));
 		add(aveLabel);
 
 		avePower = new JLabel();
@@ -221,7 +217,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel maxLabel = new JLabel();
 		maxLabel.setFont(font1);
-		maxLabel.setText(userPrefs.messages.getString("maxpow"));
+		maxLabel.setText(MsgBundle.getString("maxpow"));
 		add(maxLabel);
 
 		maxPower = new JLabel();
@@ -230,7 +226,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel qLabel = new JLabel();
 		qLabel.setFont(font1);
-		qLabel.setText(userPrefs.messages.getString("qpow"));
+		qLabel.setText(MsgBundle.getString("qpow"));
 		add(qLabel);
 
 		qPower = new JLabel();
@@ -239,7 +235,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel ftpLabel = new JLabel();
 		ftpLabel.setFont(font1);
-		ftpLabel.setText(userPrefs.messages.getString("cftp"));
+		ftpLabel.setText(MsgBundle.getString("cftp"));
 		add(ftpLabel);
 
 		ftPower = new JLabel();
@@ -248,7 +244,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel ftp1Label = new JLabel();
 		ftp1Label.setFont(font1);
-		ftp1Label.setText(userPrefs.messages.getString("1minftp"));
+		ftp1Label.setText(MsgBundle.getString("1minftp"));
 		add(ftp1Label);
 
 		ft1Power = new JLabel();
@@ -257,7 +253,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel ftp2Label = new JLabel();
 		ftp2Label.setFont(font1);
-		ftp2Label.setText(userPrefs.messages.getString("20minftp"));
+		ftp2Label.setText(MsgBundle.getString("20minftp"));
 		add(ftp2Label);
 
 		ft20Power = new JLabel();
@@ -266,7 +262,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel loadLabel = new JLabel();
 		loadLabel.setFont(font1);
-		loadLabel.setText(userPrefs.messages.getString("load"));
+		loadLabel.setText(MsgBundle.getString("load"));
 		add(loadLabel);
 
 		load = new JLabel();
@@ -275,7 +271,7 @@ public class TrainingAnalysis extends JFrame {
 
 		JLabel stressLabel = new JLabel();
 		stressLabel.setFont(font1);
-		stressLabel.setText(userPrefs.messages.getString("stress"));
+		stressLabel.setText(MsgBundle.getString("stress"));
 		add(stressLabel);
 
 		stress = new JLabel();
@@ -327,19 +323,17 @@ public class TrainingAnalysis extends JFrame {
 				workoutData.getTwentyMinutePwr() * 0.95)
 				+ " Watts");
 
-		if (userPrefs.isAntEnabled()) {
-			fTHR.setText(workoutData.getFtHR() + " bpm");
-			maxHeartRate.setText(workoutData.getMaxHR() + " bpm");
-			aveHeartRate.setText(workoutData.getAveHR() + " bpm");
+        fTHR.setText(workoutData.getFtHR() + " bpm");
+        maxHeartRate.setText(workoutData.getMaxHR() + " bpm");
+        aveHeartRate.setText(workoutData.getAveHR() + " bpm");
 
-		}
 		load.setText(String.format("%.2f", workoutData.getIntensity() * 100));
 		stress.setText("" + workoutData.getStress());
 
 		setVisible(true);
 	}
 
-	public static WorkoutData analyze(ArrayList<Telemetry> data) {
+	public static WorkoutData analyze(List<Telemetry> data) {
 		WorkoutData workoutData = new WorkoutData();
 
 		if (data == null || data.size() == 0) {

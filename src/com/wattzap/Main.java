@@ -190,32 +190,27 @@ public class Main implements Runnable {
 		menuBar.add(appMenu);
 
         // Preferences
-		JMenuItem prefMenuItem = new JMenuItem(
-				userPrefs.messages.getString("preferences"));
+		JMenuItem prefMenuItem = new JMenuItem(MsgBundle.getString("preferences"));
 		Preferences preferences = new Preferences();
 		prefMenuItem.addActionListener(preferences);
 		appMenu.add(prefMenuItem);
 
-		JMenuItem aboutMenuItem = new JMenuItem(
-				userPrefs.messages.getString("about"));
+		JMenuItem aboutMenuItem = new JMenuItem(MsgBundle.getString("about"));
 		appMenu.add(aboutMenuItem);
-		// NOTE: Sets up timer for unregistered users.
 		AboutPanel about = new AboutPanel();
 		aboutMenuItem.addActionListener(about);
 
-		JMenuItem quitMenuItem = new JMenuItem(
-				userPrefs.messages.getString("quit"));
+		JMenuItem quitMenuItem = new JMenuItem(MsgBundle.getString("quit"));
 		appMenu.add(quitMenuItem);
 		quitMenuItem.addActionListener(frame);
 		quitMenuItem.setAccelerator(KeyStroke.getKeyStroke('Q', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
 
 		// Route
-		JMenu fileMenu = new JMenu(userPrefs.messages.getString("route"));
+		JMenu fileMenu = new JMenu(MsgBundle.getString("route"));
 		menuBar.add(fileMenu);
 
-        JMenuItem openMenuItem = new JMenuItem(
-				userPrefs.messages.getString("open"));
+        JMenuItem openMenuItem = new JMenuItem(MsgBundle.getString("open"));
 		fileMenu.add(openMenuItem);
 		openMenuItem.setAccelerator(KeyStroke.getKeyStroke('O', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
@@ -223,47 +218,41 @@ public class Main implements Runnable {
 		openMenuItem.addActionListener(picker);
 
 		MenuItem closeMenuItem = new MenuItem(Messages.CLOSE,
-				userPrefs.messages.getString("close"));
+                MsgBundle.getString("close"));
 		fileMenu.add(closeMenuItem);
 		closeMenuItem.setAccelerator(KeyStroke.getKeyStroke('C', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
 
 		// Submenu: Training
-		JMenu trainingMenu = new JMenu(userPrefs.messages.getString("training"));
+		JMenu trainingMenu = new JMenu(MsgBundle.getString("training"));
 		menuBar.add(trainingMenu);
 
         // Submenu: training
-        JMenuItem trainMenuItem = new JMenuItem(
-                userPrefs.messages.getString("open"));
-        trainMenuItem.setActionCommand(TrainingController.open);
-        trainingMenu.add(trainMenuItem);
+        JMenuItem trainMenuItem = new JMenuItem(MsgBundle.getString("open"));
         TrainingPicker tPicker = new TrainingPicker(frame);
         trainMenuItem.addActionListener(tPicker);
+        trainMenuItem.setActionCommand(TrainingController.open);
+        trainingMenu.add(trainMenuItem);
 
-        JMenu analizeMenuItem = new JMenu(
-				userPrefs.messages.getString("analyze"));
+        JMenu analizeMenuItem = new JMenu(MsgBundle.getString("analyze"));
 		trainingMenu.add(analizeMenuItem);
 
-		JMenuItem analMenuItem = new JMenuItem(
-				userPrefs.messages.getString("analyze"));
+		JMenuItem analMenuItem = new JMenuItem(MsgBundle.getString("analyze"));
 		analMenuItem.setActionCommand(TrainingController.analyze);
 		analMenuItem.addActionListener(trainingController);
 		analizeMenuItem.add(analMenuItem);
 
-		JMenuItem saveMenuItem = new JMenuItem(
-				userPrefs.messages.getString("save"));
+		JMenuItem saveMenuItem = new JMenuItem(MsgBundle.getString("save"));
 		saveMenuItem.setActionCommand(TrainingController.save);
 		saveMenuItem.addActionListener(trainingController);
 		trainingMenu.add(saveMenuItem);
 
-		JMenuItem viewMenuItem = new JMenuItem(
-				userPrefs.messages.getString("view"));
+		JMenuItem viewMenuItem = new JMenuItem(MsgBundle.getString("view"));
 		viewMenuItem.setActionCommand(TrainingController.view);
 		viewMenuItem.addActionListener(trainingController);
 		trainingMenu.add(viewMenuItem);
 
-		JMenuItem recoverMenuItem = new JMenuItem(
-				userPrefs.messages.getString("recover"));
+		JMenuItem recoverMenuItem = new JMenuItem(MsgBundle.getString("recover"));
 		recoverMenuItem.setActionCommand(TrainingController.recover);
 		recoverMenuItem.addActionListener(trainingController);
 		trainingMenu.add(recoverMenuItem);
@@ -275,14 +264,13 @@ public class Main implements Runnable {
 		// frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
 		frame.setVisible(true);
 
-		// video player window: handles everything via messages
+		// video player window: handles everything via MsgBundle
 		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);
 		try {
 			videoPlayer.init();
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(frame, e.getMessage(),
-					userPrefs.messages.getString("warning"),
-					JOptionPane.INFORMATION_MESSAGE);
+                    MsgBundle.getString("warning"), JOptionPane.INFORMATION_MESSAGE);
 			logger.info(e.getMessage());
 		}
 

@@ -16,6 +16,7 @@
  */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.model.UserPreferences;
 import javax.swing.JCheckBox;
 
@@ -31,11 +32,7 @@ public class ConfigFieldCheck implements ConfigFieldIntf {
     public ConfigFieldCheck(ConfigPanel panel, UserPreferences property, String name) {
         this.property = property;
 
-        if (UserPreferences.INSTANCE.messages.containsKey(name)) {
-    		value = new JCheckBox(UserPreferences.INSTANCE.messages.getString(name));
-        } else {
-            value = new JCheckBox(name);
-        }
+        value = new JCheckBox(MsgBundle.getString(name));
         value.setActionCommand(property.getName());
         value.addActionListener(panel);
 		panel.add(value, "span");

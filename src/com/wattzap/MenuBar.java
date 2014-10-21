@@ -27,9 +27,9 @@ import com.wattzap.view.training.TrainingPicker;
 
 /**
  * Main menu bar
- * 
+ *
  * (c) 2013 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 11 June 2013
  */
@@ -55,11 +55,12 @@ public class MenuBar extends JMenuBar {
 		JMenu appMenu = new JMenu("Application");
 		add(appMenu);
 
-		Preferences preferences = new Preferences();
 		JMenuItem prefMenuItem = new JMenuItem("Preferences");
+		Preferences preferences = new Preferences();
 		prefMenuItem.addActionListener(preferences);
 		appMenu.add(prefMenuItem);
-		JMenuItem aboutMenuItem = new JMenuItem("About");
+
+        JMenuItem aboutMenuItem = new JMenuItem("About");
 		appMenu.add(aboutMenuItem);
 
 		frame.setJMenuBar(this);

@@ -22,6 +22,7 @@ import org.apache.log4j.Logger;
 
 import com.gpxcreator.gpxpanel.GPXFile;
 import com.gpxcreator.gpxpanel.GPXPanel;
+import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -117,10 +118,9 @@ public class Map extends GPXPanel implements MessageCallback {
 				logger.info("Out of time "
 						+ UserPreferences.INSTANCE.getEvalTime());
 				JOptionPane.showMessageDialog(this,
-						UserPreferences.INSTANCE.messages
-								.getString("trial_expired"),
-						UserPreferences.INSTANCE.messages.getString("warning"),
-						JOptionPane.WARNING_MESSAGE);
+						MsgBundle.getString("trial_expired"),
+						MsgBundle.getString("warning"),
+                        JOptionPane.WARNING_MESSAGE);
 				UserPreferences.INSTANCE.shutDown();
 				System.exit(0);
 			}

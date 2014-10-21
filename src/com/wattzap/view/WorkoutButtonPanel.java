@@ -15,6 +15,7 @@
 */
 package com.wattzap.view;
 
+import com.wattzap.MsgBundle;
 import java.awt.Color;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -22,11 +23,10 @@ import java.awt.event.ActionListener;
 import javax.swing.JButton;
 import javax.swing.JPanel;
 
-import com.wattzap.model.UserPreferences;
 
 /**
  * (c) 2014  Wattzap.com
- * 
+ *
  * @author David George
  * @date 17 April 2014
  */
@@ -36,15 +36,14 @@ public class WorkoutButtonPanel extends JPanel implements ActionListener {
 	public WorkoutButtonPanel(Workouts workouts) {
 		this.workouts = workouts;
 
-		JButton stopButton = new JButton(
-				UserPreferences.INSTANCE.messages.getString("delete"));
+		JButton stopButton = new JButton(MsgBundle.getString("delete"));
 		stopButton.setActionCommand("del");
-		JButton startButton = new JButton(
-				UserPreferences.INSTANCE.messages.getString("load"));
-		startButton.setActionCommand("load");
-
-		startButton.addActionListener(this);
 		stopButton.addActionListener(this);
+
+        JButton startButton = new JButton(MsgBundle.getString("load"));
+		startButton.setActionCommand("load");
+		startButton.addActionListener(this);
+
 
 		setBackground(Color.LIGHT_GRAY);
 		add(startButton);

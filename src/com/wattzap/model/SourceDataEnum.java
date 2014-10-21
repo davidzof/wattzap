@@ -39,7 +39,7 @@ public enum SourceDataEnum {
     DISTANCE("distance", 0.0, 3, "km", "M", Constants.KMTOMILES),
     SPEED("speed", 0.0, 1, "km/h", "mph", Constants.KMTOMILES),
     TIME("stopwatch", 0.0, -1), // time
-    PAUSE("pause", 0.0, -2), // not paused
+    PAUSE("pause", 0.0, 0), // not paused
 
     // sensors data
     WHEEL_SPEED("trainer_speed", 0.0, 1, "km/h", "mph", Constants.KMTOMILES),

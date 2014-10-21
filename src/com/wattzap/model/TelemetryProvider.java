@@ -172,9 +172,6 @@ public enum TelemetryProvider implements MessageCallback
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
 
-            // clean up the telemetry, it is filled by handlers from the scratch
-            t = new Telemetry();
-
             // time and distance always are ok? What about power?
             t.setTime(runtime);
             t.setDistance(distance);

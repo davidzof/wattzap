@@ -46,6 +46,17 @@ public class Telemetry implements Serializable {
             validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
         }
     }
+    // copy constructor.. used to collect telemetries in a collection
+    // (in general.. telemetry in TelemetryProvider is reused, so only one
+    // reference will be kept in the collection..)
+    public Telemetry(Telemetry t) {
+        values = new double[t.values.length];
+        validity = new TelemetryValidityEnum[t.validity.length];
+        for (int i = 0; i < t.values.length; i++) {
+            values[i] = t.values[i];
+            validity[i] = t.validity[i];
+        }
+    }
 
     public TelemetryValidityEnum getValidity(SourceDataEnum en) {
         return validity[en.ordinal()];

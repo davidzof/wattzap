@@ -45,7 +45,6 @@ import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TelemetryValidityEnum;
 import com.wattzap.model.dto.TrainingData;
 import com.wattzap.model.dto.TrainingItem;
 import java.util.List;
@@ -188,18 +187,18 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 
         if (time == t.getTime()) {
-            // time doesnt' advance, training is paused
+            // time doesn't advance, training is paused
             return;
         }
 
         long[] values = new long[addedItems.size()];
         int i = 0;
         for (SourceDataEnum en : addedItems) {
-            if ((t.getValidity(en) != TelemetryValidityEnum.NOT_PRESENT) &&
-                    (t.getValidity(en) != TelemetryValidityEnum.NOT_AVAILABLE)) {
+            if (t.isAvailable(en)) {
                 values[i++] = t.getLong(en);
             } else {
-                values[i++] = -1;
+                // how to indicate "non-existing" values? It there any way?
+                values[i++] = 0;
             }
         }
 
@@ -214,10 +213,12 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             support.updateDetails(details);
 		}
 
-		// use telemetry time
-        time = t.getTime();
+		// use telemetry time.. timeDiff == 0 when called from callback (time
+        // is the length of whole session), or startTime when telemetries read
+        // from journal file.. to be "converted" to length.
+        time = t.getTime() - timeDiff;
         // move time a bit.. to start from 0:00:00
-		support.addValues(time + CHARTTIMECORRECTION - timeDiff, values);
+		support.addValues(time + CHARTTIMECORRECTION, values);
 	}
 
 	/*
@@ -233,9 +234,14 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             return;
         }
 
-        // in data (and journal as well) time starts from startTime
-        // (first start of the session..), so time must be corrected
-        time = t.getTime() + startTime;
+        // Telemetry provider controll messages are not added to the data
+        if (t.getPaused() < 0) {
+            return;
+        }
+
+        // in data (and journal as well) time starts from startTime (when
+        // session was started for the first time), so time must be corrected
+        long time = t.getTime() + startTime;
 
         // don't add telemetry too often..
         if (!data.isEmpty()) {
@@ -328,7 +334,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                     t.getDistance(), t.getTime() - startTime);
         }
 
-        // rebuild telemetry data, journal file is created from scratch
+        // rebuild journal file from the scratch
         if (data != null) {
             for (Telemetry tt : data) {
                 storeTelemetry(tt);

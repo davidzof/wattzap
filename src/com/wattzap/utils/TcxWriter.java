@@ -31,22 +31,23 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 
 /**
  * Write out a a track in the Garmin training center database, tcx format. As
  * defined by: http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2
- * 
+ *
  * The TCX file written by this class has been verified as compatible with
  * Garmin Training Center 3.5.3.
- * 
+ *
  * @author Sandor Dornbush
  * @author David George
  */
 public class TcxWriter /* implements TrackWriter */{
 	protected static final String TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
-	protected static final String FILE_TIMESTAMP_FORMAT = "yyyyMMMdd-HHmmss";
+	protected static final String FILE_TIMESTAMP_FORMAT = "yyyyMMdd-HHmmss";
 
 	// These are the only sports allowed by the TCX v2 specification for fields
 	// of type Sport_t.
@@ -121,7 +122,7 @@ public class TcxWriter /* implements TrackWriter */{
 		}
 	}
 
-	public void writeLocation(Telemetry t, int gpsData) {
+	public void writeLocation(Telemetry t, boolean withGpsData) {
 		if (pw == null) {
 			return;
 		}
@@ -132,7 +133,7 @@ public class TcxWriter /* implements TrackWriter */{
 		pw.println("          <Time>" + timestampFormatter.format(d)
 				+ "</Time>");
 
-		if (gpsData == 0) {
+		if (withGpsData) {
 			pw.println("          <Position>");
 
 			pw.print("            <LatitudeDegrees>");
@@ -158,7 +159,8 @@ public class TcxWriter /* implements TrackWriter */{
 		pw.print("</Value>");
 		pw.println("</HeartRateBpm>");
 		pw.print("          <Cadence>");
-		pw.print(Math.min(254, t.getCadence()));
+        // why there was Math.min(254, t.getCadence())?? Any reason?
+		pw.print(t.getCadence());
 		pw.println("</Cadence>");
 		pw.print("          <Extensions>");
 		pw.print("<TPX xmlns=\"http://www.garmin.com/xmlschemas/ActivityExtension/v2\">");
@@ -260,13 +262,12 @@ public class TcxWriter /* implements TrackWriter */{
 	}
 
 	/**
-	 * 
+	 *
 	 * @param data
-	 * @param gpsData
-	 *            0 - save GPS data, 1 - drop GPS data
+	 * @param withGpsData
 	 * @return
 	 */
-	public String save(ArrayList<Telemetry> data, int gpsData) {
+	public String save(ArrayList<Telemetry> data, boolean withGpsData) {
 		String fileName = null;
 		if (data == null || data.size() == 0) {
 			logger.info("No training data to save");
@@ -276,10 +277,9 @@ public class TcxWriter /* implements TrackWriter */{
 		Telemetry firstPoint = data.get(0);
 		Telemetry lastPoint = data.get(data.size() - 1);
 
-		fileName = getWorkoutName(firstPoint
-				.getTime());
+		fileName = getWorkoutName(firstPoint.getTime());
 		File file = new File(UserPreferences.INSTANCE.getUserDataDirectory()
-				+ "/Workouts/" + fileName);
+                + "/Workouts/" + fileName);
 
 		try {
 			// make sure parent directory exists
@@ -295,24 +295,18 @@ public class TcxWriter /* implements TrackWriter */{
 			writeStartTrack(firstPoint, lastPoint);
 			writeOpenSegment();
 
-			Telemetry last = null;
 			for (Telemetry t : data) {
-				if (t.getLatitude() > 90 || t.getLongitude() > 180) {
+				if ((!withGpsData) ||
+                        (!t.isAvailable(SourceDataEnum.LATITUDE)) ||
+                        (!t.isAvailable(SourceDataEnum.LONGITUDE))) {
 					// No GPS data to save
-					writeLocation(t, 1);
+					writeLocation(t, false);
 				} else {
-					if (gpsData == 0 && last != null
-							&& last.getLatitude() == t.getLatitude()
-							&& last.getLongitude() == t.getLongitude()) {
-						// Same GPS Point and we are saving GPS Data, drop
-						// this
-						// value
-						continue;
-					} else {
-						writeLocation(t, gpsData);
-					}
+                    // why there was a condition to check LatLon
+                    // whether differ from the last point? These
+                    // have very low accuracy in the stream(WHY??)
+                    writeLocation(t, true);
 				}
-				last = t;
 			}
 
 			writeCloseSegment();

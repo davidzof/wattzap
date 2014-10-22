@@ -35,7 +35,7 @@ import com.wattzap.view.training.TrainingAnalysis;
 
 /**
  * Imports Training Activities into the Wattzap database
- * 
+ *
  * @author David George
  * @date 2nd May 2014
  */
@@ -70,7 +70,7 @@ public class ActivityReader  {
 						workout.setSource(dataSource);
 
 						TcxWriter writer = new TcxWriter();
-						importedFiles.add(writer.save(telemetry, 0));
+						importedFiles.add(writer.save(telemetry, true));
 
 						UserPreferences.INSTANCE.addWorkout(workout);
 					}

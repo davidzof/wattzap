@@ -64,6 +64,15 @@ public class Telemetry implements Serializable {
     public void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
         validity[en.ordinal()] = valid;
     }
+    public boolean isAvailable(SourceDataEnum en) {
+        switch (getValidity(en)) {
+            case NOT_PRESENT:
+            case NOT_AVAILABLE:
+                return false;
+            default:
+                return true;
+        }
+    }
 
     public double getDouble(SourceDataEnum en) {
         return values[en.ordinal()];

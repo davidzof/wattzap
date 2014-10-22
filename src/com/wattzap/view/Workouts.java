@@ -29,11 +29,9 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.TimeZone;
 import java.util.TreeMap;
 
@@ -370,23 +368,24 @@ public class Workouts extends JPanel implements ActionListener {
 			ActivityReader ar = new ActivityReader();
 
 			File dir = new File(workoutDir);
-			Set<File> fileTree = new HashSet<File>();
-			for (File entry : dir.listFiles()) {
-				if (entry.isFile()) {
-					try {
-						ar.readActivity(entry.getCanonicalPath());
-					} catch (IOException e1) {
-						// TODO Auto-generated catch block
-						e1.printStackTrace();
-					}
-				}
-			}
+            File[] files = dir.listFiles();
+            if (files != null) {
+                for (File entry : files) {
+                    if (entry.isFile()) {
+                        try {
+                            ar.readActivity(entry.getCanonicalPath());
+                        } catch (IOException e1) {
+                            // TODO Auto-generated catch block
+                            e1.printStackTrace();
+                        }
+                    }
+                }
+            }
 
 			StringBuilder importedFiles = new StringBuilder();
 			if (ar.getImportedFileList().isEmpty()) {
 				importedFiles.append("No files to import");
 			} else {
-
 				importedFiles.append("Imported:\n\n");
 				for (String file : ar.getImportedFileList()) {
 					importedFiles.append(file);
@@ -399,7 +398,6 @@ public class Workouts extends JPanel implements ActionListener {
 				loadData(tableModel);
 				// table = new JTable(model);
 				tableModel.fireTableDataChanged();
-
 			}
 			JOptionPane.showMessageDialog(this, importedFiles.toString(),
 					"Import", JOptionPane.INFORMATION_MESSAGE);

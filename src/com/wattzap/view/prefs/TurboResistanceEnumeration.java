@@ -33,7 +33,7 @@ public class TurboResistanceEnumeration implements EnumerationIntf {
     }
 
     public static void rebuild() {
-        int num = UserPreferences.POWER_PROFILE.getPowerProfile().getResitanceLevels();
+        int num = UserPreferences.TURBO_TRAINER.getTurboTrainerProfile().getResitanceLevels();
         levels = new TurboResistanceEnumeration[num + 1];
         for (int i = 0; i <= num; i++) {
             levels[i] = new TurboResistanceEnumeration(i);

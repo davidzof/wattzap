@@ -68,6 +68,7 @@ public class SensorsPanel extends ConfigPanel {
                 userPrefs.setVirtualPower((VirtualPowerEnum) val);
             }
         });
+        add(new ConfigFieldInt(this, UserPreferences.ROBOT_POWER, "robot"));
 	}
 
 

@@ -16,10 +16,32 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.model.dto.Telemetry;
+
 /**
- * Interface to get active (enumerated) handler
+ * Simple profile: constant power
  * @author Jarek
  */
-public interface HandlerEnumerationIntf extends EnumerationIntf {
-    SourceDataHandlerIntf findActiveHandler();
+public class RobotPowerProfile extends VirtualPowerProfile {
+    private double power;
+
+    @Override
+    public String getPrettyName() {
+        return "robot";
+    }
+
+    @Override
+    public void configChanged(UserPreferences prefs) {
+        super.configChanged(prefs);
+
+        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.ROBOT_POWER)) {
+            power = prefs.getRobotPower();
+        }
+    }
+
+    @Override
+    public void storeTelemetryData(Telemetry t) {
+        // We have a time value and rotation value, lets calculate the speed
+        setValue(SourceDataEnum.POWER, power);
+    }
 }

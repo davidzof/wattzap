@@ -49,6 +49,11 @@ public abstract class TelemetryHandler
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
     }
 
+    /**
+     * Method to enable and disable data processing. If handler is not active
+     * no data is processed by the handler.
+     * Changing the state might be done only in configChanged().
+     */
     @Override
     public void setActive(boolean active) {
         if (active) {
@@ -66,7 +71,9 @@ public abstract class TelemetryHandler
     public void callback(Messages m, Object o) {
         switch (m) {
             case TELEMETRY:
-                storeTelemetryData((Telemetry) o);
+                if (getLastMessageTime() != 0) {
+                    storeTelemetryData((Telemetry) o);
+                }
                 break;
             case CONFIG_CHANGED:
                 configChanged(UserPreferences.INSTANCE);

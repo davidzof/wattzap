@@ -46,6 +46,8 @@ public enum SourceDataEnum {
     CADENCE("cadence", 0.0, 0, "rpm"),
     HEART_RATE("heartrate", 0.0, 0, "bpm"),
     POWER("power", 0.0, 0, "W"),
+    // if trainer has only one level, no active resistance handler
+    // is necessary (and value won't be shown in ODO panel)
     RESISTANCE("resistance", 1.0, 0),
 
     // available when SLOPE/GPX training

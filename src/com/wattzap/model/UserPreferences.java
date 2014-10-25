@@ -38,6 +38,7 @@ public enum UserPreferences {
     DEBUG("debug", false),
     MAX_POWER("maxpower", 250),
     HR_MAX("maxhr", 180),
+    ROBOT_POWER("robot", 210),
 
     // 2133 is 700Cx23
     WHEEL_SIZE("wheelsize", 2133),
@@ -63,7 +64,7 @@ public enum UserPreferences {
     ANT_USBM("antusbm", false),
 
     METRIC("units", true),
-	POWER_PROFILE("profile", "Tacx Satori / Blue Motion"),
+	TURBO_TRAINER("profile", "Tacx Satori / Blue Motion"),
 
     DB_VERSION("dbVersion", "1.2"),
 
@@ -371,14 +372,21 @@ public enum UserPreferences {
         VIRTUAL_POWER.setInt(value.ordinal());
 	}
 
-	public Power getPowerProfile() {
-        synchronized(POWER_PROFILE) {
-            String profile = POWER_PROFILE.getString();
+    public int getRobotPower() {
+        return ROBOT_POWER.getInt();
+    }
+    public void setRobotPower(int power) {
+        ROBOT_POWER.setInt(power);
+    }
+
+    public Power getTurboTrainerProfile() {
+        synchronized(TURBO_TRAINER) {
+            String profile = TURBO_TRAINER.getString();
             return PowerProfiles.INSTANCE.getProfile(profile);
         }
 	}
-	public void setPowerProfile(String profile) {
-        POWER_PROFILE.setString(profile);
+	public void setTurboTrainer(String profile) {
+        TURBO_TRAINER.setString(profile);
 	}
 
 	public int getResistance() {
@@ -406,7 +414,7 @@ public enum UserPreferences {
         if ((!LOAD_LAST.getBool()) || (LAST_FILENAME.getString().isEmpty())) {
             return null;
         }
-        return getRouteDir() + "/" + LAST_FILENAME.getString();
+        return LAST_FILENAME.getString();
     }
 
     public boolean autostart() {

@@ -15,8 +15,11 @@
 */
 package com.wattzap.model;
 
-import java.io.IOException;
-import java.net.URISyntaxException;
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.MessageCallback;
+import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.Telemetry;
+import com.wattzap.utils.FileName;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,33 +30,92 @@ import com.wattzap.utils.ReflexiveClassLoader;
 
 /**
  * Load all available route readers, this lets us add Route Readers dynamically.
- * 
+ *
  * @author David George
  * (c) 19 September 2014, David George / Wattzap.com
  */
-public enum Readers {
-	INSTANCE;
-	List<RouteReader> readers;
-	private Logger logger = LogManager.getLogger("Readers");
+public class Readers implements SourceDataHandlerIntf, MessageCallback {
+	private static final Logger logger = LogManager.getLogger("Readers");
 
-	Readers() {
-		String packageName = this.getClass().getPackage().getName();
+    private static Readers object = null;
 
-		readers = new ArrayList<RouteReader>();
-		try {
-			getClassNamesFromPackage(packageName);
+    private static Readers getObject() {
+        if (object == null) {
+            object = new Readers();
+            object.initialize();
+        }
+        return object;
+    }
 
-		} catch (Exception e1) {
-			logger.error(e1.getLocalizedMessage());
+    public static String[] getExtensions() {
+		List<String> ext = new ArrayList<>();
+		for (RouteReader reader : getObject().getReaders()) {
+            if (reader.getExtension() != null) {
+    			ext.add(reader.getExtension());
+            }
 		}
-	}
+        return ext.toArray(new String[ext.size()]);
+    }
 
-	public List<RouteReader> getReaders() {
+    public static RouteReader getTraining() {
+        return getObject().getCurrentTraining();
+    }
+
+    public static String runTraining(String fileName) {
+        return getObject().startTraining(fileName);
+    }
+
+
+
+
+    private List<RouteReader> readers = null;
+
+    private RouteReader currentTraining = null;
+    private RouteReader dummyTraining = null;
+
+    private RouteReader getCurrentTraining() {
+        if (currentTraining != null) {
+            return currentTraining;
+        }
+        if (dummyTraining == null) {
+            dummyTraining = new DummyTraining();
+        }
+        return dummyTraining;
+    }
+
+	private List<RouteReader> getReaders() {
+        if (readers == null) {
+            readers = new ArrayList<RouteReader>();
+
+            String packageName = getClass().getPackage().getName();
+            getClassNamesFromPackage(packageName);
+        }
 		return readers;
 	}
 
-	public RouteReader getReader(String ext) {
-		for (RouteReader r : readers) {
+	private void getClassNamesFromPackage(String packageName) {
+        List<Class> classes = null;
+        try {
+    		classes = ReflexiveClassLoader.getClassNamesFromPackage(
+				packageName, RouteAnnotation.class);
+        } catch (Exception e) {
+            // IOException, URISyntaxException, ClassNotFoundException
+            logger.error("Load classes, " + e.getLocalizedMessage(), e);
+            return;
+        }
+		for (Class c : classes) {
+            try {
+    			RouteReader p = (RouteReader) c.newInstance();
+                readers.add(p);
+            } catch (Exception ex) {
+                // InstantiationException, IllegalAccessException
+                logger.error("Create instance, " + ex.getLocalizedMessage(), ex);
+            }
+		}
+	}
+
+	private RouteReader getReader(String ext) {
+		for (RouteReader r : getReaders()) {
 			if (ext.equals(r.getExtension())) {
 				return r;
 			}
@@ -61,38 +123,123 @@ public enum Readers {
 		return null;
 	}
 
-	public void getClassNamesFromPackage(String packageName)
-			throws IOException, URISyntaxException, ClassNotFoundException,
-			InstantiationException, IllegalAccessException {
+    public String startTraining(String fileName) {
+        String lastMessage;
 
-		List<Class> classes = ReflexiveClassLoader.getClassNamesFromPackage(
-				packageName, RouteAnnotation.class);
-		for (Class c : classes) {
-			RouteReader p = (RouteReader) c.newInstance();
-			readers.add(p);
-		}
-
-	}
-
-    private static String lastMessage = null;
-    public static String getLastMessage() {
-        return lastMessage;
-    }
-    static public RouteReader readFile(String fileName) {
-        String ext = fileName.substring(fileName.length() - 3);
-        RouteReader track = Readers.INSTANCE.getReader(ext);
-        if (track != null) {
+        String ext = FileName.getExtension(fileName);
+        RouteReader training = getReader(ext);
+        if (training != null) {
             try {
-                track.load(fileName);
-                lastMessage = null;
-                return track;
+                lastMessage = training.load(fileName);
             } catch (Exception ex) {
-                ex.printStackTrace();
                 lastMessage = ex.getLocalizedMessage();
+                logger.error(lastMessage, ex);
             }
         } else {
-            lastMessage = "Unknown reader";
+            lastMessage = "Unknown reader " + ext;
         }
-        return null;
+
+        // training loaded correctly, unregister previous one, and register
+        // current.
+        if (lastMessage == null) {
+            synchronized(this) {
+                // close current training, it will be cleared via CLOSE callback.
+                if (currentTraining != null) {
+                    MessageBus.INSTANCE.send(Messages.CLOSE, currentTraining);
+                }
+                // training is ready to be run
+                currentTraining = training;
+                if (currentTraining != null) {
+                    currentTraining.configChanged(UserPreferences.INSTANCE);
+                    MessageBus.INSTANCE.send(Messages.GPXLOAD, currentTraining);
+                }
+            }
+        } else if (training != null) {
+            // object was created, but some errors were reported..
+            training.close();
+        }
+        return lastMessage;
+    }
+
+
+    /*
+     * Telemetry handler interface
+     */
+
+    @Override
+    public String getPrettyName() {
+        return getCurrentTraining().getName();
+    }
+
+    @Override
+    public void setPrettyName(String name) {
+        assert false : "Cannot change the name";
+    }
+
+    @Override
+    public void setActive(boolean active) {
+        assert false : "Readers cannot be activated/deactivated";
+    }
+
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        return getCurrentTraining().provides(data);
+    }
+
+    @Override
+    public double getValue(SourceDataEnum data) {
+        return getCurrentTraining().getValue(data);
+    }
+
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        return getCurrentTraining().getModificationTime(data);
+    }
+
+    @Override
+    public long getLastMessageTime() {
+        // trainings always activated.
+        return -1;
+    }
+
+    @Override
+    public SourceDataHandlerIntf initialize() {
+		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
+		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+		MessageBus.INSTANCE.register(Messages.CLOSE, this);
+
+        // notify about new telemetryProvider
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        return this;
+    }
+
+    @Override
+    public void release() {
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+
+		MessageBus.INSTANCE.unregister(Messages.CLOSE, this);
+        MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
+		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
+    }
+
+    @Override
+    public void callback(Messages m, Object o) {
+        switch (m) {
+            case TELEMETRY:
+                synchronized(this) {
+                    getTraining().storeTelemetryData((Telemetry) o);
+                }
+                break;
+            case CONFIG_CHANGED:
+                getTraining().configChanged((UserPreferences) o);
+                break;
+            case CLOSE:
+                // close might be sent from menu, or from this class..
+                if (currentTraining != null) {
+                    currentTraining.close();
+                    currentTraining = null;
+                }
+                break;
+        }
     }
 }

@@ -27,41 +27,48 @@ import com.gpxcreator.gpxpanel.Track;
 import com.gpxcreator.gpxpanel.Waypoint;
 import com.gpxcreator.gpxpanel.WaypointGroup;
 import com.wattzap.model.dto.Point;
+import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.power.Power;
+import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 
 /*
- * Wrapper class for GPX Track. Performs some analysis such as calculating instantaneous speed, average gradient etc.
- *
- * Roller resistance calculated from power graphs
- *
- * Pwr = (mass cyclist + mass bike) * 9.8 * slope (0.1) * m/s; // rolling resistance?
- * so if power is 250 w and we are generating xyz we either need to peddle faster or increase resistance.
- * For example a Satori can only simulate up to a 4.5% slope
+ * Wrapper class for GPX Track. Performs some analysis such as calculating
+ * instantaneous speed, average gradient etc.
  *
  * @author David George (c) Copyright 2013
  * @date 11 June 2013
  */
 @RouteAnnotation
 public class GPXReader extends RouteReader {
-	private GPXFile gpxFile;
+    private double totalWeight = 85.0;
+    private Power power = null;
+
+    private GPXFile gpxFile;
 	private XYSeries series;
-	private String fileName;
-	private static final int gradientDistance = 100; // distance to calculate
+
+    private File currentFile;
+
+    private static final int gradientDistance = 100; // distance to calculate
 														// gradients over.
 	private double maxSlope = 0;
 	private double minSlope = 0;
 
-	@Override
+	private Point[] points = null;
+	private int currentPoint = 0;
+    private double lastDistance = 0.0;
+
+    @Override
 	public String getExtension() {
 		return "gpx";
 	}
 
-	@Override
-	public int routeType() {
-		return RouteReader.SLOPE;
-	}
+    @Override
+    public TrainingModeEnum getMode() {
+        return TrainingModeEnum.DISTANCE;
+    }
 
-	@Override
+    @Override
 	public double getMaxSlope() {
 		return maxSlope;
 	}
@@ -71,19 +78,19 @@ public class GPXReader extends RouteReader {
 		return minSlope;
 	}
 
-	@Override
-	public String getFilename() {
-		return fileName;
+    @Override
+	public String getPath() {
+		return currentFile.getParent();
 	}
 
 	@Override
 	public String getVideoFile() {
-		return fileName + ".avi";
+		return FileName.stripExtension(currentFile.getName()) + ".avi";
 	}
 
 	@Override
 	public String getName() {
-		return fileName;
+		return gpxFile.getName();
 	}
 
 	@Override
@@ -91,30 +98,21 @@ public class GPXReader extends RouteReader {
 		return gpxFile;
 	}
 
+    @Override
 	public XYSeries getSeries() {
 		return series;
 	}
 
-	public Point[] getPoints() {
-		return points;
-	}
-
-	public double getDistanceMeters() {
-		if (points != null) {
-			return points[points.length - 1].getDistanceFromStart();
-		}
-
-		return 0;
-
-	}
-
-	/**
-	 * Get the point that corresponds to the distance (in km)
-	 */
-
+	// Get the point that corresponds to the distance (in km)
     // TODO getPoint() uses bisection, return values shall be mediana for distance
+	@Override
 	public Point getPoint(double distance) {
-		while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
+        if (lastDistance > distance) {
+            currentPoint = 0;
+        }
+        lastDistance = distance;
+
+        while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
 			currentPoint++;
 		}
         if (currentPoint >= points.length) {
@@ -127,36 +125,28 @@ public class GPXReader extends RouteReader {
 	}
 
 	/**
-	 * Returns a Point relative to the start of the track
-	 *
-	 * @param distance
-	 * @return
-	 */
-	@Override
-	public Point getAbsolutePoint(double distance) {
-		currentPoint = 0;
-		return getPoint(distance);
-	}
-
-	/**
 	 * Load GPX data from file
 	 *
 	 * @param filename
 	 *            name of file to load
 	 *
 	 */
-	public void load(String filename) {
-		gpxFile = new GPXFile(new File(filename));
-		fileName = filename.substring(0, filename.lastIndexOf('.'));
+    @Override
+	public String load(String filename) {
+        currentFile = new File(filename);
+        if (!currentFile.exists()) {
+            return "File doesn't exist";
+        }
+
+        gpxFile = new GPXFile(currentFile);
 
 		List<Track> routes = gpxFile.getTracks();
 		if (routes.size() == 0) {
-			throw new RuntimeException("No tracks in file");
+			return "No tracks in file";
 		}
 		Track route = routes.get(0);
 		if (route == null) {
-			System.err.println("no route in GPX file");
-			return;
+			return "no route in GPX file";
 		}
 
 		List<WaypointGroup> segs = route.getTracksegs();
@@ -274,10 +264,16 @@ public class GPXReader extends RouteReader {
 			// combine segment
 			points = ArrayUtils.addAll(points, segment);
 		}
+        return null;
 	}
 
+    @Override
 	public void close() {
+        gpxFile = null;
+        points = null;
+        series = null;
 		currentPoint = 0;
+        lastDistance = 0;
 	}
 
 	/**
@@ -287,6 +283,8 @@ public class GPXReader extends RouteReader {
 	 *
 	 * lat1, lon1 Start point lat2, lon2 End point el1 Start altitude in meters
 	 * el2 End altitude in meters
+     *
+     * TODO move it to any Util class..
 	 */
 	public static double distance(double lat1, double lat2, double lon1,
 			double lon2, double el1, double el2) {
@@ -312,4 +310,62 @@ public class GPXReader extends RouteReader {
 		return (deg * Math.PI / 180.0);
 	}
 
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case PAUSE: // pause when end of route
+            case SPEED: // compute speed from power
+
+            case ROUTE_SPEED:
+            case ROUTE_TIME:
+            case ALTITUDE:
+            case SLOPE:
+            case LATITUDE:
+            case LONGITUDE:
+                return true;
+
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    public void storeTelemetryData(Telemetry t) {
+        Point p = getPoint(t.getDistance());
+        if (p != null) {
+            double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
+                p.getGradient() / 100.0, t.getPower());
+            setValue(SourceDataEnum.SPEED, realSpeed);
+
+            setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());
+            setValue(SourceDataEnum.ROUTE_TIME, p.getTime());
+            setValue(SourceDataEnum.ALTITUDE, p.getElevation());
+            setValue(SourceDataEnum.SLOPE, p.getGradient());
+            setValue(SourceDataEnum.LATITUDE, p.getLatitude());
+            setValue(SourceDataEnum.LONGITUDE, p.getLongitude());
+        }
+
+        // set pause at end of route or when no running, otherwise unpause
+        if (p == null) {
+            setValue(SourceDataEnum.PAUSE, 100.0); // end of training
+            setValue(SourceDataEnum.SPEED, 0.0);
+        } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
+            if (t.getTime() < 1000) {
+                setValue(SourceDataEnum.PAUSE, 1.0); // start training
+            } else {
+                setValue(SourceDataEnum.PAUSE, 2.0); // keep moving
+            }
+        } else {
+            setValue(SourceDataEnum.PAUSE, 0.0); // running!
+        }
+    }
+
+    @Override
+    public void configChanged(UserPreferences pref) {
+        if ((pref == UserPreferences.INSTANCE) || (pref == UserPreferences.TURBO_TRAINER)) {
+            power = pref.getTurboTrainerProfile();
+        }
+        // it can be updated every configChanged without checking the property..
+        totalWeight = pref.getTotalWeight();
+    }
 }

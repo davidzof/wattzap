@@ -15,12 +15,9 @@
  */
 package com.wattzap.view;
 
-import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.Messages;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
-import java.util.List;
 
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -30,7 +27,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.wattzap.model.Readers;
-import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
 import javax.swing.JOptionPane;
 
@@ -43,41 +39,30 @@ import javax.swing.JOptionPane;
  * @date 11 June 2013
  */
 public class RouteFilePicker extends JFileChooser implements ActionListener {
-	JFrame frame;
-
 	private static Logger logger = LogManager.getLogger("Route File Picker");
 
-	/**
-	 * Displays list of all supported filetypes. To add a new filetype subclass
-	 * RouteReader.
-	 * 
-	 * @param panel
-	 */
+	private final JFrame frame;
+
 	public RouteFilePicker(JFrame panel) {
 		super();
 		this.frame = panel;
 
-		/**
-		 * Readers is a singleton that finds all the RouteReaders on the
-		 * classpath
-		 */
-		List<RouteReader> readers = Readers.INSTANCE.getReaders();
-		String extensions[] = new String[readers.size()];
+		// configure fileSelection panel
+        String extensions[] = Readers.getExtensions();
 		StringBuffer fileTypes = new StringBuffer();
-		for (int i = 0; i < readers.size(); i++) {
-			extensions[i] = readers.get(i).getExtension();
-			if (i > 0) {
+		for (int i = 0; i < extensions.length; i++) {
+			if (i != 0) {
 				fileTypes.append(", ");
 			}
-			fileTypes.append(readers.get(i).getExtension());
+			fileTypes.append(extensions[i]);
 		}
 		FileNameExtensionFilter filter = new FileNameExtensionFilter(
 				"Supported file types (" + fileTypes.toString() + ")",
 				extensions);
 		setFileFilter(filter);
 
-		File cwd = new File(UserPreferences.INSTANCE.getRouteDir());
-		setCurrentDirectory(cwd);
+		File last = new File(UserPreferences.INSTANCE.getDefaultFilename());
+		setCurrentDirectory(last.getParentFile());
 	}
 
 	/*
@@ -86,20 +71,19 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 	@Override
 	public final void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
-		logger.debug(command);
 
 		int retVal = showOpenDialog(frame);
         if (retVal == JFileChooser.APPROVE_OPTION) {
     		File file = getSelectedFile();
-            RouteReader reader = Readers.readFile(file.getAbsolutePath());
-            if (reader != null) {
-                UserPreferences.INSTANCE.setRouteDir(file.getParent());
-                UserPreferences.LAST_FILENAME.setString(file.getName());
-                MessageBus.INSTANCE.send(Messages.GPXLOAD, reader);
+            String msg = Readers.runTraining(file.getAbsolutePath());
+            // if proper file.. store path as new "default" training. Otherwise
+            // current training stays still loaded.
+            if (msg == null) {
+                UserPreferences.LAST_FILENAME.setString(file.getAbsolutePath());
             } else {
-                logger.error("Cannot open " + file.getAbsolutePath());
+                logger.error("Cannot open " + file.getAbsolutePath() + ":: " + msg);
                 JOptionPane.showMessageDialog(frame,
-                        Readers.getLastMessage() + " " + file.getAbsolutePath(),
+                        msg + " " + file.getAbsolutePath(),
                         "Error", JOptionPane.ERROR_MESSAGE);
             }
         } else {

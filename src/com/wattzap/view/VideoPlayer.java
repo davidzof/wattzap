@@ -39,6 +39,7 @@ import com.wattzap.model.RouteReader;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 import java.awt.Dimension;
 import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
@@ -224,12 +225,6 @@ public class VideoPlayer extends JFrame implements MessageCallback {
     }
 
     private void playVideo(String videoFile) {
-        if (videoFile != null) {
-            if (!(new File(videoFile)).exists()) {
-                videoFile = null;
-            }
-        }
-
         // if any video is running..
         if ((len > 0) && (videoFile != null)) {
             playVideo(null);
@@ -278,9 +273,37 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
         case GPXLOAD:
             // initialize video on new route
+            boolean found = false;
 			RouteReader routeData = (RouteReader) o;
             if (routeData != null) {
-                playVideo(routeData.getVideoFile());
+                String path = FileName.getPath(routeData.getVideoFile());
+                String name = FileName.getName(routeData.getVideoFile());
+                String ext = FileName.getExtension(name);
+                name = FileName.stripExtension(name);
+
+                String[] pathArr;
+                if (path.isEmpty()) {
+                    pathArr = new String[] {path};
+                } else {
+                    pathArr = new String[] {path, ""};
+                }
+                String[] extArr = new String[] {ext, "avi", "mp4", "flv"};
+                for (String p : pathArr) {
+                    for (String e : extArr) {
+                        if (found) {
+                            break;
+                        }
+                        File f = new File(routeData.getPath() + "/" +
+                                p + "/" + name + "." + e);
+                        if (f.exists()) {
+                            playVideo(f.getAbsolutePath());
+                            found = true;
+                        }
+                    }
+                }
+            }
+            if (!found) {
+                playVideo(null);
             }
 			break;
 

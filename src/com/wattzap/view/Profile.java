@@ -40,11 +40,15 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.dto.Telemetry;
 
-/* 
+/*
  * Shows a profile of the route and moves an indicator to show rider progress on profile
- * 
+ *
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
+ *
+ * TODO add action listener to set new position on click, and remove slider.
+ * Panel shall be more universal: it should be able to show any data in time
+ * ("power" profiles) or distance ("slope" profiles).
  */
 public class Profile extends JPanel implements MessageCallback {
 	ValueMarker marker = null;
@@ -81,7 +85,7 @@ public class Profile extends JPanel implements MessageCallback {
 				setVisible(false);
 				revalidate();
 			}
-			
+
 			return;
 		case GPXLOAD:
 			// Note if we are loading a Power Profile there is no GPX data so we don't show the chart panel
@@ -98,7 +102,7 @@ public class Profile extends JPanel implements MessageCallback {
 				return;
 			}
 
-			logger.debug("Load " + routeData.getFilename());
+			logger.debug("Load " + routeData.getPath());
 			XYDataset xyDataset = new XYSeriesCollection(routeData.getSeries());
 
 			// create the chart...
@@ -132,7 +136,8 @@ public class Profile extends JPanel implements MessageCallback {
 
 			double minY = routeData.getSeries().getMinY();
 			double maxY = routeData.getSeries().getMaxY();
-			rangeAxis.setRange(minY - 100.0, maxY + 100.0);
+            double delta = (maxY - minY) / 10.0;
+			rangeAxis.setRange(minY - delta, maxY + delta);
 
 			chartPanel = new ChartPanel(chart);
 

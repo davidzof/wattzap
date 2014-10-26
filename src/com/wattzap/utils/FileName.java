@@ -16,23 +16,25 @@
 package com.wattzap.utils;
 
 /**
- * 
+ *
  * @author David George
  * @date 2nd May 2014
  */
 public class FileName {
-	/**
+	private static final char EXTENSION_SEPARATOR = '.';
+	private static final char DIRECTORY_SEPARATOR = '/';
+
+
+    /**
 	 * Remove the file extension from a filename, that may include a path.
-	 * 
-	 * e.g. /path/to/myfile.jpg -> /path/to/myfile 
+	 *
+	 * e.g. /path/to/myfile.jpg -> /path/to/myfile
 	 */
-	public static String removeExtension(String filename) {
+	public static String stripExtension(String filename) {
 	    if (filename == null) {
 	        return null;
 	    }
-
 	    int index = indexOfExtension(filename);
-
 	    if (index == -1) {
 	        return filename;
 	    } else {
@@ -41,44 +43,76 @@ public class FileName {
 	}
 
 	/**
-	 * Return the file extension from a filename, including the "."
-	 * 
-	 * e.g. /path/to/myfile.jpg -> .jpg
+	 * Return the file extension from a filename, excluding the "."
+	 *
+	 * e.g. /path/to/myfile.jpg -> jpg
 	 */
 	public static String getExtension(String filename) {
 	    if (filename == null) {
 	        return null;
 	    }
-
 	    int index = indexOfExtension(filename);
-
 	    if (index == -1) {
-	        return filename;
+	        return "";
 	    } else {
-	        return filename.substring(index);
+	        return filename.substring(index + 1);
 	    }
 	}
 
-	private static final char EXTENSION_SEPARATOR = '.';
-	private static final char DIRECTORY_SEPARATOR = '/';
-
 	public static int indexOfExtension(String filename) {
-
 	    if (filename == null) {
 	        return -1;
 	    }
 
-	    // Check that no directory separator appears after the 
+	    // Check that no directory separator appears after the
 	    // EXTENSION_SEPARATOR
 	    int extensionPos = filename.lastIndexOf(EXTENSION_SEPARATOR);
-
 	    int lastDirSeparator = filename.lastIndexOf(DIRECTORY_SEPARATOR);
-
 	    if (lastDirSeparator > extensionPos) {
 	        return -1;
 	    }
-
 	    return extensionPos;
 	}
 
+    /**
+	 * Return the file name from a path
+	 *
+	 * e.g. /path/to/myfile.jpg -> myfile.jpg
+	 */
+	public static String getName(String filename) {
+	    if (filename == null) {
+	        return null;
+	    }
+	    int index = indexOfName(filename);
+	    if (index == -1) {
+	        return filename;
+	    } else {
+	        return filename.substring(index + 1);
+	    }
+	}
+
+	/**
+	 * Return the file name from a path
+	 *
+	 * e.g. /path/to/myfile.jpg -> /path/to
+	 */
+	public static String getPath(String filename) {
+	    if (filename == null) {
+	        return null;
+	    }
+	    int index = indexOfName(filename);
+	    if (index < 0) {
+	        return "";
+	    } else {
+	        return filename.substring(0, index);
+	    }
+	}
+
+	public static int indexOfName(String filename) {
+	    if (filename == null) {
+	        return -1;
+	    }
+	    int pos = filename.lastIndexOf(DIRECTORY_SEPARATOR);
+	    return pos;
+	}
 }

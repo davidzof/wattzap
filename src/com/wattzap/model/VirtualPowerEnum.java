@@ -17,24 +17,49 @@
 package com.wattzap.model;
 
 /**
+ * Handles all virtualPower profiles. It must be an enum (cannot be built on
+ * reflection), because ordinal() is stored in the configuration (and cannot
+ * change every application run..)
  *
  * @author Jarek
  */
-public enum VirtualPowerEnum implements HandlerEnumerationIntf {
+public enum VirtualPowerEnum implements EnumerationIntf {
     // computes power from wheelSpeed
-    SPEED_TO_POWER("speed2power", DefaultTelemetryHandler.class),
+    SPEED_TO_POWER("speed2power", Speed2PowerProfile.class),
     // computes wheel speed from power. If (any) power sensor is not
     // available, it is impossible to run in this mode.
-    POWER_TO_SPEED("power2speed"),
+    POWER_TO_SPEED("power2speed", SensorOnlyPowerProfile.class),
     // simulated speed, it shows wheel speed to be followed.
     // Base on slope: at highest slope FTP is to be touched, when flat half of
     // FTP is taken into consideration
     FTP_SIMULATION("simulSpeed"),
     // compute wheel speed which is necessary to run video with 1:1 speed
-    VIDEO_SPEED("videoSpeed");
+    VIDEO_SPEED("videoSpeed", VideoSpeedPowerProfile.class),
+    // constant power, with config value, provides speed as well
+    ROBOT("robot", RobotPowerProfile.class);
+
+    public static void buildHandlers() {
+        for (VirtualPowerEnum en : VirtualPowerEnum.values()) {
+            VirtualPowerProfile profile = null;
+            if (en.clazz != null) {
+                try {
+                    profile = (VirtualPowerProfile) en.clazz.newInstance();
+                    profile.initialize();
+                } catch (Exception e) {
+                    // leave handler not valid..
+                    profile = null;
+                }
+            }
+            if (en.handler != null) {
+                en.handler.release();
+            }
+            en.handler = profile;
+        }
+    }
 
     private final String key;
     private final Class clazz;
+    private VirtualPowerProfile handler;
 
     private VirtualPowerEnum(String key) {
         this(key, null);
@@ -42,6 +67,7 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
     private VirtualPowerEnum(String key, Class clazz) {
         this.key = key;
         this.clazz = clazz;
+        this.handler = null;
     }
 
     @Override
@@ -49,10 +75,14 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
         return key;
     }
 
+    public VirtualPowerProfile getHandler() {
+        return handler;
+    }
+
     @Override
     public boolean isValid() {
-        // valid is handler exists
-        return findActiveHandler() != null;
+        // valid if handler exists
+        return (handler != null) && (findActiveHandler() == handler);
     }
 
     @Override
@@ -60,7 +90,6 @@ public enum VirtualPowerEnum implements HandlerEnumerationIntf {
         return VirtualPowerEnum.values();
     }
 
-    @Override
     public SourceDataHandlerIntf findActiveHandler() {
         if (clazz == null) {
             return null;

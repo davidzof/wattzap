@@ -34,15 +34,15 @@ public class TurboPanel extends ConfigPanel {
 	public TurboPanel() {
 		super();
 
-        add(new ConfigFieldEnum(this, UserPreferences.POWER_PROFILE, "profile",
+        add(new ConfigFieldEnum(this, UserPreferences.TURBO_TRAINER, "profile",
                 TurboEnumeration.ANY) {
             @Override
             public EnumerationIntf getProperty() {
-                return TurboEnumeration.get(userPrefs.getPowerProfile());
+                return TurboEnumeration.get(userPrefs.getTurboTrainerProfile());
             }
             @Override
             public void setProperty(EnumerationIntf val) {
-                userPrefs.setPowerProfile(val.getKey());
+                userPrefs.setTurboTrainer(val.getKey());
             }
         });
 
@@ -64,7 +64,7 @@ public class TurboPanel extends ConfigPanel {
             // When turbo has fit-profile sensor, this value is discarded at all.
             @Override
             public void propertyChanged(UserPreferences prop, String changed) {
-                if (prop == UserPreferences.POWER_PROFILE) {
+                if (prop == UserPreferences.TURBO_TRAINER) {
                     // powerProfile was changed: create new resistance levels..
                     TurboResistanceEnumeration.rebuild();
                     rebuild();

@@ -61,7 +61,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 	// initialize for pairing
 	private double wheelSize = userPrefs.getWheelSizeCM();
 	private int resistance = userPrefs.getResistance();
-	private Power power = userPrefs.getPowerProfile();
+	private Power power = userPrefs.getTurboTrainerProfile();
 	private boolean simulSpeed;
 	private boolean initializing;
 
@@ -306,7 +306,7 @@ public class AdvancedSpeedCadenceListener extends SpeedCadenceListener
 			mass = userPrefs.getTotalWeight();
 			wheelSize = userPrefs.getWheelSizeCM();
 			resistance = userPrefs.getResistance();
-			power = userPrefs.getPowerProfile();
+			power = userPrefs.getTurboTrainerProfile();
 			simulSpeed = userPrefs.isVirtualPower();
 			elapsedTime = System.currentTimeMillis();
 			lastTs = -1;

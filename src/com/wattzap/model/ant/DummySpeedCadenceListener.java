@@ -197,7 +197,7 @@ public class DummySpeedCadenceListener extends Thread implements
 			mass = UserPreferences.INSTANCE.getTotalWeight();
 			wheelSize = UserPreferences.INSTANCE.getWheelSizeCM();
 			resistance = UserPreferences.INSTANCE.getResistance();
-			power = UserPreferences.INSTANCE.getPowerProfile();
+			power = UserPreferences.INSTANCE.getTurboTrainerProfile();
 			virtualPower = UserPreferences.INSTANCE.isVirtualPower();
 			if (this.getState() == Thread.State.NEW) {
 				start();
@@ -221,7 +221,7 @@ public class DummySpeedCadenceListener extends Thread implements
 			}
 
 			this.routeData = (RouteReader) o;
-			power = UserPreferences.INSTANCE.getPowerProfile();
+			power = UserPreferences.INSTANCE.getTurboTrainerProfile();
 			power.setGrades(routeData.getMaxSlope(), routeData.getMinSlope());
 
 			distance = 0.0;

@@ -71,7 +71,7 @@ public class TrainingPicker extends JFileChooser implements ActionListener {
 
 			CSVReader reader = null;
 			TrainingData tData = new TrainingData();
-			tData.setName(FileName.removeExtension(file.getName()));
+			tData.setName(FileName.stripExtension(file.getName()));
 
 			try {
 				reader = new CSVReader(new FileReader(file));

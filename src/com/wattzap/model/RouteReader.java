@@ -19,85 +19,102 @@ import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
 import com.wattzap.model.dto.Point;
+import com.wattzap.model.dto.Telemetry;
 
-/*
- * Interface for loading route files. Should be subclassed to implement a new file type.
- * 
+/**
+ * Interface for loading route files. Should be subclassed to implement a new
+ * file type.
+ *
  * @author David George (c) Copyright 2013
  * @date 19 November 2013
+ *
+ * Route reader acts as sourceDataHandler: it provides some values with their
+ * "validity". All these data are collected by TelemetryProvider and resend
+ * as a telemetry.
+ *
+ * @author Jarek
  */
-public abstract class RouteReader {
-	// Slope (Integer) 0 = Watt program, 1 = Slope program, 2 = Pulse (HR)
+public abstract class RouteReader extends SourceDataHandler {
+    // Slope (Integer) 0 = Watt program, 1 = Slope program, 2 = Pulse (HR)
 	public final static int POWER = 0;
 	public final static int SLOPE = 1;
 	public final static int HEARTRATE = 2;
-	Point[] points = null;
-	int currentPoint = 0;
 
-	public abstract String getExtension();
+    @Deprecated
+    public final int routeType() {
+        return SLOPE;
+    }
 
-	public abstract String getFilename();
+    // General route interface
 
+    // extension for this routeReader
+    public abstract String getExtension();
+
+    // mode of the route: either distance or time
+    public abstract TrainingModeEnum getMode();
+
+    // load training file and set all data..
+    public abstract String load(String filename);
+
+    // full path where training file and video are located
+    public abstract String getPath();
+
+    // name of video file, whole path is filePath / videoFile.
+    // Some directory stuff might be extraordinary (useful for RLV/cycleops
+    // trainings): these values are checked and stripped if necessary.
     public abstract String getVideoFile();
 
-	public abstract String getName();
+	// get name from the GPX file
+    public abstract String getName();
 
-	public abstract GPXFile getGpxFile();
+	// Used by map view, it is shown on the map
+    public abstract GPXFile getGpxFile();
 
-	/**
-	 * Used by profile view, gives distance/altitude values
-	 * 
-	 * @return
-	 */
+	// Used by profile view, gives time|distance/altitude|power values
 	public abstract XYSeries getSeries();
 
-	/**
-	 * returns a point relative to the current position
-	 */
-	public Point getPoint(double distance) {
-		while (currentPoint < points.length
-				&& (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
-			currentPoint++;
-		}// while
-		if (currentPoint == points.length) {
-			return null;
-		} else if (currentPoint > 0) {
-			return points[currentPoint - 1];
-		} else {
-			return points[0];
-		}
-	}
+    // Training was closed, another training will be used.
+    public abstract void close();
 
-	/**
-	 * Returns a Point relative to the start of the track, resets current point
-	 *
-	 * @param distance
-	 * @return
-	 */
-	public Point getAbsolutePoint(double distance) {
-		if (points != null) {
-			currentPoint = 0;
-			return getPoint(distance);
-		}
-		return null;
-	}
 
-	/**
-	 * Returns Point immediately before distance
-	 * 
-	 * @return
-	 */
-	public abstract Point[] getPoints();
+	// Returns GPX point just before requested distance
+    // Used in "old" SpeedCadenceListeners, kept for reference.
+    @Deprecated
+	public abstract Point getPoint(double distance);
 
-	public abstract void load(String filename);
+    // Returns length of the route in meters
+    // Used by control panel.. it is max value for slider
+    @Deprecated
+    public final double getDistanceMeters() {
+        return 1000.0 * (getSeries().getMaxX() - getSeries().getMinX());
+    }
 
-	public abstract void close();
+    // used by simulSpeed power handler (only?)
+    @Deprecated
+    public abstract double getMaxSlope();
 
-	public abstract double getDistanceMeters();
-
-	public abstract int routeType();
-
-	public abstract double getMaxSlope();
-
+    @Deprecated
 	public abstract double getMinSlope();
+
+
+    // TelemetryHandler interface
+
+    // set all data for telemetryProvider
+    public abstract void storeTelemetryData(Telemetry t);
+
+    // replace all "internal" settings
+    public abstract void configChanged(UserPreferences pref);
+
+
+    // RouteReaders don't handle initialize()/release(). Only for inheritance
+    @Override
+    public final SourceDataHandlerIntf initialize() {
+        assert false : "Route reader cannot be initialized";
+        return null;
+    }
+
+    @Override
+    public final void release() {
+        assert false : "Route reader cannot be uninitialized";
+    }
 }

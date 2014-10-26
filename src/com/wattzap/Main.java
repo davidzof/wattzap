@@ -46,13 +46,13 @@ import com.wattzap.controller.MenuItem;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
-import com.wattzap.model.DefaultTelemetryHandler;
 import com.wattzap.model.Readers;
-import com.wattzap.model.RouteReader;
+import com.wattzap.model.ResistanceHandler;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
+import com.wattzap.model.VirtualPowerEnum;
 import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
@@ -142,6 +142,7 @@ public class Main implements Runnable {
         PopupMessageIntf popupMsg = new PopupMessage(frame);
         new AntSubsystem(popupMsg).initialize();
 
+        // TODO build sensors on config..
         SourceDataHandlerIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
@@ -149,9 +150,9 @@ public class Main implements Runnable {
         SourceDataHandlerIntf hrm = new HeartRateSensor("hrm").initialize();
         TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
 
-        // default telemetry is busy with processing all source data. It is not
-        // activated if simulSpeed is selected.
-        new DefaultTelemetryHandler().initialize();
+        // Build necessary telemetry handlers. Make them enabled if possible.
+        VirtualPowerEnum.buildHandlers();
+        new ResistanceHandler().initialize();
 
         // build main window layout
         MigLayout layout = new MigLayout("center", "[]10px[]", "");
@@ -278,10 +279,7 @@ public class Main implements Runnable {
         // enabled. All interrested handlers must exist.
         String file = userPrefs.getDefaultFilename();
         if (file != null) {
-            RouteReader reader = Readers.readFile(file);
-            if (reader != null) {
-                MessageBus.INSTANCE.send(Messages.GPXLOAD, reader);
-            }
+            Readers.runTraining(file);
         }
         // start training is autostart. What about overriding this option
         // when recovery is available?

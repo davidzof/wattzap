@@ -96,6 +96,9 @@ public enum TelemetryProvider implements MessageCallback
 
         // end of training. Set by video handler, cannot be overriden
         pauseMsgKeys.put(100, "end_of_training");
+
+        // hardware conditions
+        pauseMsgKeys.put(250, "no_power_sensor");
     }
     public static String pauseMsg(int v, boolean nullIfUnknown) {
         String key = pauseMsgKeys.get(v);

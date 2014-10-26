@@ -28,13 +28,13 @@ public enum VirtualPowerEnum implements EnumerationIntf {
     SPEED_TO_POWER("speed2power", Speed2PowerProfile.class),
     // computes wheel speed from power. If (any) power sensor is not
     // available, it is impossible to run in this mode.
-    POWER_TO_SPEED("power2speed"),
+    POWER_TO_SPEED("power2speed", SensorOnlyPowerProfile.class),
     // simulated speed, it shows wheel speed to be followed.
     // Base on slope: at highest slope FTP is to be touched, when flat half of
     // FTP is taken into consideration
     FTP_SIMULATION("simulSpeed"),
     // compute wheel speed which is necessary to run video with 1:1 speed
-    VIDEO_SPEED("videoSpeed"),
+    VIDEO_SPEED("videoSpeed", VideoSpeedPowerProfile.class),
     // constant power, with config value, provides speed as well
     ROBOT("robot", RobotPowerProfile.class);
 

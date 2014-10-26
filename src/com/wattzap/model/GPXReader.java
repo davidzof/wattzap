@@ -57,6 +57,7 @@ public class GPXReader extends RouteReader {
 	private Point[] points = null;
 	private int currentPoint = 0;
     private double lastDistance = 0.0;
+    private String gpxName;
 
     @Override
 	public String getExtension() {
@@ -90,7 +91,7 @@ public class GPXReader extends RouteReader {
 
 	@Override
 	public String getName() {
-		return gpxFile.getName();
+		return gpxName;
 	}
 
 	@Override
@@ -139,17 +140,26 @@ public class GPXReader extends RouteReader {
         }
 
         gpxFile = new GPXFile(currentFile);
+        if (gpxFile == null) {
+            return "Cannot read file";
+        }
+
+        gpxName = gpxFile.getName();
 
 		List<Track> routes = gpxFile.getTracks();
 		if (routes.size() == 0) {
 			return "No tracks in file";
 		}
+        // TODO what if file contains multiple routes?
 		Track route = routes.get(0);
 		if (route == null) {
 			return "no route in GPX file";
 		}
+        if (!route.getName().isEmpty()) {
+            gpxName = route.getName();
+        }
 
-		List<WaypointGroup> segs = route.getTracksegs();
+        List<WaypointGroup> segs = route.getTracksegs();
 		this.series = new XYSeries("");
 
 		double distance = 0.0;

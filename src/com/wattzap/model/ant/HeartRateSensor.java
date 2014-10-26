@@ -50,13 +50,9 @@ public class HeartRateSensor extends AntSensor {
 
     @Override
     public void storeReceivedData(long time, int[] data) {
-        if (data[6] != bits) {
-            bits = data[6];
-
-            int rate = data[7];
-            if ((40 < rate) && (rate <= 220)) {
-                setValue(SourceDataEnum.HEART_RATE, rate);
-            }
+        int rate = data[7];
+        if ((40 < rate) && (rate <= 220)) {
+            setValue(SourceDataEnum.HEART_RATE, rate);
         }
     }
 

@@ -30,7 +30,6 @@ import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TelemetryValidityEnum;
 
 /*
  * Displays a map of the course and moves cross-hairs depending on position.
@@ -73,10 +72,8 @@ public class Map extends GPXPanel implements MessageCallback {
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
             // don't show position if not present!
-            if ((t.getValidity(SourceDataEnum.LATITUDE) == TelemetryValidityEnum.NOT_PRESENT) ||
-                    (t.getValidity(SourceDataEnum.LATITUDE) == TelemetryValidityEnum.NOT_AVAILABLE) ||
-                    (t.getValidity(SourceDataEnum.LONGITUDE) == TelemetryValidityEnum.NOT_PRESENT) ||
-                    (t.getValidity(SourceDataEnum.LONGITUDE) == TelemetryValidityEnum.NOT_AVAILABLE)) {
+            if ((!t.isAvailable(SourceDataEnum.LATITUDE)) ||
+                    (!t.isAvailable(SourceDataEnum.LONGITUDE))) {
                 return;
             }
 			if (count++ % displayPeriod == 0) {

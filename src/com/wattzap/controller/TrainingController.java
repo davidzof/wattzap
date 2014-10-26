@@ -15,6 +15,7 @@
 */
 package com.wattzap.controller;
 
+import com.wattzap.model.SourceDataEnum;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.ArrayList;
@@ -32,9 +33,9 @@ import com.wattzap.view.training.TrainingDisplay;
 
 /**
  * Controller linked to training data.
- * 
+ *
  * (c) 2014 David George / Wattzap.com
- * 
+ *
  * @author David George
  * @date 1 January 2014
  */
@@ -60,22 +61,23 @@ public class TrainingController implements ActionListener {
 		String command = e.getActionCommand();
 		if (save.equals(command)) {
 			ArrayList<Telemetry> data = trainingDisplay.getData();
-			if (data == null || data.size() == 0) {
+			if ((data == null) || (data.size() == 0)) {
+                JOptionPane.showMessageDialog(mainFrame, "No training data available",
+                        "No data", JOptionPane.WARNING_MESSAGE);
 				return;
 			}
 
-			int dialogButton = JOptionPane.YES_NO_OPTION;
+			boolean withGpsData = false;
 			Telemetry zero = data.get(0);
-			int gpsData = 1;
-			if (zero != null && zero.getLatitude() <= 90) {
+			if (zero.isAvailable(SourceDataEnum.LATITUDE)) {
 				// gpsData == 0 is Yes
-				gpsData = JOptionPane.showConfirmDialog(mainFrame,
+				withGpsData = (JOptionPane.showConfirmDialog(mainFrame,
 						"Save with GPS and Altitude data?", "GPS Data",
-						dialogButton);
+						JOptionPane.YES_NO_OPTION) == 0);
 			}
-			TcxWriter writer = new TcxWriter();
 
-			String fileName = writer.save(data, gpsData);
+            TcxWriter writer = new TcxWriter();
+			String fileName = writer.save(data, withGpsData);
 			WorkoutData workoutData = TrainingAnalysis.analyze(data);
 			workoutData.setTcxFile(fileName);
 			workoutData.setFtp(UserPreferences.INSTANCE.getMaxPower());

@@ -71,7 +71,7 @@ public class Odo extends JPanel implements MessageCallback {
             assert sourceData != null :
                     "SourceDataEnum not given";
             assert sourceData.getName() != null :
-                    "Name not given for " + sourceData;
+                    sourceData + " has no name, cannot be used";
 
             this.sourceData = sourceData;
             this.label = null;
@@ -140,7 +140,7 @@ public class Odo extends JPanel implements MessageCallback {
         columns.add(new ValueCol(SourceDataEnum.TIME));
 
         // fill with "empty" values
-        callback(Messages.CONFIG_CHANGED, UserPreferences.METRIC);
+        callback(Messages.CONFIG_CHANGED, UserPreferences.INSTANCE);
         callback(Messages.TELEMETRY, new Telemetry(-1));
 
         MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
@@ -191,7 +191,8 @@ public class Odo extends JPanel implements MessageCallback {
                 break;
             case CONFIG_CHANGED:
                 UserPreferences pref = (UserPreferences) o;
-                if (pref == UserPreferences.METRIC) {
+                if ((pref == UserPreferences.METRIC) ||
+                        pref == UserPreferences.INSTANCE) {
                     metric = pref.isMetric();
                 }
                 break;

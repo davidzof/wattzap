@@ -45,7 +45,6 @@ import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TelemetryValidityEnum;
 import com.wattzap.model.dto.TrainingData;
 import com.wattzap.model.dto.TrainingItem;
 import java.util.List;
@@ -86,6 +85,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 	private static Logger logger = LogManager.getLogger("Training Display");
 
     private final List<SourceDataEnum> addedItems = new ArrayList<>();
+    private long startTime = 0;
     private long time;
     // TODO set on config?
     private boolean oosCreate = true;
@@ -162,16 +162,18 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		chart.revalidate();
         time = -1;
 
-        // put current data in the chart
+        // put current data in the chart. In "normal" telemetry time
+        // starts from 0, while in ones read from journal it start
+        // from startTime
         if (data != null) {
             for (Telemetry t : data) {
-                update(t);
+                update(t, startTime);
             }
         }
 
 	}
 
-	private void update(Telemetry t) {
+	private void update(Telemetry t, long timeDiff) {
         synchronized(this) {
             if (chart == null) {
                 System.err.println("Chart doesn't exist");
@@ -185,18 +187,18 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 
         if (time == t.getTime()) {
-            // time doesnt' advance, training is paused
+            // time doesn't advance, training is paused
             return;
         }
 
         long[] values = new long[addedItems.size()];
         int i = 0;
         for (SourceDataEnum en : addedItems) {
-            if ((t.getValidity(en) != TelemetryValidityEnum.NOT_PRESENT) &&
-                    (t.getValidity(en) != TelemetryValidityEnum.NOT_AVAILABLE)) {
+            if (t.isAvailable(en)) {
                 values[i++] = t.getLong(en);
             } else {
-                values[i++] = -1;
+                // how to indicate "non-existing" values? It there any way?
+                values[i++] = 0;
             }
         }
 
@@ -211,30 +213,51 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             support.updateDetails(details);
 		}
 
-		// use telemetry time
-        time = t.getTime();
+		// use telemetry time.. timeDiff == 0 when called from callback (time
+        // is the length of whole session), or startTime when telemetries read
+        // from journal file.. to be "converted" to length.
+        time = t.getTime() - timeDiff;
         // move time a bit.. to start from 0:00:00
 		support.addValues(time + CHARTTIMECORRECTION, values);
 	}
 
 	/*
-	 * Save every one point for every second TODO: move this to data acquisition
-	 * so we don't even send these points
-	 *
+	 * Save every one point for every second
+     *
+	 * Collection contains telemetries with "wall" time, pauses are not
+     * counted..
 	 * @param t
 	 */
 	private void add(Telemetry t) {
-        if (data != null) {
-            // don't add telemetry too often..
-            if (!data.isEmpty()) {
-                Telemetry tn = data.get(data.size() - 1);
-                if (t.getTime() < tn.getTime() + 1000) {
-                    return;
-                }
-            }
-            data.add(t);
+        if (data == null) {
+            // not started?
+            return;
         }
 
+        // Telemetry provider controll messages are not added to the data
+        if (t.getPaused() < 0) {
+            return;
+        }
+
+        // in data (and journal as well) time starts from startTime (when
+        // session was started for the first time), so time must be corrected
+        long time = t.getTime() + startTime;
+
+        // don't add telemetry too often..
+        if (!data.isEmpty()) {
+            Telemetry tn = data.get(data.size() - 1);
+            if (time < tn.getTime() + 1000) {
+                return;
+            }
+        }
+        Telemetry tt = new Telemetry(t);
+        tt.setTime(time);
+        data.add(tt);
+        storeTelemetry(tt);
+    }
+
+    // store telemetry with "wall-clock" time
+    private void storeTelemetry(Telemetry t) {
         if (oosCreate && (oos == null)) {
             oosCreate = false;
             try {
@@ -262,15 +285,16 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 	}
 
     public void loadJournal() {
-        if (oos != null) {
+        if ((oos != null) || (data != null) || (startTime != 0)) {
 			JOptionPane.showMessageDialog(this, "Logging already started",
                     "Info", JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
+        data = new ArrayList<Telemetry>();
+        Telemetry t = null;
+
 		ObjectInputStream objectInputStream = null;
-		List<Telemetry> data = new ArrayList<Telemetry>();
-		Telemetry t = null;
 		try {
 			FileInputStream streamIn = new FileInputStream(
                     userPrefs.getWD() + "/journal.ser");
@@ -278,7 +302,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 
 			while ((t = (Telemetry) objectInputStream.readObject()) != null) {
 				data.add(t);
-                update(t);
+                if (startTime == 0) {
+                    startTime = t.getTime();
+                }
 			}
 		} catch (EOFException ex) {
             // nothing
@@ -297,17 +323,24 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 			}
 		}
 
-        // restore previous location
-        if (t != null) {
-            TelemetryProvider.INSTANCE.setDistanceTime(t.getDistance(), t.getTime());
+        if (t == null) {
+            // nothing was read.. pitty
+            System.err.println("No data read from journal");
+            data = null;
+        } else {
+            System.err.println("Start time " + SourceDataEnum.TIME.format((double) startTime, true));
+            // restore previous location and time (for training)
+            TelemetryProvider.INSTANCE.setDistanceTime(
+                    t.getDistance(), t.getTime() - startTime);
         }
 
-        // rebuild telemetry data, journal file is created from scratch
-        this.data = new ArrayList<>();
-        for (Telemetry tt : data) {
-            add(tt);
+        // rebuild journal file from the scratch
+        if (data != null) {
+            for (Telemetry tt : data) {
+                storeTelemetry(tt);
+            }
+            rebuildChart();
         }
-        rebuildChart();
 	}
 
 	@Override
@@ -315,7 +348,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		switch (message) {
 		case TELEMETRY:
             Telemetry t = (Telemetry) o;
-            update(t);
+            update(t, 0);
             add(t);
 			break;
 
@@ -329,6 +362,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             break;
 
 		case START:
+            if (startTime == 0) {
+                startTime = System.currentTimeMillis();
+            }
 			if (chart == null) {
 				rebuildChart();
 			}

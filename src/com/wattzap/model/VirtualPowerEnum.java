@@ -32,7 +32,7 @@ public enum VirtualPowerEnum implements EnumerationIntf {
     // simulated speed, it shows wheel speed to be followed.
     // Base on slope: at highest slope FTP is to be touched, when flat half of
     // FTP is taken into consideration
-    FTP_SIMULATION("simulSpeed"),
+    FTP_SIMULATION("simulSpeed", SimulSpeedPowerProfile.class),
     // compute wheel speed which is necessary to run video with 1:1 speed
     VIDEO_SPEED("videoSpeed", VideoSpeedPowerProfile.class),
     // constant power, with config value, provides speed as well

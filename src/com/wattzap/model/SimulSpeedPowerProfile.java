@@ -16,21 +16,21 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.utils.Rolling;
 
 /**
- * Power profile which runs video with 1:1 speed, this is calculates power
- * which is value reversed for video speed.
+ * Power profile for climbing. At max slope it reports FTP, on flat it
+ * reports 50% of FTP.. Just for "standalone" mode.
  * @author Jarek
  */
-public class VideoSpeedPowerProfile extends VirtualPowerProfile {
-    private double weight = 85.0;
-    private Rolling speedRoll = new Rolling(24);
+public class SimulSpeedPowerProfile extends VirtualPowerProfile {
+    private int ftp = 250;
+    private double maxSlope = 20.0;
 
     @Override
     public String getPrettyName() {
-        return "videoSpeed";
+        return "simulSpeed";
     }
 
     @Override
@@ -38,34 +38,33 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
         super.configChanged(prefs);
 
         if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.WEIGHT) ||
-                (prefs == UserPreferences.BIKE_WEIGHT)) {
-            weight = prefs.getTotalWeight();
+                (prefs == UserPreferences.MAX_POWER)) {
+            ftp = prefs.getMaxPower();
+        }
+    }
+
+    @Override
+    public void callback(Messages m, Object o) {
+        super.callback(m, o);
+        if (m == Messages.GPXLOAD) {
+            maxSlope = ((RouteReader) o).getMaxSlope();
+            System.err.println("New maxSlope " + maxSlope);
         }
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
-            setValue(SourceDataEnum.POWER, 0.0);
-            return;
+        if ((!t.isAvailable(SourceDataEnum.SLOPE)) || (maxSlope < 0.1)) {
+            setValue(SourceDataEnum.POWER, 0.5 * ftp);
         }
 
-        double avg;
-        if (t.getRouteSpeed() >= 1.0) {
-            avg = speedRoll.add(t.getRouteSpeed());
-        } else {
-            avg = speedRoll.getAverage();
-        }
-        if (avg < 6.0) {
-            avg = 6.0;
-        }
-        int powerWatts = power.getPower(weight, t.getGradient() / 100.0, avg);
+        double powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
         if (powerWatts < 0) {
             powerWatts = 0;
         }
         setValue(SourceDataEnum.POWER, powerWatts);
 
+        // compute speed as well
         computeSpeed(t);
     }
 }

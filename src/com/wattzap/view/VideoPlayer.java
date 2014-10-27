@@ -36,6 +36,7 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
@@ -193,11 +194,26 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         // rate too much, full time "recovery" after 30s (up to 33% speedup)
         rate *= (1.0 - deltaTime / 30000.0);
 
-        logger.debug(String.format(
-                "speed=%.1f/%.1f videoSpeed=%.1f/%.1f deltaTime=%d rate=%.3f lastRate=%.3f",
-                t.getSpeed(), bikeSpeed.getAverage(),
-                t.getRouteSpeed(), routeSpeed.getAverage(),
-                deltaTime, rate, lastRate));
+        if (logger.isDebugEnabled()) {
+            StringBuilder str = new StringBuilder(200);
+            str.append(" dist=");
+            str.append(SourceDataEnum.DISTANCE.format(t.getDistance(), true));
+            str.append(" speed=");
+            str.append(SourceDataEnum.SPEED.format(t.getSpeed(), true));
+            str.append("/");
+            str.append(SourceDataEnum.SPEED.format(bikeSpeed.getAverage(), true));
+            str.append(" videoSpeed=");
+            str.append(SourceDataEnum.SPEED.format(t.getRouteSpeed(), true));
+            str.append("/");
+            str.append(SourceDataEnum.SPEED.format(routeSpeed.getAverage(), true));
+            str.append(" deltaTime=");
+            str.append(SourceDataEnum.RESISTANCE.format(deltaTime, true));
+            str.append(" rate=");
+            str.append(SourceDataEnum.DISTANCE.format(rate, true));
+            str.append(" lastRate=");
+            str.append(SourceDataEnum.DISTANCE.format(lastRate, true));
+            logger.debug(str);
+        }
 
 
         // dont check rate if both last and current are very small..
@@ -211,9 +227,9 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         // frames are lost or what? synchronization issue in vlc?)
         long currentTime = System.currentTimeMillis();
         if (changedRate(rate, 0.2) ||
-                (currentTime - lastTime > 5000) && changedRate(rate, 0.1) ||
-                (currentTime - lastTime > 10000) && changedRate(rate, 0.05)) {
-            logger.debug("Change rate after " + (currentTime - lastTime));
+                (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
+                (currentTime - lastTime > 10000) && changedRate(rate, 0.01)) {
+            logger.debug("Set rate " + rate + " after " + (currentTime - lastTime));
             lastTime = currentTime;
             lastRate = rate;
             mPlayer.setRate((float) rate);

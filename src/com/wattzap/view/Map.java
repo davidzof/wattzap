@@ -76,6 +76,7 @@ public class Map extends GPXPanel implements MessageCallback {
                     (!t.isAvailable(SourceDataEnum.LONGITUDE))) {
                 return;
             }
+            /*
 			if (count++ % displayPeriod == 0) {
 				if (zoom == 13) {
 					zoom = 15;
@@ -85,10 +86,15 @@ public class Map extends GPXPanel implements MessageCallback {
 					displayPeriod = 20;
 				}
 			}
+            */
 
 			setCrosshairLat(t.getLatitude());
 			setCrosshairLon(t.getLongitude());
-			// int zoom = this.getZoom();
+            if (zoom < 0) {
+                zoom = 15;
+            } else {
+    			zoom = getZoom();
+            }
 			setDisplayPositionByLatLon(t.getLatitude(), t.getLongitude(), zoom);
 			setShowCrosshair(true);
 			repaint();
@@ -146,6 +152,7 @@ public class Map extends GPXPanel implements MessageCallback {
 
                 frame.add(this, "cell 0 0");
                 setVisible(true);
+                zoom = -1;
 			}
             break;
 		}

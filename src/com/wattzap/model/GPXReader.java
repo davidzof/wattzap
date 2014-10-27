@@ -342,13 +342,24 @@ public class GPXReader extends RouteReader {
     @Override
     public void storeTelemetryData(Telemetry t) {
         Point p = getPoint(t.getDistance());
+        Point pp = p;
+        double ratio = 0.0;
+        if (currentPoint < points.length) {
+            pp = points[currentPoint];
+            ratio = (1000.0 * t.getDistance() - p.getDistanceFromStart()) /
+                    (pp.getDistanceFromStart()- p.getDistanceFromStart());
+        }
         if (p != null) {
             double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                 p.getGradient() / 100.0, t.getPower());
             setValue(SourceDataEnum.SPEED, realSpeed);
 
+            // interpolate time on distance, the most important interpolation
+            // other don't matter, are just for display purposes.
+            double time = p.getTime() + ratio * (pp.getTime() - p.getTime());
+            setValue(SourceDataEnum.ROUTE_TIME, time);
+
             setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());
-            setValue(SourceDataEnum.ROUTE_TIME, p.getTime());
             setValue(SourceDataEnum.ALTITUDE, p.getElevation());
             setValue(SourceDataEnum.SLOPE, p.getGradient());
             setValue(SourceDataEnum.LATITUDE, p.getLatitude());

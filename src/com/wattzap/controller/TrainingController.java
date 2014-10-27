@@ -81,8 +81,9 @@ public class TrainingController implements ActionListener {
 			WorkoutData workoutData = TrainingAnalysis.analyze(data);
 			workoutData.setTcxFile(fileName);
 			workoutData.setFtp(UserPreferences.INSTANCE.getMaxPower());
-			workoutData.setDescription(trainingDisplay.getName());
+			workoutData.setDescription(trainingDisplay.getLastName());
 			UserPreferences.INSTANCE.addWorkout(workoutData);
+            MessageBus.INSTANCE.send(Messages.WORKOUT_DATA, workoutData);
 
 			JOptionPane.showMessageDialog(mainFrame, "Saved workout to "
 					+ fileName, "Workout Saved",

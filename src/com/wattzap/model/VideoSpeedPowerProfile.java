@@ -37,6 +37,13 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
     public void configChanged(UserPreferences prefs) {
         super.configChanged(prefs);
 
+        // when started.. speed might be very small, and route
+        // doesn't progress "fast enough".
+        if (prefs == UserPreferences.VIRTUAL_POWER) {
+            speedRoll.clear();
+            speedRoll.add(30);
+        }
+
         if ((prefs == UserPreferences.INSTANCE) ||
                 (prefs == UserPreferences.WEIGHT) ||
                 (prefs == UserPreferences.BIKE_WEIGHT)) {
@@ -57,9 +64,7 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
         } else {
             avg = speedRoll.getAverage();
         }
-        if (avg < 6.0) {
-            avg = 6.0;
-        }
+
         int powerWatts = power.getPower(weight, t.getGradient() / 100.0, avg);
         if (powerWatts < 0) {
             powerWatts = 0;

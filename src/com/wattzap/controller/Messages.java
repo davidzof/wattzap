@@ -52,6 +52,8 @@ public enum Messages {
     @Deprecated
     TRAINING,
 
+    WORKOUT_DATA,
+
     // position within the video
     // data: (double) position
     STARTPOS,

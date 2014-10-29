@@ -182,17 +182,20 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             deltaTime = 0;
         }
 
-        // compute ratio for video
-        bikeSpeed.add(t.getSpeed());
-        // "advertisments" are ignored, usually they are skipped by
-        // setPosition(). Don't include them in average route speed
-        if (t.getRouteSpeed() >= 1.0) {
-            routeSpeed.add(t.getRouteSpeed());
+        double rate = 1.0;
+        if (t.isAvailable(SourceDataEnum.SPEED)) {
+            // compute ratio for video
+            bikeSpeed.add(t.getSpeed());
+            // "advertisments" are ignored, usually they are skipped by
+            // setPosition(). Don't include them in average route speed
+            if (t.getRouteSpeed() >= 1.0) {
+                routeSpeed.add(t.getRouteSpeed());
+            }
+            rate = bikeSpeed.getAverage() / routeSpeed.getAverage();
+            // "add" deltaTime correction. deltaTime is -10..10[s]. Don't increase
+            // rate too much, full time "recovery" after 30s (up to 33% speedup)
+            rate *= (1.0 - deltaTime / 30000.0);
         }
-        double rate = bikeSpeed.getAverage() / routeSpeed.getAverage();
-        // "add" deltaTime correction. deltaTime is -10..10[s]. Don't increase
-        // rate too much, full time "recovery" after 30s (up to 33% speedup)
-        rate *= (1.0 - deltaTime / 30000.0);
 
         if (logger.isDebugEnabled()) {
             StringBuilder str = new StringBuilder(200);

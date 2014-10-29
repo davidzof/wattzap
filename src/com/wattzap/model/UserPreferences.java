@@ -320,18 +320,19 @@ public enum UserPreferences {
 		WHEEL_SIZE.setInt(wheelsize);
 	}
 
+    // TODO replace with FtHR
 	public int getMaxHR() {
 		return HR_MAX.getInt();
 	}
-	public void setMaxHR(int maxhr) {
-		HR_MAX.setInt(maxhr);
+	public void setMaxHR(int hr) {
+		HR_MAX.setInt(hr);
 	}
 
 	public int getMaxPower() {
         return MAX_POWER.getInt();
 	}
-	public void setMaxPower(int maxPower) {
-		MAX_POWER.setInt(maxPower);
+	public void setMaxPower(int power) {
+		MAX_POWER.setInt(power);
 	}
 
 	public boolean isMetric() {

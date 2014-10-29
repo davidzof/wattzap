@@ -66,7 +66,6 @@ import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
 import com.wattzap.view.prefs.Preferences;
 import com.wattzap.view.training.TrainingDisplay;
-import com.wattzap.view.training.TrainingPicker;
 
 /**
  * Main entry point
@@ -229,12 +228,6 @@ public class Main implements Runnable {
 		menuBar.add(trainingMenu);
 
         // Submenu: training
-        JMenuItem trainMenuItem = new JMenuItem(MsgBundle.getString("open"));
-        TrainingPicker tPicker = new TrainingPicker(frame);
-        trainMenuItem.addActionListener(tPicker);
-        trainMenuItem.setActionCommand(TrainingController.open);
-        trainingMenu.add(trainMenuItem);
-
         JMenu analizeMenuItem = new JMenu(MsgBundle.getString("analyze"));
 		trainingMenu.add(analizeMenuItem);
 

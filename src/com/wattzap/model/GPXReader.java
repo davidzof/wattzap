@@ -48,6 +48,7 @@ public class GPXReader extends RouteReader {
 	private XYSeries series;
 
     private File currentFile;
+    private String gpxName;
 
     private static final int gradientDistance = 100; // distance to calculate
 														// gradients over.
@@ -57,17 +58,11 @@ public class GPXReader extends RouteReader {
 	private Point[] points = null;
 	private int currentPoint = 0;
     private double lastDistance = 0.0;
-    private String gpxName;
 
     @Override
 	public String getExtension() {
 		return "gpx";
 	}
-
-    @Override
-    public TrainingModeEnum getMode() {
-        return TrainingModeEnum.DISTANCE;
-    }
 
     @Override
 	public double getMaxSlope() {
@@ -106,8 +101,7 @@ public class GPXReader extends RouteReader {
 
 	// Get the point that corresponds to the distance (in km)
     // TODO getPoint() uses bisection, return values shall be mediana for distance
-	@Override
-	public Point getPoint(double distance) {
+	private Point getPoint(double distance) {
         if (lastDistance > distance) {
             currentPoint = 0;
         }

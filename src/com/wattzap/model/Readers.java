@@ -187,6 +187,11 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
     }
 
     @Override
+    public boolean checks(SourceDataEnum data) {
+        return getCurrentTraining().checks(data);
+    }
+
+    @Override
     public double getValue(SourceDataEnum data) {
         return getCurrentTraining().getValue(data);
     }

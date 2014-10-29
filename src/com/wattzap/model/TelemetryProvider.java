@@ -175,14 +175,21 @@ public enum TelemetryProvider implements MessageCallback
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
 
-            // time and distance always are ok? What about power?
-            t.setTime(runtime);
-            t.setDistance(distance);
-
             for (SourceDataEnum prop : SourceDataEnum.values()) {
                 TelemetryValidityEnum validity = TelemetryValidityEnum.NOT_PRESENT;
                 double value = prop.getDefault();
                 int handlersNum = 0;
+
+                switch (prop) {
+                    case TIME:
+                        validity = TelemetryValidityEnum.OK;
+                        value = runtime;
+                        break;
+                    case DISTANCE:
+                        validity = TelemetryValidityEnum.OK;
+                        value = distance;
+                        break;
+                }
 
                 SensorIntf sensor = getSensor(prop);
                 if ((sensor != null) && (sensor.provides(prop))) {
@@ -195,16 +202,30 @@ public enum TelemetryProvider implements MessageCallback
                     }
                 }
 
+                // get all provided data
                 for (SourceDataHandlerIntf handler :  handlers) {
                     // if telemetryHandler is active and provides property
-                    if ((handler.getLastMessageTime() == -1) && (handler.provides(prop))) {
-                        if (prop == SourceDataEnum.PAUSE) {
-                            // pause.. cannot be too_small or too_big :)
+                    if (handler.getLastMessageTime() == -1) {
+                        if (handler.provides(prop)) {
                             validity = TelemetryValidityEnum.OK;
-                            if (value < handler.getValue(prop)) {
+                            if (prop == SourceDataEnum.PAUSE) {
+                                // pause.. cannot be too_small or too_big :)
+                                if (value < handler.getValue(prop)) {
+                                    value = handler.getValue(prop);
+                                }
+                            } else {
                                 value = handler.getValue(prop);
                             }
-                        } else {
+                            handlersNum++;
+                        }
+                    }
+                }
+
+                // and check all existing
+                for (SourceDataHandlerIntf handler :  handlers) {
+                    // if telemetryHandler is active and provides property
+                    if (handler.getLastMessageTime() == -1) {
+                        if (handler.checks(prop)) {
                             TelemetryValidityEnum target;
                             if (handler.getModificationTime(prop) < 0) {
                                 target = TelemetryValidityEnum.TOO_SMALL;
@@ -216,6 +237,7 @@ public enum TelemetryProvider implements MessageCallback
                             switch (validity) {
                                 case NOT_PRESENT:
                                 case NOT_AVAILABLE:
+                                    break;
                                 case OK:
                                     validity = target;
                                     break;
@@ -229,22 +251,13 @@ public enum TelemetryProvider implements MessageCallback
                                     // stays wrong..
                                     break;
                             }
-                            value = handler.getValue(prop);
                         }
-                        handlersNum++;
                     }
                 }
-                if ((prop == SourceDataEnum.DISTANCE) || (prop == SourceDataEnum.TIME)) {
-                    if (validity != TelemetryValidityEnum.NOT_PRESENT) {
-                        logger.error(prop.getName() + " set by handler, " +
-                                "value " + prop.format(value, false) + " discarded!");
-                        t.setValidity(prop, validity);
-                    } else {
-                        // not_present doesn't replace current values
-                    }
-                } else {
-                    t.setDouble(prop, value, validity);
-                }
+
+                // set validity, time/distance might be checked as well ("promoted"
+                // to too_small/too_big)
+                t.setDouble(prop, value, validity);
 
                 // check if number of handlers for property has changed
                 if (handlersNum != lastHandlersNum[prop.ordinal()]) {
@@ -273,9 +286,16 @@ public enum TelemetryProvider implements MessageCallback
             // advance time and distance if not paused
             long timePassed = System.currentTimeMillis() - start; // [ms]
             // advance ridden distance and time, only if not paused
-            // (this is: no pause message is defined)
+            // (this is: no pause message is defined for pause value)
+            // Handle normal routes (with distance) and routes with
+            // time [s] in distance if no speed is provided by any handler.
+            // (this is.. in trainings with TRN files).
             if (pauseMsg(t) == null) {
-                distance += t.getSpeed() * (timePassed / 1000.0) / 3600.0;
+                if (t.isAvailable(SourceDataEnum.SPEED)) {
+                    distance += t.getSpeed() * (timePassed / 1000.0) / 3600.0;
+                } else {
+                    distance += timePassed / 1000.0;
+                }
                 runtime += timePassed;
             }
         }

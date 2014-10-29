@@ -51,15 +51,23 @@ public interface SourceDataHandlerIntf
     /* activate telemetryHandler */
     void setActive(boolean active);
 
-   /* Which data handler provides. If handler provides these data, it is
-    * available in related source selector. If not, it doesn't deliver the
-    * value at all (throws exception?).
-    * It shall be used for non-paired ANT+ sensors.
-    */
-   boolean provides(SourceDataEnum data);
+    /**
+     * Which data handler provides. If handler provides these data, it is
+     * available in related source selector. If not, it doesn't deliver the
+     * value at all (throws exception?).
+     */
+    boolean provides(SourceDataEnum data);
 
    /* Access to handled data. */
    double getValue(SourceDataEnum data);
+
+    /**
+     * Which data is checked by the handler. It is used mostly in telemetry
+     * handlers (eg. TRN reader) to check other values than produced (and these
+     * are shown without any modification).
+     * Whether value is too smal/ok/too big is returned by getModificationTime()
+     */
+    boolean checks(SourceDataEnum data);
 
    /* Sensor: get last change time of the value. Time > than 5s means no updates
     * and indicator becomes orange. Value shown in ODO is grayed as well.

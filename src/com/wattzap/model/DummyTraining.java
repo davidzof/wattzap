@@ -17,7 +17,6 @@
 package com.wattzap.model;
 
 import com.gpxcreator.gpxpanel.GPXFile;
-import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import org.jfree.data.xy.XYSeries;
 
@@ -28,11 +27,6 @@ import org.jfree.data.xy.XYSeries;
  * @author Jarek
  */
 public class DummyTraining extends RouteReader {
-
-    @Override
-    public TrainingModeEnum getMode() {
-        return TrainingModeEnum.TIME;
-    }
 
     @Override
     public String getExtension() {
@@ -65,11 +59,6 @@ public class DummyTraining extends RouteReader {
     }
 
     @Override
-    public Point getPoint(double distance) {
-        return null;
-    }
-
-    @Override
     public String load(String filename) {
         return null;
     }
@@ -89,10 +78,11 @@ public class DummyTraining extends RouteReader {
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        return false;
+        return (data == SourceDataEnum.ROUTE_TIME);
     }
     @Override
     public void storeTelemetryData(Telemetry t) {
+        setValue(SourceDataEnum.ROUTE_TIME, t.getDistance() * 1000.0);
     }
 
     @Override

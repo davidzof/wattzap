@@ -52,11 +52,17 @@ public enum Messages {
     @Deprecated
     TRAINING,
 
+    // new training data was saved
+    // data: WorkoutData with all computed parameters
     WORKOUT_DATA,
 
     // position within the video
     // data: (double) position
     STARTPOS,
+
+    // message shown in the interface
+    // data: string
+    ROUTE_MSG,
 
     // TODO replace with TRAINING
     GPXLOAD,

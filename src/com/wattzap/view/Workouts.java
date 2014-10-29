@@ -54,6 +54,9 @@ import org.apache.log4j.Logger;
 import org.jfree.data.xy.XYSeries;
 
 import com.wattzap.controller.DistributionAccessor;
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.MessageCallback;
+import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
@@ -70,7 +73,7 @@ import com.wattzap.view.graphs.SCHRGraph;
  * @author David George (c) Copyright 17 January 2014
  * @date 17 April 2014
  */
-public class Workouts extends JPanel implements ActionListener {
+public class Workouts extends JPanel implements ActionListener, MessageCallback {
 	private static final long serialVersionUID = 1L;
 	private List<WorkoutData> workoutList;
 	private List<Integer> selectedRows;
@@ -99,7 +102,7 @@ public class Workouts extends JPanel implements ActionListener {
 	private final static String[] columnNames = { "Date", "Time", "Source",
 			"QPower", "Max HR", "Ave HR", "Max Cadence", "Ave Cadence",
 			"5Sec W/kg", "1Min W/kg", "5Min W/kg", "20Min W/kg", "Load",
-			"Stress" };
+			"Stress", "Route" };
 
 	public Workouts() {
 		super(new GridLayout(1, 0));
@@ -241,9 +244,23 @@ public class Workouts extends JPanel implements ActionListener {
 		// Display the window.
 		frame.pack();
 		frame.setVisible(true);
+
+        // listen for new workouts.. just to add it
+        MessageBus.INSTANCE.register(Messages.WORKOUT_DATA, this);
 	}
 
-	public void setVisible(boolean flag) {
+
+    @Override
+    public void callback(Messages m, Object o) {
+        // refresh the list, new workout was added
+        if (m == Messages.WORKOUT_DATA) {
+            DefaultTableModel tableModel = (DefaultTableModel) table.getModel();
+            loadData(tableModel);
+        }
+    }
+
+
+    public void setVisible(boolean flag) {
 		if (!frame.isVisible()) {
 			frame.setVisible(flag);
 			super.setVisible(flag);
@@ -252,37 +269,42 @@ public class Workouts extends JPanel implements ActionListener {
 	}
 
 	private void loadData(DefaultTableModel tableModel) {
-		DateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
-		timeFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
 		workoutList = UserPreferences.INSTANCE.listWorkouts();
 
-		tableModel.setRowCount(0);
-		String[] data = new String[columnNames.length];
+		DateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
+		timeFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+        tableModel.setRowCount(0);
+        String[] data = new String[columnNames.length];
 		for (WorkoutData workout : workoutList) {
-			data[0] = workout.getDateAsString();
-			data[1] = timeFormat.format(new Date(workout.getTime()));
-			data[2] = workout.getSourceAsString();
-			data[3] = "" + workout.getQuadraticPower();
-			data[4] = "" + workout.getMaxHR();
-			data[5] = "" + workout.getAveHR();
-			data[6] = "" + workout.getMaxCadence();
-			data[7] = "" + workout.getAveCadence();
+            data[0] = workout.getDateAsString();
+            data[1] = timeFormat.format(new Date(workout.getTime()));
+            data[2] = workout.getSourceAsString();
+            data[3] = "" + workout.getQuadraticPower();
+            data[4] = "" + workout.getMaxHR();
+            data[5] = "" + workout.getAveHR();
+            data[6] = "" + workout.getMaxCadence();
+            data[7] = "" + workout.getAveCadence();
 
-			data[8] = String.format("%.2f", workout.getFiveSecondPwr()
-					/ workout.getWeight());
-			data[9] = String.format("%.2f",
-					workout.getOneMinutePwr() / workout.getWeight());
-			data[10] = String.format("%.2f", workout.getFiveMinutePwr()
-					/ workout.getWeight());
-			data[11] = String.format("%.2f", workout.getTwentyMinutePwr()
-					/ workout.getWeight());
+            data[8] = String.format("%.2f", workout.getFiveSecondPwr()
+                    / workout.getWeight());
+            data[9] = String.format("%.2f",
+                    workout.getOneMinutePwr() / workout.getWeight());
+            data[10] = String.format("%.2f", workout.getFiveMinutePwr()
+                    / workout.getWeight());
+            data[11] = String.format("%.2f", workout.getTwentyMinutePwr()
+                    / workout.getWeight());
 
-			// round up
-			data[12] = String.format("%.2f", workout.getIntensity() * 100);
-			data[13] = "" + workout.getStress();
-			tableModel.addRow(data);
-		}
-	}
+            // round up
+            data[12] = String.format("%.2f", workout.getIntensity() * 100);
+            data[13] = "" + workout.getStress();
+            data[14] = workout.getDescription();
+            if (data[14] == null) {
+                data[14] = "";
+            }
+            tableModel.addRow(data);
+        }
+    }
 
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();

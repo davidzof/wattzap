@@ -23,7 +23,6 @@ import com.wattzap.view.MainFrame;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.prefs.Preferences;
 import com.wattzap.view.training.TrainingDisplay;
-import com.wattzap.view.training.TrainingPicker;
 
 /**
  * Main menu bar
@@ -76,9 +75,6 @@ public class MenuBar extends JMenuBar {
 
 		JMenuItem trainMenuItem = new JMenuItem("Open Training");
 		trainingMenu.add(trainMenuItem);
-
-		TrainingPicker tPicker = new TrainingPicker(frame);
-		trainMenuItem.addActionListener(tPicker);
 
 		JMenuItem saveMenuItem = new JMenuItem("Save as TCX");
 		trainingMenu.add(saveMenuItem);

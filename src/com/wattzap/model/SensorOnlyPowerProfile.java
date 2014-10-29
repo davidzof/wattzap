@@ -31,6 +31,7 @@ public class SensorOnlyPowerProfile extends VirtualPowerProfile {
 
     @Override
     public boolean provides(SourceDataEnum data) {
+        // doesn't provide power! Only pauses if no power sensor is selected.
         return (data == SourceDataEnum.PAUSE);
     }
 

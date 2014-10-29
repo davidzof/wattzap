@@ -65,6 +65,18 @@ public abstract class SourceDataHandler
             values[data.ordinal()] = value;
         }
     }
+
+    /**
+     * Which values are checked by the handler (without touching the value).
+     *
+     * @param data
+     * @return
+     */
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return false;
+    }
+
     /**
      * @return -1 value is too small
      * @return 0  value is ok

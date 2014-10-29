@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 import javax.swing.JComponent;
 import javax.swing.JOptionPane;
@@ -41,11 +40,11 @@ import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TrainingData;
 import com.wattzap.model.dto.TrainingItem;
 import java.util.List;
 
@@ -68,26 +67,34 @@ import java.util.List;
  * @author Jarek
  */
 public class TrainingDisplay extends JPanel implements MessageCallback {
-	private SimpleXYChartSupport support = null;
-	Iterator<TrainingItem> training;
-	TrainingData tData;
-	TrainingItem current;
-	private ArrayList<Telemetry> data;
-	JComponent chart = null;
-	ObjectOutputStream oos = null;
-	boolean antEnabled = true;
+	private static final Logger logger = LogManager.getLogger("Training Display");
+	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
 	private static final long MILLISECSMINUTE = 60000;
     private static final long CHARTTIMECORRECTION = 23 * 60 * 60 * 1000;
 
-	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
-
-	private static Logger logger = LogManager.getLogger("Training Display");
-
     private final List<SourceDataEnum> addedItems = new ArrayList<>();
+    private SimpleXYChartSupport support = null;
+	private JComponent chart;
+
+    // Iterator<TrainingItem> training;
+    private RouteReader reader = null;
+	private TrainingItem current;
+
+    // used to save .tcx, to rebuild the chart. Kept in journal as well
+    private ArrayList<Telemetry> data;
+	private ObjectOutputStream oos = null;
+
+    // default "session" data.
     private long startTime = 0;
+    private String lastName = null;
+
+
+    // last telemetry time, to ignore telemetries within one second
     private long time;
+
     // TODO set on config?
+	boolean antEnabled = true;
     private boolean oosCreate = true;
 
 	public TrainingDisplay(Dimension screenSize) {
@@ -103,6 +110,10 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 
         callback(Messages.CONFIG_CHANGED, userPrefs);
 	}
+
+    public String getLastName() {
+        return lastName;
+    }
 
     private void addItem(SimpleXYChartDescriptor descriptor,
             SourceDataEnum item, Color color, double lineWidth) {
@@ -134,25 +145,27 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             addItem(descriptor, SourceDataEnum.CADENCE, Color.blue, 1.0);
 		}
 
-		if (tData != null) {
-			if (tData.isPwr()) {
+		if (reader != null) {
+			if (reader.provides(SourceDataEnum.TARGET_POWER)) {
 				Color lightOrange = new Color(255, 47, 19);
                 addItem(descriptor, SourceDataEnum.TARGET_POWER, lightOrange, 2.5);
 			}
 
 			if (antEnabled) {
-				if (tData.isHr()) {
+				if (reader.provides(SourceDataEnum.TARGET_HR)) {
 					Color darkGreen = new Color(0, 110, 8);
                     addItem(descriptor, SourceDataEnum.TARGET_HR, darkGreen, 2.5);
 				}
 
-				if (tData.isCdc()) {
+				if (reader.provides(SourceDataEnum.TARGET_CADENCE)) {
 					Color lightBlue = new Color(64, 96, 255);
 					addItem(descriptor, SourceDataEnum.TARGET_CADENCE, lightBlue, 2.5);
 				}
 			}
+            /*
 			descriptor
 					.setDetailsItems(new String[] { "<html><font size='+2'><b>Info" });
+            */
 		}
 
 		support = ChartFactory.createSimpleXYChart(descriptor);
@@ -170,7 +183,6 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                 update(t, startTime);
             }
         }
-
 	}
 
 	private void update(Telemetry t, long timeDiff) {
@@ -203,7 +215,8 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 
         // description
-		if ((current != null) && antEnabled && (tData != null)) {
+        /*
+		if ((current != null) && antEnabled) {
             String[] details = {
                     current.getDescription()
                     + current.getPowerMsg()
@@ -212,6 +225,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                     + "</b></font></html>" };
             support.updateDetails(details);
 		}
+        */
 
 		// use telemetry time.. timeDiff == 0 when called from callback (time
         // is the length of whole session), or startTime when telemetries read
@@ -385,14 +399,15 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 			}
 			break;
 
-        // TODO TRAINING LOAD
+        // TODO replace with TRAINING LOAD
         case GPXLOAD:
-            // TODO tData = o;
+            reader = (RouteReader) o;
+            lastName = reader.getName();
             rebuildChart();
             break;
 
         case CLOSE:
-			tData = null;
+			reader = null;
             rebuildChart();
 			break;
         }

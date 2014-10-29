@@ -48,6 +48,7 @@ public class GPXReader extends RouteReader {
 	private XYSeries series;
 
     private File currentFile;
+    private String gpxName;
 
     private static final int gradientDistance = 100; // distance to calculate
 														// gradients over.
@@ -62,11 +63,6 @@ public class GPXReader extends RouteReader {
 	public String getExtension() {
 		return "gpx";
 	}
-
-    @Override
-    public TrainingModeEnum getMode() {
-        return TrainingModeEnum.DISTANCE;
-    }
 
     @Override
 	public double getMaxSlope() {
@@ -90,7 +86,7 @@ public class GPXReader extends RouteReader {
 
 	@Override
 	public String getName() {
-		return gpxFile.getName();
+		return gpxName;
 	}
 
 	@Override
@@ -105,8 +101,7 @@ public class GPXReader extends RouteReader {
 
 	// Get the point that corresponds to the distance (in km)
     // TODO getPoint() uses bisection, return values shall be mediana for distance
-	@Override
-	public Point getPoint(double distance) {
+	private Point getPoint(double distance) {
         if (lastDistance > distance) {
             currentPoint = 0;
         }
@@ -139,17 +134,26 @@ public class GPXReader extends RouteReader {
         }
 
         gpxFile = new GPXFile(currentFile);
+        if (gpxFile == null) {
+            return "Cannot read file";
+        }
+
+        gpxName = gpxFile.getName();
 
 		List<Track> routes = gpxFile.getTracks();
 		if (routes.size() == 0) {
 			return "No tracks in file";
 		}
+        // TODO what if file contains multiple routes?
 		Track route = routes.get(0);
 		if (route == null) {
 			return "no route in GPX file";
 		}
+        if (!route.getName().isEmpty()) {
+            gpxName = route.getName();
+        }
 
-		List<WaypointGroup> segs = route.getTracksegs();
+        List<WaypointGroup> segs = route.getTracksegs();
 		this.series = new XYSeries("");
 
 		double distance = 0.0;
@@ -332,13 +336,24 @@ public class GPXReader extends RouteReader {
     @Override
     public void storeTelemetryData(Telemetry t) {
         Point p = getPoint(t.getDistance());
+        Point pp = p;
+        double ratio = 0.0;
+        if (currentPoint < points.length) {
+            pp = points[currentPoint];
+            ratio = (1000.0 * t.getDistance() - p.getDistanceFromStart()) /
+                    (pp.getDistanceFromStart()- p.getDistanceFromStart());
+        }
         if (p != null) {
             double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                 p.getGradient() / 100.0, t.getPower());
             setValue(SourceDataEnum.SPEED, realSpeed);
 
+            // interpolate time on distance, the most important interpolation
+            // other don't matter, are just for display purposes.
+            double time = p.getTime() + ratio * (pp.getTime() - p.getTime());
+            setValue(SourceDataEnum.ROUTE_TIME, time);
+
             setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());
-            setValue(SourceDataEnum.ROUTE_TIME, p.getTime());
             setValue(SourceDataEnum.ALTITUDE, p.getElevation());
             setValue(SourceDataEnum.SLOPE, p.getGradient());
             setValue(SourceDataEnum.LATITUDE, p.getLatitude());

@@ -43,5 +43,7 @@ public class RobotPowerProfile extends VirtualPowerProfile {
     public void storeTelemetryData(Telemetry t) {
         // We have a time value and rotation value, lets calculate the speed
         setValue(SourceDataEnum.POWER, power);
+        // report speed..
+        computeSpeed(t);
     }
 }

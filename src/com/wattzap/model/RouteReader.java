@@ -18,7 +18,6 @@ package com.wattzap.model;
 import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
-import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 
 /**
@@ -35,23 +34,8 @@ import com.wattzap.model.dto.Telemetry;
  * @author Jarek
  */
 public abstract class RouteReader extends SourceDataHandler {
-    // Slope (Integer) 0 = Watt program, 1 = Slope program, 2 = Pulse (HR)
-	public final static int POWER = 0;
-	public final static int SLOPE = 1;
-	public final static int HEARTRATE = 2;
-
-    @Deprecated
-    public final int routeType() {
-        return SLOPE;
-    }
-
-    // General route interface
-
     // extension for this routeReader
     public abstract String getExtension();
-
-    // mode of the route: either distance or time
-    public abstract TrainingModeEnum getMode();
 
     // load training file and set all data..
     public abstract String load(String filename);
@@ -73,21 +57,28 @@ public abstract class RouteReader extends SourceDataHandler {
 	// Used by profile view, gives time|distance/altitude|power values
 	public abstract XYSeries getSeries();
 
+    // Returns length of the route in meters, or in ms (for TIME trainings)
+    // Used by control panel.. it is max value for slider. It should be replaced
+    // by clicking in Profile panel, for sure it would be more accurate.
+    @Deprecated
+    public final double getDistanceMeters() {
+        if (getSeries() == null) {
+            return 1000.0 * 100; // 100%
+        }
+        return 1000.0 * (getSeries().getMaxX() - getSeries().getMinX());
+    }
+
+    // description of Profile chart axis
+    public String getXKey() {
+        return "distance";
+    }
+    public String getYKey() {
+        return "altitude";
+    }
+
     // Training was closed, another training will be used.
     public abstract void close();
 
-
-	// Returns GPX point just before requested distance
-    // Used in "old" SpeedCadenceListeners, kept for reference.
-    @Deprecated
-	public abstract Point getPoint(double distance);
-
-    // Returns length of the route in meters
-    // Used by control panel.. it is max value for slider
-    @Deprecated
-    public final double getDistanceMeters() {
-        return 1000.0 * (getSeries().getMaxX() - getSeries().getMinX());
-    }
 
     // used by simulSpeed power handler (only?)
     @Deprecated

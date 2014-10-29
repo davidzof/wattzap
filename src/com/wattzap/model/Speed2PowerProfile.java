@@ -17,27 +17,15 @@
 package com.wattzap.model;
 
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.power.Power;
 
 /**
  * Default profile: power bases on wheelSpeed and trainer resistance level.
  * @author Jarek
  */
 public class Speed2PowerProfile extends VirtualPowerProfile {
-    private Power power = null;
-
     @Override
     public String getPrettyName() {
         return "speed2power";
-    }
-
-    @Override
-    public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
-
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.TURBO_TRAINER)) {
-            power = prefs.getTurboTrainerProfile();
-        }
     }
 
     @Override

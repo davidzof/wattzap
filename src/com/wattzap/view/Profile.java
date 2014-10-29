@@ -15,6 +15,7 @@
 */
 package com.wattzap.view;
 
+import com.wattzap.MsgBundle;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -46,9 +47,12 @@ import com.wattzap.model.dto.Telemetry;
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  *
+ * @author Jarek
+ * Some small improvements. Profile shows any profile (this is defined by current
+ * RouteReader). It might be distance/altitude, time/power..
  * TODO add action listener to set new position on click, and remove slider.
- * Panel shall be more universal: it should be able to show any data in time
- * ("power" profiles) or distance ("slope" profiles).
+ * TODO If x-axis key is time, there should be shown xx:xx instead of number of
+ * seconds..
  */
 public class Profile extends JPanel implements MessageCallback {
 	ValueMarker marker = null;
@@ -93,12 +97,12 @@ public class Profile extends JPanel implements MessageCallback {
 
 			if (chartPanel != null) {
 				remove(chartPanel);
-				if (routeData.routeType() == RouteReader.POWER) {
+                if (routeData.getSeries() == null) {
 					setVisible(false);
 					chartPanel.revalidate();
 					return;
 				}
-			} else if (routeData.routeType() == RouteReader.POWER) {
+			} else if (routeData.getSeries() == null) {
 				return;
 			}
 
@@ -107,10 +111,10 @@ public class Profile extends JPanel implements MessageCallback {
 
 			// create the chart...
 			final JFreeChart chart = ChartFactory.createXYAreaChart(
-					routeData.getName(), // chart
 					// title
-					"Distance (km)", // domain axis label
-					"Height (meters)", // range axis label
+					routeData.getName(),
+					MsgBundle.getString(routeData.getXKey()), // domain axis label
+					MsgBundle.getString(routeData.getYKey()), // range axis label
 					xyDataset, // data
 					PlotOrientation.VERTICAL, // orientation
 					false, // include legend
@@ -137,11 +141,14 @@ public class Profile extends JPanel implements MessageCallback {
 			double minY = routeData.getSeries().getMinY();
 			double maxY = routeData.getSeries().getMaxY();
             double delta = (maxY - minY) / 10.0;
-			rangeAxis.setRange(minY - delta, maxY + delta);
+            if ((long) minY  == 0) {
+                rangeAxis.setRange(minY, maxY + delta);
+            } else {
+                rangeAxis.setRange(minY - delta, maxY + delta);
+            }
 
 			chartPanel = new ChartPanel(chart);
-
-			chartPanel.setSize(100, 800);
+			// chartPanel.setSize(100, 800);
 
 			setLayout(new BorderLayout());
 			add(chartPanel, BorderLayout.CENTER);
@@ -149,22 +156,19 @@ public class Profile extends JPanel implements MessageCallback {
 			chartPanel.revalidate();
 			setVisible(true);
 			break;
-		}// switch
-		if (plot == null) {
-			return;
 		}
 
-		if (marker != null) {
-			plot.removeDomainMarker(marker);
-		}
-		marker = new ValueMarker(distance);
+        // marker must be recreated all the time?
+        if (plot != null) {
+            if (marker != null) {
+                plot.removeDomainMarker(marker);
+            }
+            marker = new ValueMarker(distance);
 
-		marker.setPaint(Color.blue);
-		BasicStroke stroke = new BasicStroke(2);
-		marker.setStroke(stroke);
-		plot.addDomainMarker(marker);
-
+            marker.setPaint(Color.blue);
+            BasicStroke stroke = new BasicStroke(2);
+            marker.setStroke(stroke);
+            plot.addDomainMarker(marker);
+        }
 	}
-
-	private static final long serialVersionUID = 1L;
 }

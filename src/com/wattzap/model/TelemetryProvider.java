@@ -99,6 +99,7 @@ public enum TelemetryProvider implements MessageCallback
 
         // hardware conditions
         pauseMsgKeys.put(250, "no_power_sensor");
+        pauseMsgKeys.put(251, "no_speed_sensor");
     }
     public static String pauseMsg(int v, boolean nullIfUnknown) {
         String key = pauseMsgKeys.get(v);
@@ -191,8 +192,10 @@ public enum TelemetryProvider implements MessageCallback
                         break;
                 }
 
+                // if sensor provides value.. and any message was received..
                 SensorIntf sensor = getSensor(prop);
-                if ((sensor != null) && (sensor.provides(prop))) {
+                if ((sensor != null) && (sensor.provides(prop)) &&
+                        (sensor.getLastMessageTime() != 0)) {
                     if (sensor.getModificationTime(prop) >= start - 5000) {
                         validity = TelemetryValidityEnum.OK;
                         value = sensor.getValue(prop);

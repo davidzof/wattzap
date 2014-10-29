@@ -42,13 +42,27 @@ public abstract class VirtualPowerProfile extends TelemetryHandler {
     @Override
     public void configChanged(UserPreferences prefs) {
         // activate/deactivate on virtual power setting
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.VIRTUAL_POWER)) {
+        if ((prefs == UserPreferences.INSTANCE) ||
+                (prefs == UserPreferences.VIRTUAL_POWER)) {
             setActive(prefs.getVirtualPower().findActiveHandler() == this);
         }
         if ((prefs == UserPreferences.INSTANCE) ||
                 (prefs == UserPreferences.TURBO_TRAINER)) {
             power = prefs.getTurboTrainerProfile();
         }
+    }
+
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return (data == SourceDataEnum.WHEEL_SPEED) && speedComputed;
+    }
+
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        if (data == SourceDataEnum.WHEEL_SPEED) {
+            return (long) speedValue;
+        }
+        return 0;
     }
 
     @Override
@@ -66,17 +80,10 @@ public abstract class VirtualPowerProfile extends TelemetryHandler {
         }
     }
 
-    @Override
-    public long getModificationTime(SourceDataEnum data) {
-        if (data == SourceDataEnum.WHEEL_SPEED) {
-            return (long) speedValue;
-        }
-        return 0;
-    }
-
     private static final SourceDataEnum WS = SourceDataEnum.WHEEL_SPEED;
     protected final void computeSpeed(Telemetry t) {
         if ((t == null) || (!t.isAvailable(SourceDataEnum.POWER))) {
+            System.err.println("Power not available");
             speedComputed = false;
             return;
         }
@@ -89,8 +96,8 @@ public abstract class VirtualPowerProfile extends TelemetryHandler {
         // working speed sensor, otherwise is not reported.
         speedValue = 0;
         SensorIntf sensor = TelemetryProvider.INSTANCE.getSensor(WS);
-        if ((sensor != null) &&
-                (sensor.getModificationTime(WS) > System.currentTimeMillis() - 5000)) {
+        if ((sensor != null) && (sensor.getModificationTime(WS) >
+                System.currentTimeMillis() - 5000)) {
             if (wheelSpeed < sensor.getValue(WS) / 1.1) {
                 speedValue = 1;
             } else if (wheelSpeed > 1.1 * sensor.getValue(WS)) {

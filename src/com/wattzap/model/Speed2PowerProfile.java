@@ -17,6 +17,7 @@
 package com.wattzap.model;
 
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.dto.TelemetryValidityEnum;
 
 /**
  * Default profile: power bases on wheelSpeed and trainer resistance level.
@@ -29,11 +30,28 @@ public class Speed2PowerProfile extends VirtualPowerProfile {
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        if (data == SourceDataEnum.PAUSE) {
+            return true;
+        }
+        return super.provides(data); //To change body of generated methods, choose Tools | Templates.
+    }
+
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
-        // We have a time value and rotation value, lets calculate the speed
-        // if no active resistance hanlder, resistance is 1 (by default), so
-        // it works fine for one level trainers.
-        int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
-        setValue(SourceDataEnum.POWER, powerWatts);
+        if (t.getValidity(SourceDataEnum.WHEEL_SPEED) != TelemetryValidityEnum.NOT_PRESENT) {
+            // We have a time value and rotation value, lets calculate the speed
+            // if no active resistance hanlder, resistance is 1 (by default), so
+            // it works fine for one level trainers.
+            int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
+            setValue(SourceDataEnum.POWER, powerWatts);
+            setValue(SourceDataEnum.PAUSE, 0.0);
+        } else {
+            // sensor not available?? cannot run. For trainings without sensor
+            // another profile must be selected..
+            setValue(SourceDataEnum.PAUSE, 251.0);
+            setValue(SourceDataEnum.POWER, 0.0);
+        }
     }
 }

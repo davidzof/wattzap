@@ -17,11 +17,13 @@
 package com.wattzap.model;
 
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.power.Power;
 import com.wattzap.utils.Rolling;
 
 /**
  * Power profile which runs video with 1:1 speed, this is calculates power
- * which is value reversed for video speed.
+ * which is value reversed for video speed. For training mode, power equals
+ * target power.. all the time.
  * @author Jarek
  */
 public class VideoSpeedPowerProfile extends VirtualPowerProfile {
@@ -53,23 +55,28 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
-            setValue(SourceDataEnum.POWER, 0.0);
-            return;
-        }
+        if (t.isAvailable(SourceDataEnum.SPEED)) {
+            if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
+                setValue(SourceDataEnum.POWER, 0.0);
+                return;
+            }
 
-        double avg;
-        if (t.getRouteSpeed() >= 1.0) {
-            avg = speedRoll.add(t.getRouteSpeed());
+            double avg;
+            if (t.getRouteSpeed() >= 1.0) {
+                avg = speedRoll.add(t.getRouteSpeed());
+            } else {
+                avg = speedRoll.getAverage();
+            }
+
+            int powerWatts = Power.getPower(weight, t.getGradient() / 100.0, avg);
+            if (powerWatts < 0) {
+                powerWatts = 0;
+            }
+            setValue(SourceDataEnum.POWER, powerWatts);
         } else {
-            avg = speedRoll.getAverage();
+            // in TRN mode.. current power equals target power
+            setValue(SourceDataEnum.POWER, t.getDouble(SourceDataEnum.TARGET_POWER));
         }
-
-        int powerWatts = power.getPower(weight, t.getGradient() / 100.0, avg);
-        if (powerWatts < 0) {
-            powerWatts = 0;
-        }
-        setValue(SourceDataEnum.POWER, powerWatts);
 
         computeSpeed(t);
     }

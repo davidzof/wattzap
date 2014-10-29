@@ -52,6 +52,7 @@ public class Odo extends JPanel implements MessageCallback {
     private boolean paused = true;
     private boolean metric = true;
     private boolean rebuild = false;
+    private boolean wheelSpeedShown = true;
 
     private static final Color[] colors = new Color[] {
         null, Color.GRAY, Color.WHITE, Color.RED, skyBlue, Color.GRAY
@@ -79,10 +80,17 @@ public class Odo extends JPanel implements MessageCallback {
             this.valid = TelemetryValidityEnum.NOT_PRESENT;
         }
 
+        public boolean shown(Telemetry t) {
+            return true;
+        }
+
         public void setValue(Telemetry t) {
             TelemetryValidityEnum valid = t.getValidity(sourceData);
             if ((valid != TelemetryValidityEnum.NOT_PRESENT) && paused) {
                 valid = TelemetryValidityEnum.NOT_AVAILABLE;
+            }
+            if (!shown(t)) {
+                valid = TelemetryValidityEnum.NOT_PRESENT;
             }
             if (this.valid != valid) {
                 if (valid != TelemetryValidityEnum.NOT_PRESENT) {
@@ -129,8 +137,25 @@ public class Odo extends JPanel implements MessageCallback {
 		setLayout(layout);
 
         columns.add(new ValueCol(SourceDataEnum.SPEED));
-        columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED));
-        columns.add(new ValueCol(SourceDataEnum.DISTANCE));
+        columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return wheelSpeedShown;
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return t.isAvailable(SourceDataEnum.SPEED);
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.ROUTE_TIME) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return !t.isAvailable(SourceDataEnum.SPEED);
+            }
+        });
+        // sensors data
         columns.add(new ValueCol(SourceDataEnum.POWER));
         columns.add(new ValueCol(SourceDataEnum.HEART_RATE));
         columns.add(new ValueCol(SourceDataEnum.CADENCE));
@@ -161,7 +186,6 @@ public class Odo extends JPanel implements MessageCallback {
                     if (column.isVisible()) {
                         last = num;
                     }
-
                 }
                 if (rebuild) {
                     rebuild = false;
@@ -187,6 +211,7 @@ public class Odo extends JPanel implements MessageCallback {
                         }
                     }
                     revalidate();
+                    repaint();
                 }
                 break;
             case CONFIG_CHANGED:

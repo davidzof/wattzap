@@ -199,6 +199,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
         if (logger.isDebugEnabled()) {
             StringBuilder str = new StringBuilder(200);
+            str.append("VideoPlayer");
             str.append(" dist=");
             str.append(SourceDataEnum.DISTANCE.format(t.getDistance(), true));
             str.append(" speed=");
@@ -294,7 +295,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             // initialize video on new route
             boolean found = false;
 			RouteReader routeData = (RouteReader) o;
-            if (routeData != null) {
+            if ((routeData != null) && (routeData.getVideoFile() != null)) {
                 String path = FileName.getPath(routeData.getVideoFile());
                 String name = FileName.getName(routeData.getVideoFile());
                 String ext = FileName.getExtension(name);

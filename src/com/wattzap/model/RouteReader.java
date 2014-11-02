@@ -81,6 +81,7 @@ public abstract class RouteReader extends SourceDataHandler {
 
 
     // used by simulSpeed power handler (only?)
+    // TODO move it to config file..
     @Deprecated
     public abstract double getMaxSlope();
 

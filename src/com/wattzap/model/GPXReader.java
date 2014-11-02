@@ -15,11 +15,11 @@
 */
 package com.wattzap.model;
 
+import com.wattzap.model.dto.AxisPointsList;
 import java.io.File;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
@@ -55,9 +55,7 @@ public class GPXReader extends RouteReader {
 	private double maxSlope = 0;
 	private double minSlope = 0;
 
-	private Point[] points = null;
-	private int currentPoint = 0;
-    private double lastDistance = 0.0;
+	private AxisPointsList<Point> points = null;
 
     @Override
 	public String getExtension() {
@@ -99,27 +97,7 @@ public class GPXReader extends RouteReader {
 		return series;
 	}
 
-	// Get the point that corresponds to the distance (in km)
-    // TODO getPoint() uses bisection, return values shall be mediana for distance
-	private Point getPoint(double distance) {
-        if (lastDistance > distance) {
-            currentPoint = 0;
-        }
-        lastDistance = distance;
-
-        while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
-			currentPoint++;
-		}
-        if (currentPoint >= points.length) {
-            return null;
-        } else if (currentPoint > 0) {
-			return points[currentPoint - 1];
-		} else {
-			return points[0];
-		}
-	}
-
-	/**
+    /**
 	 * Load GPX data from file
 	 *
 	 * @param filename
@@ -192,7 +170,7 @@ public class GPXReader extends RouteReader {
 					}
 				}
 
-				Point p = new Point();
+				Point p = new Point(distance);
 				p.setElevation(wp.getEle());
 				p.setLatitude(wp.getLat());
 				p.setLongitude(wp.getLon());
@@ -201,7 +179,6 @@ public class GPXReader extends RouteReader {
 				double leg = distance(wp.getLat(), last.getLat(), wp.getLon(),
 						last.getLon(), last.getEle(), wp.getEle());
 				distance += leg;
-				p.setDistanceFromStart(distance);
 
 				// smooth altitudes a bit
 				altitude.add(wp.getEle());
@@ -266,18 +243,23 @@ public class GPXReader extends RouteReader {
 			// levels done
 
 			// combine segment
-			points = ArrayUtils.addAll(points, segment);
+            if (points == null) {
+                points = new AxisPointsList<>();
+            }
+            points.addAll(segment);
 		}
-        return null;
+        if (points.size() < 2) {
+            return "No track";
+        }
+        String ret = points.checkData();
+        return ret;
 	}
 
     @Override
 	public void close() {
-        gpxFile = null;
         points = null;
+        gpxFile = null;
         series = null;
-		currentPoint = 0;
-        lastDistance = 0;
 	}
 
 	/**
@@ -335,14 +317,7 @@ public class GPXReader extends RouteReader {
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        Point p = getPoint(t.getDistance());
-        Point pp = p;
-        double ratio = 0.0;
-        if (currentPoint < points.length) {
-            pp = points[currentPoint];
-            ratio = (1000.0 * t.getDistance() - p.getDistanceFromStart()) /
-                    (pp.getDistanceFromStart()- p.getDistanceFromStart());
-        }
+        Point p = points.get(1000.0 * t.getDistance());
         if (p != null) {
             double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                 p.getGradient() / 100.0, t.getPower());
@@ -350,7 +325,13 @@ public class GPXReader extends RouteReader {
 
             // interpolate time on distance, the most important interpolation
             // other don't matter, are just for display purposes.
-            double time = p.getTime() + ratio * (pp.getTime() - p.getTime());
+            double time = p.getTime();
+            Point pp = points.getNext();
+            if (pp != null) {
+                time = points.interpolate(1000.0 * t.getDistance(), time, pp.getTime());
+            } else {
+                System.err.println("pp is null");
+            }
             setValue(SourceDataEnum.ROUTE_TIME, time);
 
             setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());

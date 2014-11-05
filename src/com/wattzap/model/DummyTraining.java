@@ -16,9 +16,8 @@
  */
 package com.wattzap.model;
 
-import com.gpxcreator.gpxpanel.GPXFile;
 import com.wattzap.model.dto.Telemetry;
-import org.jfree.data.xy.XYSeries;
+import java.io.File;
 
 /**
  * Training without any data. Just free ride, only power/cadence/hr are
@@ -34,52 +33,20 @@ public class DummyTraining extends RouteReader {
     }
 
     @Override
-    public String getPath() {
-        return null;
-    }
-
-    @Override
-    public String getVideoFile() {
-        return null;
-    }
-
-    @Override
     public String getName() {
         return "Free run";
     }
 
     @Override
-    public GPXFile getGpxFile() {
+    public String load(File file) {
         return null;
-    }
-
-    @Override
-    public XYSeries getSeries() {
-        return null;
-    }
-
-    @Override
-    public String load(String filename) {
-        return null;
-    }
-
-    @Override
-    public void close() {
-    }
-
-    @Override
-    public double getMaxSlope() {
-        return 0.0;
-    }
-    @Override
-    public double getMinSlope() {
-        return 0.0;
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
         return (data == SourceDataEnum.ROUTE_TIME);
     }
+
     @Override
     public void storeTelemetryData(Telemetry t) {
         setValue(SourceDataEnum.ROUTE_TIME, t.getDistance() * 1000.0);

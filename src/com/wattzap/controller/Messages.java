@@ -25,7 +25,7 @@ package com.wattzap.controller;
 public enum Messages {
     // any value in the config properties was changed (simple value, sensor,
     // subsystem, default source, trainer, etc).
-    // data: ???
+    // data: changed property
     CONFIG_CHANGED,
 
     // subsystem opened or closed. Reconfiguration is allowed only when stopped
@@ -37,6 +37,8 @@ public enum Messages {
     // data: handler object
     HANDLER, HANDLER_REMOVED,
 
+    // complete data created by TelemetryProvider
+    // data: Telemetry
     TELEMETRY,
 
     @Deprecated
@@ -60,9 +62,13 @@ public enum Messages {
     // data: (double) position
     STARTPOS,
 
-    // message shown in the interface
-    // data: string
+    // message shown in the interface. It can be consumed by the handler
+    // data: RouteMsg
     ROUTE_MSG,
+
+    // new profile is to be shown
+    // data: XYSeries to be shown
+    PROFILE,
 
     // TODO replace with TRAINING
     GPXLOAD,

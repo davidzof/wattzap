@@ -34,6 +34,10 @@ public class AxisPointInterest extends AxisPoint {
         this.name = name;
     }
 
+    public String getName() {
+        return name;
+    }
+
     public boolean isUsable() {
         return name != null;
     }

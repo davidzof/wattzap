@@ -38,8 +38,12 @@ import org.jfree.data.xy.XYSeriesCollection;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.Constants;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.dto.Telemetry;
+import java.util.Map;
+import java.util.HashMap;
+import org.jfree.data.xy.XYSeries;
 
 /*
  * Shows a profile of the route and moves an indicator to show rider progress on profile
@@ -55,26 +59,41 @@ import com.wattzap.model.dto.Telemetry;
  * seconds..
  */
 public class Profile extends JPanel implements MessageCallback {
-	ValueMarker marker = null;
-	XYPlot plot;
-	private ChartPanel chartPanel = null;
-
 	private static Logger logger = LogManager.getLogger("Profile");
+    private static final Map<String, Double> valCorrections = new HashMap<>();
+    static {
+        // normal distance trainig, distance in in [km]
+        valCorrections.put("distance_km", 1.0);
+        valCorrections.put("distance_mi", Constants.KMTOMILES);
+        // for time trainings, distance is time [s]
+        valCorrections.put("time_min", 60.0);
+        // altitude is in [m]
+        valCorrections.put("altitude_m", 1.0);
+        valCorrections.put("altitude_feet", Constants.MTOFEET);
+    }
+
+
+    private ValueMarker marker = null;
+	private XYPlot plot = null;
+	private ChartPanel chartPanel = null;
+    private String xKey = null;
+    private String yKey = null;
+    private String routeName = null;
+    private double distance = 0.0;
 
 	public Profile(Dimension d) {
 		super();
-
 		// this.setPreferredSize(d);
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.register(Messages.PROFILE, this);
 	}
 
 	@Override
 	public void callback(Messages message, Object o) {
-		double distance = 0.0;
 		switch (message) {
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
@@ -83,38 +102,52 @@ public class Profile extends JPanel implements MessageCallback {
 		case STARTPOS:
 			distance = (Double) o;
 			break;
-		case CLOSE:
+
+        case CLOSE:
 			if (this.isVisible()) {
 				remove(chartPanel);
 				setVisible(false);
 				revalidate();
 			}
-
 			return;
-		case GPXLOAD:
+        case GPXLOAD:
 			// Note if we are loading a Power Profile there is no GPX data so we don't show the chart panel
 			RouteReader routeData = (RouteReader) o;
+            routeName = routeData.getName();
+			logger.debug("Load " + routeName);
+            o = routeData.getSeries();
+            /* no break: continue in PROFILE */
 
+        case PROFILE:
+            XYSeries series = (XYSeries) o;
 			if (chartPanel != null) {
 				remove(chartPanel);
-                if (routeData.getSeries() == null) {
+                if (series == null) {
 					setVisible(false);
 					chartPanel.revalidate();
 					return;
 				}
-			} else if (routeData.getSeries() == null) {
+			} else if (series == null) {
 				return;
 			}
 
-			logger.debug("Load " + routeData.getPath());
-			XYDataset xyDataset = new XYSeriesCollection(routeData.getSeries());
+            // get axis keys from series. No spaces are allowed
+            xKey = "distance";
+            yKey = "altitude";
+            String key = (String) series.getKey();
+            int index = key.indexOf(',');
+            if (index >= 0) {
+                xKey = key.substring(0, index);
+                yKey = key.substring(index + 1);
+            }
 
 			// create the chart...
+			XYDataset xyDataset = new XYSeriesCollection(series);
 			final JFreeChart chart = ChartFactory.createXYAreaChart(
 					// title
-					routeData.getName(),
-					MsgBundle.getString(routeData.getXKey()), // domain axis label
-					MsgBundle.getString(routeData.getYKey()), // range axis label
+					routeName,
+					MsgBundle.getString(xKey), // domain axis label
+					MsgBundle.getString(yKey), // range axis label
 					xyDataset, // data
 					PlotOrientation.VERTICAL, // orientation
 					false, // include legend
@@ -138,8 +171,8 @@ public class Profile extends JPanel implements MessageCallback {
 			domainAxis.setTickLabelPaint(Color.white);
 			domainAxis.setLabelPaint(Color.white);
 
-			double minY = routeData.getSeries().getMinY();
-			double maxY = routeData.getSeries().getMaxY();
+			double minY = series.getMinY();
+			double maxY = series.getMaxY();
             double delta = (maxY - minY) / 10.0;
             if ((long) minY  == 0) {
                 rangeAxis.setRange(minY, maxY + delta);
@@ -163,7 +196,11 @@ public class Profile extends JPanel implements MessageCallback {
             if (marker != null) {
                 plot.removeDomainMarker(marker);
             }
-            marker = new ValueMarker(distance);
+            if (valCorrections.containsKey(xKey)) {
+                marker = new ValueMarker(distance / valCorrections.get(xKey));
+            } else {
+                marker = new ValueMarker(distance);
+            }
 
             marker.setPaint(Color.blue);
             BasicStroke stroke = new BasicStroke(2);

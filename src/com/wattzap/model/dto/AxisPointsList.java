@@ -33,8 +33,8 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
                     return Double.compare(o1.getDistance(), o2.getDistance());
                 }
             };
-    private int current = 0;
-    private int last = 0;
+    private int current = -1;
+    private int last = -1;
 
     public void addAll(P[] tab) {
         for (P point : tab) {
@@ -74,8 +74,13 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
     public P get(double dist) {
         last = current;
 
+        // no more points
+        if (current >= size()) {
+            return null;
+        }
+
         // distance doesn't advance.. it jumped back, so find new position
-        if (get(current).getDistance() > dist) {
+        if ((current < 0) || (get(current).getDistance() > dist)) {
             current = 0;
         }
 
@@ -102,7 +107,7 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
      * @return null if list is shorter.
      */
     public P getNext() {
-        if (current + 1 < size()) {
+        if ((current >= 0) && (current + 1 < size())) {
             return get(current + 1);
         } else {
             return null;
@@ -112,7 +117,7 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
      * Gets current point
      */
     public P get() {
-        if (current < size()) {
+        if ((current >= 0) && (current < size())) {
             return get(current);
         } else {
             return null;
@@ -121,11 +126,12 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
 
     /**
      * interpolates value for current distance. It cannot be the last value
-     * ("next" object must be available). Current point had to be found!
+     * ("next" object must be available). Current and next points must exist!
+     * (and it must be checked before.. to get current/next values.)
      */
     public double interpolate(double dist, double current, double next) {
-        double cdist = get(this.current).getDistance();
-        double ndist = get(this.current + 1).getDistance();
+        double cdist = get().getDistance();
+        double ndist = getNext().getDistance();
         return current + (next - current) * (dist - cdist) / (ndist - cdist);
     }
 }

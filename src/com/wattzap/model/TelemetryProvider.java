@@ -20,6 +20,7 @@ import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.RouteMsg;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TelemetryValidityEnum;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ public enum TelemetryProvider implements MessageCallback
     private final Map<SourceDataEnum, SensorIntf> sensors = new HashMap<>();
 
     /* current "location" and training time, filled in telemetry to be reported */
+    private Telemetry t = null;
     private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
 
@@ -63,6 +65,7 @@ public enum TelemetryProvider implements MessageCallback
         MessageBus.INSTANCE.register(Messages.CLOSE, this);
         MessageBus.INSTANCE.register(Messages.START, this);
         MessageBus.INSTANCE.register(Messages.STOP, this);
+        MessageBus.INSTANCE.register(Messages.ROUTE_MSG, this);
         return this;
     }
 
@@ -159,9 +162,13 @@ public enum TelemetryProvider implements MessageCallback
         }
         // send "dummy" telemetry, without any data except time and position.
         // it would be filled in a few seconds.
-        Telemetry t = new Telemetry(-1);
-        t.setDistance(distance);
-        t.setTime(runtime);
+        if (t == null) {
+            t = new Telemetry(-1);
+            t.setDistance(distance);
+            t.setTime(runtime);
+        } else {
+            t.setPaused(-1); // starting
+        }
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
         // Wait all handlers reinitialize to show what is wrong with configuration.
@@ -378,6 +385,11 @@ public enum TelemetryProvider implements MessageCallback
                 }
                 break;
 
+
+            case ROUTE_MSG:
+                RouteMsg msg = (RouteMsg) o;
+                System.err.println("RouteMsg:: " + msg.getMessage());
+                break;
 
             case STARTPOS:
                 distance = (Double) o;

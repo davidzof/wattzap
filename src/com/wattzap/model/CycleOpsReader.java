@@ -23,8 +23,11 @@ import com.gpxcreator.gpxpanel.GPXFile;
 import com.gpxcreator.gpxpanel.Track;
 import com.gpxcreator.gpxpanel.Waypoint;
 import com.gpxcreator.gpxpanel.WaypointGroup;
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.AxisPointSlope;
 import com.wattzap.model.dto.AxisPointsList;
+import com.wattzap.model.dto.RouteMsg;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 import com.wattzap.utils.Rolling;
@@ -50,21 +53,16 @@ public class CycleOpsReader extends RouteReader {
 	private static Logger logger = LogManager.getLogger("CycleOpsReader");
 
     private double totalWeight = 85.0;
+    private boolean metric = true;
     private Power power = null;
 
-    private File currentFile = null;
+    private AxisPointsList<AxisPointAlt> altPoints = null;
+    private AxisPointsList<AxisPointVideo> videoPoints = null;
+    private AxisPointsList<AxisPointInterest> iPoints = null;
+    private AxisPointsList<AxisPointSlope> slopePoints = null;
+
     private String videoTag = null;
     private String nameTag = null;
-
-    private AxisPointsList<AxisPointAlt> altPoints;
-    private AxisPointsList<AxisPointVideo> videoPoints;
-    private AxisPointsList<AxisPointInterest> iPoints;
-    private AxisPointsList<AxisPointSlope> slopePoints;
-
-    private double maxSlope = 0.0;
-    private double minSlope = 0.0;
-    private GPXFile gpxFile = null;
-    private XYSeries series = null;
 
     @Override
     public String getExtension() {
@@ -72,69 +70,44 @@ public class CycleOpsReader extends RouteReader {
     }
 
     @Override
-	public String getPath() {
-		return currentFile.getParent();
-	}
-
-	@Override
-	public String getVideoFile() {
+    public String getVideoFile() {
         if (videoTag != null) {
             return "video/" + videoTag;
         }
-		return null;
-	}
-
-    @Override
-	public String getName() {
-		return nameTag;
-	}
-
-    @Override
-	public double getMaxSlope() {
-		return maxSlope;
-	}
-
-	@Override
-	public double getMinSlope() {
-		return minSlope;
-	}
-
-    @Override
-    public GPXFile getGpxFile() {
-        return gpxFile;
+        return null;
     }
 
     @Override
-    public XYSeries getSeries() {
-        return series;
+    public String getName() {
+        return nameTag;
     }
+
+
+
 
     @Override
     public void close() {
-        currentFile = null;
+        super.close();
         nameTag = null;
         videoTag = null;
 
-        gpxFile = null;
-        series = null;
-
         altPoints = null;
         videoPoints = null;
+        slopePoints = null;
         iPoints = null;
     }
 
     @Override
-    public String load(String filename) {
-        // parse track.xml file
-        altPoints = new AxisPointsList<>();
-        videoPoints = new AxisPointsList<>();
-        iPoints = new AxisPointsList<>();
-        slopePoints = new AxisPointsList<>();
+    public String load(File file) {
+        // parse track.xml file, put all points into local lists
+        AxisPointsList<AxisPointAlt> altPoints = new AxisPointsList<>();
+        AxisPointsList<AxisPointVideo> videoPoints = new AxisPointsList<>();
+        AxisPointsList<AxisPointSlope> slopePoints = new AxisPointsList<>();
+        AxisPointsList<AxisPointInterest> iPoints = new AxisPointsList<>();
 
-        currentFile = new File(filename);
         FileInputStream fis = null;
         try {
-            fis = new FileInputStream(currentFile);
+            fis = new FileInputStream(file);
         } catch (FileNotFoundException e) {
             return "File doesn't exist";
         }
@@ -316,7 +289,7 @@ public class CycleOpsReader extends RouteReader {
                 (altPoints.get(0).getDistance() < 0.0)) {
             return "Route doesn't start at 0";
         }
-        double routeLen = altPoints.get(altPoints.size() - 1).getDistance();
+        routeLen = altPoints.get(altPoints.size() - 1).getDistance();
 
         // if no video points are defined.. Last point should be taken from
         // video.. but this is not available here. One must manually add
@@ -341,39 +314,6 @@ public class CycleOpsReader extends RouteReader {
                         ", check if truncated " + (routeLen - videoDist));
                 routeLen = videoDist;
             }
-        }
-
-        // create altitude profile, just over points
-        series = new XYSeries("time");
-        for (AxisPointAlt point : altPoints) {
-            if (point.getDistance() > routeLen) {
-                double alt = altPoints.interpolate(routeLen,
-                        altPoints.get(routeLen).getAltitude(),
-                        altPoints.getNext().getAltitude());
-				series.add(routeLen / 1000.0, alt);
-                break;
-            }
-            series.add(point.getDistance() / 1000.0, point.getAltitude());
-        }
-
-        // create GPX file to be shown on the map
-        int points = 0;
-        if (altPoints.get(0).hasLatLon()) {
-            Track track = new Track(Color.GREEN);
-            track.setName(nameTag);
-            WaypointGroup path = track.addTrackseg();
-            path.setColor(Color.RED);
-            path.setVisible(true);
-            path.setWptsVisible(true);
-            for (AxisPointAlt altPoint : altPoints) {
-                Waypoint waypoint = new Waypoint(altPoint.getLat(), altPoint.getLon());
-                waypoint.setEle(altPoint.getAltitude());
-                waypoint.setTime(new Date((++points) * 1000));
-                path.addWaypoint(waypoint);
-            }
-            gpxFile = new GPXFile();
-            gpxFile.getTracks().add(track);
-            gpxFile.updateAllProperties();
         }
 
         // compute slopes, to be used in the training.. and to keep slope smooth
@@ -415,11 +355,68 @@ public class CycleOpsReader extends RouteReader {
                 up += delta * slope / 100.0;;
             }
         }
-
-        System.err.println("Down=" + down + ", up=" + up +
+        logger.debug("Down=" + down + ", up=" + up +
                 "; min=" + minSlope + ", max=" + maxSlope);
 
+        // all data read properly
+        this.altPoints = altPoints;
+        this.videoPoints = videoPoints;
+        this.slopePoints = slopePoints;
+        this.iPoints = iPoints;
         return null;
+    }
+
+    @Override
+    public XYSeries createProfile() {
+        // profile depends on settings: metric or imperial
+        double distConv = 1000.0;
+        double altConv = 1.0;
+        String format = "distance_km,altitude_m";
+        if (!metric) {
+            distConv *= Constants.KMTOMILES;
+            altConv *= Constants.MTOFEET;
+            format = "distance_mi,altitude_feet";
+        }
+        // create altitude profile, just over points
+        XYSeries series = new XYSeries(format);
+        for (AxisPointAlt point : altPoints) {
+            if (point.getDistance() > routeLen) {
+                double alt = altPoints.interpolate(routeLen,
+                        altPoints.get(routeLen).getAltitude(),
+                        // TODO NPE???
+                        altPoints.getNext().getAltitude());
+				series.add(routeLen / distConv, alt / altConv);
+                break;
+            }
+            series.add(point.getDistance() / distConv,
+                    point.getAltitude() / altConv);
+        }
+        return series;
+    }
+
+    public GPXFile createGpx() {
+        // create GPX file to be shown on the map
+        if (!altPoints.get(0).hasLatLon()) {
+            return null;
+        }
+        int points = 0;
+        Track track = new Track(Color.GREEN);
+        track.setName(nameTag);
+        WaypointGroup path = track.addTrackseg();
+        path.setColor(Color.RED);
+        path.setVisible(true);
+        path.setWptsVisible(true);
+        for (AxisPointAlt altPoint : altPoints) {
+            Waypoint waypoint = new Waypoint(altPoint.getLat(), altPoint.getLon());
+            waypoint.setEle(altPoint.getAltitude());
+            waypoint.setTime(new Date((++points) * 1000));
+            path.addWaypoint(waypoint);
+        }
+
+        GPXFile gpxFile = new GPXFile();
+        gpxFile.getTracks().add(track);
+        gpxFile.updateAllProperties();
+        return gpxFile;
     }
 
     @Override
@@ -449,6 +446,11 @@ public class CycleOpsReader extends RouteReader {
 
     @Override
     public void storeTelemetryData(Telemetry t) {
+        // route is not loaded, just ignore telemetry request
+        if (altPoints == null) {
+            return;
+        }
+
         // distance in the file is [m], while in telemetry is [km]
         double dist = 1000.0 * t.getDistance();
 
@@ -487,6 +489,12 @@ public class CycleOpsReader extends RouteReader {
                 slope / 100.0, t.getPower());
         setValue(SourceDataEnum.SPEED, realSpeed);
         setValue(SourceDataEnum.PAUSE, 0.0);
+
+        AxisPointInterest iPoint = iPoints.get(dist);
+        if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {
+            MessageBus.INSTANCE.send(Messages.ROUTE_MSG,
+                    new RouteMsg(iPoint.getName()));
+        }
     }
 
     @Override
@@ -496,5 +504,13 @@ public class CycleOpsReader extends RouteReader {
         }
         // it can be updated every configChanged without checking the property..
         totalWeight = pref.getTotalWeight();
+
+        if ((pref == UserPreferences.INSTANCE) || (pref == UserPreferences.METRIC)) {
+            metric = pref.isMetric();
+            // rebuild Profile panel
+            if (getSeries() != null) {
+                MessageBus.INSTANCE.send(Messages.PROFILE, createProfile());
+            }
+        }
     }
 }

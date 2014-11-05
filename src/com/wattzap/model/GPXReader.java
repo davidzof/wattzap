@@ -29,7 +29,6 @@ import com.gpxcreator.gpxpanel.WaypointGroup;
 import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
-import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 
 /*
@@ -44,42 +43,15 @@ public class GPXReader extends RouteReader {
     private double totalWeight = 85.0;
     private Power power = null;
 
-    private GPXFile gpxFile;
-	private XYSeries series;
-
-    private File currentFile;
     private String gpxName;
 
     private static final int gradientDistance = 100; // distance to calculate
 														// gradients over.
-	private double maxSlope = 0;
-	private double minSlope = 0;
-
 	private AxisPointsList<Point> points = null;
 
     @Override
 	public String getExtension() {
 		return "gpx";
-	}
-
-    @Override
-	public double getMaxSlope() {
-		return maxSlope;
-	}
-
-	@Override
-	public double getMinSlope() {
-		return minSlope;
-	}
-
-    @Override
-	public String getPath() {
-		return currentFile.getParent();
-	}
-
-	@Override
-	public String getVideoFile() {
-		return FileName.stripExtension(currentFile.getName()) + ".avi";
 	}
 
 	@Override
@@ -92,11 +64,6 @@ public class GPXReader extends RouteReader {
 		return gpxFile;
 	}
 
-    @Override
-	public XYSeries getSeries() {
-		return series;
-	}
-
     /**
 	 * Load GPX data from file
 	 *
@@ -105,13 +72,8 @@ public class GPXReader extends RouteReader {
 	 *
 	 */
     @Override
-	public String load(String filename) {
-        currentFile = new File(filename);
-        if (!currentFile.exists()) {
-            return "File doesn't exist";
-        }
-
-        gpxFile = new GPXFile(currentFile);
+	public String load(File file) {
+        gpxFile = new GPXFile(file);
         if (gpxFile == null) {
             return "Cannot read file";
         }
@@ -132,7 +94,6 @@ public class GPXReader extends RouteReader {
         }
 
         List<WaypointGroup> segs = route.getTracksegs();
-		this.series = new XYSeries("");
 
 		double distance = 0.0;
 		long startTime = System.currentTimeMillis();
@@ -182,7 +143,6 @@ public class GPXReader extends RouteReader {
 
 				// smooth altitudes a bit
 				altitude.add(wp.getEle());
-				series.add(distance / 1000, altitude.getAverage());
 
 				// speed = distance / time
 				if (currentTime > 0) {
@@ -258,9 +218,17 @@ public class GPXReader extends RouteReader {
     @Override
 	public void close() {
         points = null;
-        gpxFile = null;
-        series = null;
 	}
+
+    @Override
+    public XYSeries createProfile() {
+        XYSeries series = new XYSeries("distance_km,altitude_m");
+        for (Point point : points) {
+            series.add(point.getDistance() / 1000.0, point.getElevation());
+        }
+        return series;
+    }
+
 
 	/**
 	 * Calculate distance between two points in latitude and longitude taking

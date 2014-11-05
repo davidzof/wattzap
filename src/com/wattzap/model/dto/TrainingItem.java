@@ -15,18 +15,22 @@
 */
 package com.wattzap.model.dto;
 
-import com.wattzap.model.UserPreferences;
-
 /**
  * Represents a training item. Basically an object with Heart Rate, Power or Cadence targets.
  *
  * @author David George (c) Copyright 2013
  * @date 19 August 2013
  */
-public class TrainingItem {
-    private static final UserPreferences prefs = UserPreferences.INSTANCE;
+public class TrainingItem extends AxisPoint {
+    private static int maxHr = 200;
+    private static int maxPower = 250;
 
-    double time; // [s] from start
+    public static void setMaxHr(int hr) {
+        maxHr = hr;
+    }
+    public static void setMaxPower(int power) {
+        maxPower = power;
+    }
 
 	int heartRate = 0; // [BPM]
 	int hrLow = 0;
@@ -42,14 +46,9 @@ public class TrainingItem {
 
     String description;
 
-
-    public double getTime() {
-		return time;
-	}
-	public void setTime(double time) {
-		this.time = time;
-	}
-
+    public TrainingItem(double time) {
+        super(time);
+    }
 
     public int getHr() {
 		return heartRate;
@@ -95,18 +94,18 @@ public class TrainingItem {
 		v = v.trim();
 		if (v.charAt(0) == '<') {
 			// less than
-			heartRate = (Integer.parseInt(v.substring(1)) * prefs.getMaxHR()) / 100;
+			heartRate = (Integer.parseInt(v.substring(1)) * maxHr) / 100;
 			hrHigh = heartRate;
 			hrLow = 0;
 		} else if (v.charAt(0) == '>') {
 			// greater than
-			heartRate = (Integer.parseInt(v.substring(1)) * prefs.getMaxHR()) / 100;
+			heartRate = (Integer.parseInt(v.substring(1)) * maxHr) / 100;
 			hrHigh = 0;
 			hrLow = heartRate;
 		} else if (v.indexOf('-') != -1) {
 			int i = v.indexOf('-');
-			hrLow = (Integer.parseInt(v.substring(0, i).trim()) * prefs.getMaxHR()) / 100;
-			hrHigh = (Integer.parseInt(v.substring(i + 1).trim()) * prefs.getMaxHR()) / 100;
+			hrLow = (Integer.parseInt(v.substring(0, i).trim()) * maxHr) / 100;
+			hrHigh = (Integer.parseInt(v.substring(i + 1).trim()) * maxHr) / 100;
 			heartRate = (hrLow + hrHigh) / 2;
 		} else {
 			heartRate = Integer.parseInt(v.trim());
@@ -115,38 +114,38 @@ public class TrainingItem {
 				switch (heartRate) {
 				case 1:
 					// active recovery < 68%
-					hrHigh = (int) ((double) prefs.getMaxHR() * 0.68);
+					hrHigh = (int) ((double) maxHr * 0.68);
 					hrLow = 0;
 					heartRate = hrHigh;
 					break;
 				case 2:
 					// Endurance 69 - 83%
-					hrHigh = (int) ((double) prefs.getMaxHR() * 0.75);
-					hrLow = (int) ((double) prefs.getMaxHR() * 0.69);
+					hrHigh = (int) ((double) maxHr * 0.75);
+					hrLow = (int) ((double) maxHr * 0.69);
 					heartRate = (hrLow + hrHigh) / 2;
 					break;
 				case 3:
 					// Tempo 84 - 94%
-					hrHigh = (int) ((double) prefs.getMaxHR() * 0.95);
-					hrLow = (int) ((double) prefs.getMaxHR() * 0.84);
+					hrHigh = (int) ((double) maxHr * 0.95);
+					hrLow = (int) ((double) maxHr * 0.84);
 					heartRate = (hrLow + hrHigh) / 2;
 					break;
 				case 4:
 					// Lactate Threshold 95-105%
-					hrHigh = (int) ((double) prefs.getMaxHR() * 1.05);
-					hrLow = (int) ((double) prefs.getMaxHR() * 0.96);
+					hrHigh = (int) ((double) maxHr * 1.05);
+					hrLow = (int) ((double) maxHr * 0.96);
 					heartRate = (hrLow + hrHigh) / 2;
 					break;
 				case 5:
 					// VO2Max
 					hrHigh = 0;
-					hrLow = (int) ((double) prefs.getMaxHR() * 1.06);
+					hrLow = (int) ((double) maxHr * 1.06);
 					heartRate = hrLow;
 					break;
 				}
 			} else {
 				// percentage of max heartrate
-				heartRate = (heartRate * prefs.getMaxHR()) / 100;
+				heartRate = (heartRate * maxHr) / 100;
 				hrHigh = (int) ((double) heartRate * 1.02);
 				hrLow = (int) ((double) heartRate * 0.98);
 			}
@@ -204,18 +203,18 @@ public class TrainingItem {
 		v = v.trim();
 		if (v.charAt(0) == '<') {
 			// less than
-			power = (Integer.parseInt(v.substring(1)) * prefs.getMaxPower()) / 100;
+			power = (Integer.parseInt(v.substring(1)) * maxPower) / 100;
 			powerHigh = power;
 			powerLow = 0;
 		} else if (v.charAt(0) == '>') {
 			// greater than
-			power = (Integer.parseInt(v.substring(1)) * prefs.getMaxPower()) / 100;
+			power = (Integer.parseInt(v.substring(1)) * maxPower) / 100;
 			powerHigh = 0;
 			powerLow = power;
 		} else if (v.indexOf('-') != -1) {
 			int i = v.indexOf('-');
-			powerLow = (Integer.parseInt(v.substring(0, i).trim()) * prefs.getMaxPower()) / 100;
-			powerHigh = (Integer.parseInt(v.substring(i + 1).trim()) * prefs.getMaxPower()) / 100;
+			powerLow = (Integer.parseInt(v.substring(0, i).trim()) * maxPower) / 100;
+			powerHigh = (Integer.parseInt(v.substring(i + 1).trim()) * maxPower) / 100;
 			power = (powerLow + powerHigh) / 2;
 		} else if (v.indexOf('w') != -1) {
 			// absolute power in watts
@@ -229,50 +228,50 @@ public class TrainingItem {
 				switch (power) {
 				case 1:
 					// active recovery < 55%
-					powerHigh = (int) ((double) prefs.getMaxPower() * 0.55);
+					powerHigh = (int) ((double) maxPower * 0.55);
 					powerLow = 0;
 					power = powerHigh;
 					break;
 				case 2:
 					// Endurance 56 - 75%
-					powerHigh = (int) ((double) prefs.getMaxPower() * 0.75);
-					powerLow = (int) ((double) prefs.getMaxPower() * 0.56);
+					powerHigh = (int) ((double) maxPower * 0.75);
+					powerLow = (int) ((double) maxPower * 0.56);
 					power = (powerLow + powerHigh) / 2;
 					break;
 				case 3:
 					// Tempo 76 - 90%
-					powerHigh = (int) ((double) prefs.getMaxPower() * 0.9);
-					powerLow = (int) ((prefs.getMaxPower()) * 0.66);
+					powerHigh = (int) ((double) maxPower * 0.9);
+					powerLow = (int) ((maxPower) * 0.66);
 					power = (powerLow + powerHigh) / 2;
 					break;
 				case 4:
 					// Lactate Threshold 91-105%
-					powerHigh = (int) ((double) prefs.getMaxPower() * 1.05);
-					powerLow = (int) ((double) prefs.getMaxPower() * 0.91);
+					powerHigh = (int) ((double) maxPower * 1.05);
+					powerLow = (int) ((double) maxPower * 0.91);
 					power = (powerLow + powerHigh) / 2;
 					break;
 				case 5:
 					// VO2Max 106-120
-					powerHigh = (int) ((double) prefs.getMaxPower() * 1.2);
-					powerLow = (int) ((double) prefs.getMaxPower() * 1.06);
+					powerHigh = (int) ((double) maxPower * 1.2);
+					powerLow = (int) ((double) maxPower * 1.06);
 					power = (powerLow + powerHigh) / 2;
 					break;
 				case 6:
 					// Anaerobic Capacity
-					powerHigh = (int) ((double) prefs.getMaxPower() * 1.50);
-					powerLow = (int) ((double) prefs.getMaxPower() * 1.21);
+					powerHigh = (int) ((double) maxPower * 1.50);
+					powerLow = (int) ((double) maxPower * 1.21);
 					power = (powerLow + powerHigh) / 2;
 					break;
 				case 7:
 					// Neuromuscular
 					powerHigh = 0;
-					powerLow = (int) ((double) prefs.getMaxPower() * 1.50);
+					powerLow = (int) ((double) maxPower * 1.50);
 					power = powerLow;
 					break;
 				}
 			} else {
 				// percentage of max power
-				power = (power * prefs.getMaxPower()) / 100;
+				power = (power * maxPower) / 100;
 				powerHigh = (int) ((double) power * 1.025);
 				powerLow = (int) ((double) power * 0.975);
 			}
@@ -352,7 +351,7 @@ public class TrainingItem {
 
 	@Override
 	public String toString() {
-		return "[time=" + time +
+		return "[time=" + getDistance() +
                 getPowerMsg() + getHRMsg() + getCadenceMsg() +
                 "]:: " + description;
 	}
@@ -361,17 +360,17 @@ public class TrainingItem {
 
     public static int getTrainingLevel(int power) {
 		// active recovery < 55%
-		int level1 = (int) ((double) prefs.getMaxPower() * 0.55);
+		int level1 = (int) ((double) maxPower * 0.55);
 		// Endurance 56 - 75%
-		int level2 = (int) ((double) prefs.getMaxPower() * 0.75);
+		int level2 = (int) ((double) maxPower * 0.75);
 		// Tempo 76 - 90%
-		int level3 = (int) ((double) prefs.getMaxPower() * 0.9);
+		int level3 = (int) ((double) maxPower * 0.9);
 		// Lactate Threshold 91-105%
-		int level4 = (int) ((double) prefs.getMaxPower() * 1.05);
+		int level4 = (int) ((double) maxPower * 1.05);
 		// VO2Max 106-120
-		int level5 = (int) ((double) prefs.getMaxPower() * 1.2);
+		int level5 = (int) ((double) maxPower * 1.2);
 		// Anaerobic Capacity
-		int level6 = (int) ((double) prefs.getMaxPower() * 1.50);
+		int level6 = (int) ((double) maxPower * 1.50);
 		// Neuromuscular
 
 		if (power >= 0 && power <= level1) {
@@ -393,15 +392,15 @@ public class TrainingItem {
 
 	public static int getHRTrainingLevel(int hr) {
 		// active recovery < 68%
-		int level1 = (int) ((double) prefs.getMaxHR() * 0.68);
+		int level1 = (int) ((double) maxHr * 0.68);
 		// Endurance 69 - 83%
-		int level2 = (int) ((double) prefs.getMaxHR() * 0.83);
+		int level2 = (int) ((double) maxHr * 0.83);
 		// Tempo 84 - 94%
-		int level3 = (int) ((double) prefs.getMaxHR() * 0.94);
+		int level3 = (int) ((double) maxHr * 0.94);
 		// Lactate Threshold 95-105%
-		int level4 = (int) ((double) prefs.getMaxHR() * 1.05);
+		int level4 = (int) ((double) maxHr * 1.05);
 		// VO2Max > 105%
-		int level5 = (int) ((double) prefs.getMaxHR() * 1.05);
+		int level5 = (int) ((double) maxHr * 1.05);
 
 		if (hr >= 0 && hr <= level1) {
 			return 1;

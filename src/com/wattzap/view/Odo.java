@@ -136,13 +136,10 @@ public class Odo extends JPanel implements MessageCallback {
 		MigLayout layout = new MigLayout("fillx", "[center]", "[][shrink 0]");
 		setLayout(layout);
 
+        // current
         columns.add(new ValueCol(SourceDataEnum.SPEED));
-        columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED) {
-            @Override
-            public boolean shown(Telemetry t) {
-                return wheelSpeedShown;
-            }
-        });
+
+        // route data
         columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
             @Override
             public boolean shown(Telemetry t) {
@@ -155,13 +152,24 @@ public class Odo extends JPanel implements MessageCallback {
                 return !t.isAvailable(SourceDataEnum.SPEED);
             }
         });
+        columns.add(new ValueCol(SourceDataEnum.ALTITUDE));
+        columns.add(new ValueCol(SourceDataEnum.SLOPE));
+
         // sensors data
         columns.add(new ValueCol(SourceDataEnum.POWER));
         columns.add(new ValueCol(SourceDataEnum.HEART_RATE));
         columns.add(new ValueCol(SourceDataEnum.CADENCE));
+
+        // turbo trainer data
+        columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return wheelSpeedShown;
+            }
+        });
         columns.add(new ValueCol(SourceDataEnum.RESISTANCE));
-        columns.add(new ValueCol(SourceDataEnum.SLOPE));
-        columns.add(new ValueCol(SourceDataEnum.ALTITUDE));
+
+        // chronometer
         columns.add(new ValueCol(SourceDataEnum.TIME));
 
         // fill with "empty" values

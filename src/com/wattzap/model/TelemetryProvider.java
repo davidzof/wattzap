@@ -20,7 +20,6 @@ import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.dto.RouteMsg;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TelemetryValidityEnum;
 import java.util.ArrayList;
@@ -387,8 +386,8 @@ public enum TelemetryProvider implements MessageCallback
 
 
             case ROUTE_MSG:
-                RouteMsg msg = (RouteMsg) o;
-                System.err.println("RouteMsg:: " + msg.getMessage());
+                String msg = (String) o;
+                System.err.println("RouteMsg:: " + msg);
                 break;
 
             case STARTPOS:

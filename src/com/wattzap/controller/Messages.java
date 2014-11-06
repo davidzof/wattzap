@@ -62,8 +62,8 @@ public enum Messages {
     // data: (double) position
     STARTPOS,
 
-    // message shown in the interface. It can be consumed by the handler
-    // data: RouteMsg
+    // message to be shown in the interface (somehow)
+    // data: String
     ROUTE_MSG,
 
     // new profile is to be shown

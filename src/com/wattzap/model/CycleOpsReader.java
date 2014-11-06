@@ -27,7 +27,6 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.AxisPointSlope;
 import com.wattzap.model.dto.AxisPointsList;
-import com.wattzap.model.dto.RouteMsg;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 import com.wattzap.utils.Rolling;
@@ -453,15 +452,15 @@ public class CycleOpsReader extends RouteReader {
 
         // distance in the file is [m], while in telemetry is [km]
         double dist = 1000.0 * t.getDistance();
+        // If end of route.. Just stop the training
+        if (dist >= routeLen) {
+            setValue(SourceDataEnum.PAUSE, 100.0);
+            return;
+        }
 
         AxisPointAlt altPoint = altPoints.get(dist);
         AxisPointAlt altNPoint = altPoints.getNext();
 
-        // missing any point: either route or video (current or next).
-        if ((altPoint == null) || (altNPoint == null)) {
-            setValue(SourceDataEnum.PAUSE, 100.0);
-            return;
-        }
         if (videoTag != null) {
             AxisPointVideo videoPoint = videoPoints.get(dist);
             AxisPointVideo videoNPoint = videoPoints.getNext();
@@ -492,8 +491,7 @@ public class CycleOpsReader extends RouteReader {
 
         AxisPointInterest iPoint = iPoints.get(dist);
         if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {
-            MessageBus.INSTANCE.send(Messages.ROUTE_MSG,
-                    new RouteMsg(iPoint.getName()));
+            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, iPoint.getName());
         }
     }
 
@@ -508,9 +506,7 @@ public class CycleOpsReader extends RouteReader {
         if ((pref == UserPreferences.INSTANCE) || (pref == UserPreferences.METRIC)) {
             metric = pref.isMetric();
             // rebuild Profile panel
-            if (getSeries() != null) {
-                MessageBus.INSTANCE.send(Messages.PROFILE, createProfile());
-            }
+            rebuildProfile();
         }
     }
 }

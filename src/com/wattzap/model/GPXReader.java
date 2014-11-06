@@ -199,10 +199,7 @@ public class GPXReader extends RouteReader {
 			segment[i++].setGradient(gradient.getAverage());
 			// gradient done
 
-			// resistance levels - use blocks of 500 meters
-			// levels done
-
-			// combine segment
+			// combine segments
             if (points == null) {
                 points = new AxisPointsList<>();
             }
@@ -212,6 +209,7 @@ public class GPXReader extends RouteReader {
             return "No track";
         }
         String ret = points.checkData();
+        routeLen = distance;
         return ret;
 	}
 
@@ -293,12 +291,13 @@ public class GPXReader extends RouteReader {
 
             // interpolate time on distance, the most important interpolation
             // other don't matter, are just for display purposes.
+            // If time is not correctly interpolated, then video (speed and
+            // position) are incorrectly computed and strange video effects
+            // happens
             double time = p.getTime();
             Point pp = points.getNext();
             if (pp != null) {
                 time = points.interpolate(1000.0 * t.getDistance(), time, pp.getTime());
-            } else {
-                System.err.println("pp is null");
             }
             setValue(SourceDataEnum.ROUTE_TIME, time);
 

@@ -104,11 +104,16 @@ public abstract class RouteReader extends SourceDataHandler {
         MessageBus.INSTANCE.send(Messages.GPXLOAD, this);
     }
 
-    // used when FTP/FTHR changed in TRN mode
-    public void reload() {
+    protected void rebuildProfile() {
+        if (series != null) {
+            series = createProfile();
+            MessageBus.INSTANCE.send(Messages.PROFILE, series);
+        }
+    }
+    // used mostly when FTP/FTHR changed in TRN mode, to "update" profile
+    protected void reloadTraining() {
         load(currentFile);
-        series = createProfile();
-        MessageBus.INSTANCE.send(Messages.PROFILE, series);
+        rebuildProfile();
     }
 
     public XYSeries createProfile() {

@@ -57,7 +57,6 @@ import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
-import com.wattzap.view.ControlPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
 import com.wattzap.view.Odo;
@@ -176,10 +175,6 @@ public class Main implements Runnable {
         JPanel odo = new Odo();
 		frame.add(odo, "cell 0 2, grow");
 
-		// start/stop buttons and time slider
-        ControlPanel cp = new ControlPanel();
-		frame.add(cp, "cell 0 3");
-
 		// Menu Bar
         TrainingController trainingController = new TrainingController(
 				trainingDisplay, frame);
@@ -227,29 +222,46 @@ public class Main implements Runnable {
 		JMenu trainingMenu = new JMenu(MsgBundle.getString("training"));
 		menuBar.add(trainingMenu);
 
-        // Submenu: training
-        JMenu analizeMenuItem = new JMenu(MsgBundle.getString("analyze"));
-		trainingMenu.add(analizeMenuItem);
 
-		JMenuItem analMenuItem = new JMenuItem(MsgBundle.getString("analyze"));
-		analMenuItem.setActionCommand(TrainingController.analyze);
-		analMenuItem.addActionListener(trainingController);
-		analizeMenuItem.add(analMenuItem);
+		JMenuItem startMenuItem = new JMenuItem(MsgBundle.getString("start"));
+		startMenuItem.setActionCommand(TrainingController.start);
+		startMenuItem.addActionListener(trainingController);
+		trainingMenu.add(startMenuItem);
+
+		JMenuItem stopMenuItem = new JMenuItem(MsgBundle.getString("stop"));
+		stopMenuItem.setActionCommand(TrainingController.stop);
+		stopMenuItem.addActionListener(trainingController);
+		trainingMenu.add(stopMenuItem);
 
 		JMenuItem saveMenuItem = new JMenuItem(MsgBundle.getString("save"));
 		saveMenuItem.setActionCommand(TrainingController.save);
 		saveMenuItem.addActionListener(trainingController);
 		trainingMenu.add(saveMenuItem);
 
-		JMenuItem viewMenuItem = new JMenuItem(MsgBundle.getString("view"));
-		viewMenuItem.setActionCommand(TrainingController.view);
-		viewMenuItem.addActionListener(trainingController);
-		trainingMenu.add(viewMenuItem);
+		JMenuItem clearMenuItem = new JMenuItem(MsgBundle.getString("clear"));
+		clearMenuItem.setActionCommand(TrainingController.clear);
+		clearMenuItem.addActionListener(trainingController);
+		trainingMenu.add(clearMenuItem);
+
 
 		JMenuItem recoverMenuItem = new JMenuItem(MsgBundle.getString("recover"));
 		recoverMenuItem.setActionCommand(TrainingController.recover);
 		recoverMenuItem.addActionListener(trainingController);
 		trainingMenu.add(recoverMenuItem);
+
+        // Submenu: training
+        JMenu analizeMenuItem = new JMenu(MsgBundle.getString("analyze"));
+		menuBar.add(analizeMenuItem);
+
+		JMenuItem analMenuItem = new JMenuItem(MsgBundle.getString("analyze"));
+		analMenuItem.setActionCommand(TrainingController.analyze);
+		analMenuItem.addActionListener(trainingController);
+		analizeMenuItem.add(analMenuItem);
+
+		JMenuItem viewMenuItem = new JMenuItem(MsgBundle.getString("view"));
+		viewMenuItem.setActionCommand(TrainingController.view);
+		viewMenuItem.addActionListener(trainingController);
+		analizeMenuItem.add(viewMenuItem);
 
 		frame.setJMenuBar(menuBar);
 		// End Menu

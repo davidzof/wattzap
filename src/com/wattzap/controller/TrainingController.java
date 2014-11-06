@@ -18,7 +18,6 @@ package com.wattzap.controller;
 import com.wattzap.model.SourceDataEnum;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.ArrayList;
 
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
@@ -30,6 +29,7 @@ import com.wattzap.utils.TcxWriter;
 import com.wattzap.view.Workouts;
 import com.wattzap.view.training.TrainingAnalysis;
 import com.wattzap.view.training.TrainingDisplay;
+import java.util.List;
 
 /**
  * Controller linked to training data.
@@ -49,6 +49,9 @@ public class TrainingController implements ActionListener {
 	public final static String recover = "R";
 	public final static String view = "V";
 	public final static String open = "O";
+	public final static String start = "B";
+	public final static String stop = "E";
+    public final static String clear = "C";
 
 	Workouts workouts = null;
 
@@ -59,8 +62,13 @@ public class TrainingController implements ActionListener {
 
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
-		if (save.equals(command)) {
-			ArrayList<Telemetry> data = trainingDisplay.getData();
+
+        if (start.equals(command)) {
+            MessageBus.INSTANCE.send(Messages.START, null);
+        } else if (stop.equals(command)) {
+            MessageBus.INSTANCE.send(Messages.STOP, null);
+        } else if (save.equals(command)) {
+			List<Telemetry> data = trainingDisplay.getData();
 			if ((data == null) || (data.size() == 0)) {
                 JOptionPane.showMessageDialog(mainFrame, "No training data available",
                         "No data", JOptionPane.WARNING_MESSAGE);
@@ -90,16 +98,17 @@ public class TrainingController implements ActionListener {
 					JOptionPane.INFORMATION_MESSAGE);
 
 		} else if (analyze.equals(command)) {
-			ArrayList<Telemetry> data = trainingDisplay.getData();
+			List<Telemetry> data = trainingDisplay.getData();
 			WorkoutData wData = TrainingAnalysis.analyze(data);
 			if (wData != null) {
 				wData.setFtp(UserPreferences.INSTANCE.getMaxPower());
 				analysis.show(wData);
 			}
+        } else if (clear.equals(command)) {
+			trainingDisplay.closeJournal();
 		} else if (recover.equals(command)) {
 			// recover data
 			trainingDisplay.loadJournal();
-
 		} else if (view.equals(command)) {
 			if (workouts == null) {
 				workouts = new Workouts();

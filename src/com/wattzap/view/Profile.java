@@ -41,9 +41,15 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.Constants;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.dto.Telemetry;
+import java.awt.Point;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 import java.util.Map;
 import java.util.HashMap;
+import org.jfree.chart.ChartMouseEvent;
+import org.jfree.chart.ChartMouseListener;
 import org.jfree.data.xy.XYSeries;
+import org.jfree.ui.RectangleEdge;
 
 /*
  * Shows a profile of the route and moves an indicator to show rider progress on profile
@@ -92,7 +98,24 @@ public class Profile extends JPanel implements MessageCallback {
 		MessageBus.INSTANCE.register(Messages.PROFILE, this);
 	}
 
-	@Override
+    private void handleClick(Point point) {
+        Point2D p = chartPanel.translateScreenToJava2D(point);
+        Rectangle2D plotArea = chartPanel.getScreenDataArea();
+        XYPlot plot = (XYPlot) chartPanel.getChart().getPlot();
+        ValueAxis domainAxis = plot.getDomainAxis();
+        RectangleEdge domainAxisEdge = plot.getDomainAxisEdge();
+        double chartX = domainAxis.java2DToValue(p.getX(), plotArea, domainAxisEdge);
+        if (chartX < 0.0) {
+            chartX = 0.0;
+        }
+        double corr = 1.0;
+        if (valCorrections.containsKey(xKey)) {
+            corr = valCorrections.get(xKey);
+        }
+        MessageBus.INSTANCE.send(Messages.STARTPOS, chartX * corr);
+    }
+
+    @Override
 	public void callback(Messages message, Object o) {
 		switch (message) {
 		case TELEMETRY:
@@ -183,10 +206,24 @@ public class Profile extends JPanel implements MessageCallback {
 			chartPanel = new ChartPanel(chart);
 			// chartPanel.setSize(100, 800);
 
+            // handle clicks to change training position
+            ChartMouseListener chartListener = new ChartMouseListener() {
+                @Override
+                public void chartMouseClicked(ChartMouseEvent cme) {
+                    handleClick(cme.getTrigger().getPoint());
+                }
+                @Override
+                public void chartMouseMoved(ChartMouseEvent cme) {
+                    // nothing
+                }
+            };
+            chartPanel.addChartMouseListener(chartListener);
+
 			setLayout(new BorderLayout());
 			add(chartPanel, BorderLayout.CENTER);
 			setBackground(Color.black);
 			chartPanel.revalidate();
+
 			setVisible(true);
 			break;
 		}

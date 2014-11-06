@@ -20,7 +20,6 @@ import au.com.bytecode.opencsv.CSVReader;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.AxisPointsList;
-import com.wattzap.model.dto.RouteMsg;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
 import java.io.File;
@@ -191,8 +190,7 @@ public class TRNReader extends RouteReader {
 
         // if point was passed.. show message
         if (training.isChanged() && (item.getDescription() != null)) {
-            MessageBus.INSTANCE.send(Messages.ROUTE_MSG,
-                    new RouteMsg(item.getDescription()));
+            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, item.getDescription());
         }
 
         // distance equals the time [s], route time in [ms]
@@ -240,7 +238,7 @@ public class TRNReader extends RouteReader {
             }
         }
         if (reload) {
-            reload();
+            reloadTraining();
         }
     }
 }

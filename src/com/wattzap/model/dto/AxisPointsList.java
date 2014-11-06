@@ -53,11 +53,6 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
             if (prev == null) {
                 prev = point;
             } else {
-                // points really close.. Too close
-                if (point.getDistance() - prev.getDistance() < 0.1) {
-                    return "Distance " + (point.getDistance() - prev.getDistance() +
-                            " at " + point.getDistance());
-                }
                 String ret = prev.checkData(point);
                 if (ret != null) {
                     return ret + " at " + point.getDistance();
@@ -74,19 +69,24 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
     public P get(double dist) {
         last = current;
 
+        // distance doesn't advance.. it jumped back, so find new position
+        if (current < 0) {
+            current = 0;
+        }
         // no more points
         if (current >= size()) {
             return null;
         }
-
-        // distance doesn't advance.. it jumped back, so find new position
-        if ((current < 0) || (get(current).getDistance() > dist)) {
+        // distance is back.. Start looking from 0
+        if  (get(current).getDistance() > dist) {
             current = 0;
         }
 
-        while ((current + 1 < size()) && (get(current + 1).getDistance() < dist)) {
+        // look for point just before requested distance
+        while ((current + 1 < size()) && (get(current + 1).getDistance() <= dist)) {
 			current++;
 		}
+
         if (current < size()) {
 			return get(current);
         } else {

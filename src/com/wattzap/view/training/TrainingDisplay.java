@@ -65,6 +65,7 @@ import java.util.List;
  * values in the chart are shown again. "Session" is for
  * single application execution.
  * @author Jarek
+ * TODO add synchronization for data.. exceptions are too often
  */
 public class TrainingDisplay extends JPanel implements MessageCallback {
 	private static final Logger logger = LogManager.getLogger("Training Display");
@@ -186,17 +187,8 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 	}
 
 	private void update(Telemetry t, long timeDiff) {
-        synchronized(this) {
-            if (chart == null) {
-                System.err.println("Chart doesn't exist");
-                return;
-            }
-        }
-
-        if (addedItems.isEmpty()) {
-            System.err.println("Nothing to be shown?");
-            return;
-        }
+        assert chart != null : "Chart doesn't exist";
+        assert !addedItems.isEmpty() : "Nothing to be shown?";
 
         if (time == t.getTime()) {
             // time doesn't advance, training is paused
@@ -294,9 +286,33 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
     }
 
-	public ArrayList<Telemetry> getData() {
-		return data;
+	public List<Telemetry> getData() {
+        if (data == null) {
+            return null;
+        }
+		return new ArrayList<Telemetry>(data);
 	}
+
+    public void closeJournal() {
+        if ((data == null) || (data.isEmpty())) {
+			JOptionPane.showMessageDialog(this, "Logging not started yet",
+                    "Info", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        // close oos if exists
+        if (oos != null) {
+            try {
+                oos.close();
+            } catch (IOException e) {
+                logger.error("Can't close journal file "
+                        + e.getLocalizedMessage());
+            }
+            oos = null;
+        }
+        // clear data, this is start brand new session
+        data.clear();
+        rebuildChart();
+    }
 
     public void loadJournal() {
         if ((oos != null) || (data != null) || (startTime != 0)) {
@@ -321,7 +337,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                 }
 			}
 		} catch (EOFException ex) {
-            // nothing
+            // nothing.. just normal response..
 		} catch (Exception e) {
 			logger.error(e + ":: cannot read " + e.getLocalizedMessage());
 		} finally {

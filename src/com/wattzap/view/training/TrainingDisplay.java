@@ -187,14 +187,14 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 	}
 
-	private void update(Telemetry t, long timeDiff) {
-        // wait while chart is rebuilding
-        synchronized(this) {
-            if (chart == null) {
-                logger.warn("Chart doesn't exist");
-                return;
-            }
+	private synchronized void update(Telemetry t, long timeDiff) {
+        // don't process telemetry when chart is being rebuilt (from another
+        // thread for sure).
+        if (chart == null) {
+            logger.warn("Chart doesn't exist");
+            return;
         }
+        // at least power shall be shown
         // at least power shall be shown
         assert !addedItems.isEmpty() : "Nothing to be shown?";
 

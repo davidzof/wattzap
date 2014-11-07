@@ -45,7 +45,6 @@ import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TrainingItem;
 import java.util.List;
 
 /**
@@ -80,10 +79,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 
     // Iterator<TrainingItem> training;
     private RouteReader reader = null;
-	private TrainingItem current;
 
     // used to save .tcx, to rebuild the chart. Kept in journal as well
-    private ArrayList<Telemetry> data;
+    private ArrayList<Telemetry> data = null;
 	private ObjectOutputStream oos = null;
 
     // default "session" data.
@@ -112,6 +110,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         callback(Messages.CONFIG_CHANGED, userPrefs);
 	}
 
+    // name to be stored in history (database)
     public String getLastName() {
         return lastName;
     }
@@ -180,18 +179,31 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         // starts from 0, while in ones read from journal it start
         // from startTime
         if (data != null) {
-            for (Telemetry t : data) {
-                update(t, startTime);
+            synchronized(data) {
+                for (Telemetry t : data) {
+                    update(t, startTime);
+                }
             }
         }
 	}
 
 	private void update(Telemetry t, long timeDiff) {
-        assert chart != null : "Chart doesn't exist";
+        // wait while chart is rebuilding
+        synchronized(this) {
+            if (chart == null) {
+                logger.warn("Chart doesn't exist");
+                return;
+            }
+        }
+        // at least power shall be shown
         assert !addedItems.isEmpty() : "Nothing to be shown?";
 
-        if (time == t.getTime()) {
-            // time doesn't advance, training is paused
+		// use telemetry time.. timeDiff == 0 when get from sensors, etc (time
+        // is how long session last), or timeDiff == startTime when telemetries
+        // read from journal file.. It must be "converted" to session last.
+        long resultTime = t.getTime() - timeDiff;
+        if (time + 1000 >= resultTime) {
+            // time doesn't advance, training is paused or something
             return;
         }
 
@@ -219,11 +231,8 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		}
         */
 
-		// use telemetry time.. timeDiff == 0 when called from callback (time
-        // is the length of whole session), or startTime when telemetries read
-        // from journal file.. to be "converted" to length.
-        time = t.getTime() - timeDiff;
-        // move time a bit.. to start from 0:00:00
+        time = resultTime;
+        // move time a bit.. to start from 0:00:00.. But why timezone is always +1?
 		support.addValues(time + CHARTTIMECORRECTION, values);
 	}
 
@@ -250,15 +259,18 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         long time = t.getTime() + startTime;
 
         // don't add telemetry too often..
-        if (!data.isEmpty()) {
-            Telemetry tn = data.get(data.size() - 1);
-            if (time < tn.getTime() + 1000) {
-                return;
+        Telemetry tt;
+        synchronized(data) {
+            if (!data.isEmpty()) {
+                Telemetry tn = data.get(data.size() - 1);
+                if (time < tn.getTime() + 1000) {
+                    return;
+                }
             }
+            tt = new Telemetry(t);
+            tt.setTime(time);
+            data.add(tt);
         }
-        Telemetry tt = new Telemetry(t);
-        tt.setTime(time);
-        data.add(tt);
         storeTelemetry(tt);
     }
 
@@ -290,7 +302,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         if (data == null) {
             return null;
         }
-		return new ArrayList<Telemetry>(data);
+        synchronized(data) {
+    		return new ArrayList<Telemetry>(data);
+        }
 	}
 
     public void closeJournal() {
@@ -310,7 +324,10 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             oos = null;
         }
         // clear data, this is start brand new session
-        data.clear();
+        synchronized(data) {
+            data.clear();
+            TelemetryProvider.INSTANCE.setDistanceTime(0.0, 0);
+        }
         rebuildChart();
     }
 
@@ -322,54 +339,56 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 
         data = new ArrayList<Telemetry>();
-        Telemetry t = null;
+        synchronized(data) {
+            Telemetry t = null;
 
-		ObjectInputStream objectInputStream = null;
-		try {
-			FileInputStream streamIn = new FileInputStream(
-                    userPrefs.getWD() + "/journal.ser");
-			objectInputStream = new ObjectInputStream(streamIn);
+            ObjectInputStream objectInputStream = null;
+            try {
+                FileInputStream streamIn = new FileInputStream(
+                        userPrefs.getWD() + "/journal.ser");
+                objectInputStream = new ObjectInputStream(streamIn);
 
-			while ((t = (Telemetry) objectInputStream.readObject()) != null) {
-				data.add(t);
-                if (startTime == 0) {
-                    startTime = t.getTime();
+                while ((t = (Telemetry) objectInputStream.readObject()) != null) {
+                    data.add(t);
+                    if (startTime == 0) {
+                        startTime = t.getTime();
+                    }
                 }
-			}
-		} catch (EOFException ex) {
-            // nothing.. just normal response..
-		} catch (Exception e) {
-			logger.error(e + ":: cannot read " + e.getLocalizedMessage());
-		} finally {
-            logger.debug("read " + data.size() + " records");
-			JOptionPane.showMessageDialog(this, "Recovered " + data.size()
-					+ " records", "Info", JOptionPane.INFORMATION_MESSAGE);
-			if (objectInputStream != null) {
-				try {
-					objectInputStream.close();
-				} catch (IOException e) {
-					logger.error(e + ":: Cannot close " + e.getLocalizedMessage());
-				}
-			}
-		}
-
-        if (t == null) {
-            // nothing was read.. pitty
-            System.err.println("No data read from journal");
-            data = null;
-        } else {
-            System.err.println("Start time " + SourceDataEnum.TIME.format((double) startTime, true));
-            // restore previous location and time (for training)
-            TelemetryProvider.INSTANCE.setDistanceTime(
-                    t.getDistance(), t.getTime() - startTime);
-        }
-
-        // rebuild journal file from the scratch
-        if (data != null) {
-            for (Telemetry tt : data) {
-                storeTelemetry(tt);
+            } catch (EOFException ex) {
+                // nothing.. just normal response..
+            } catch (Exception e) {
+                logger.error(e + ":: cannot read " + e.getLocalizedMessage());
+            } finally {
+                logger.debug("read " + data.size() + " records");
+                JOptionPane.showMessageDialog(this, "Recovered " + data.size()
+                        + " records", "Info", JOptionPane.INFORMATION_MESSAGE);
+                if (objectInputStream != null) {
+                    try {
+                        objectInputStream.close();
+                    } catch (IOException e) {
+                        logger.error(e + ":: Cannot close " + e.getLocalizedMessage());
+                    }
+                }
             }
-            rebuildChart();
+
+            if (t == null) {
+                // nothing was read.. pitty
+                System.err.println("No data read from journal");
+                data = null;
+            } else {
+                System.err.println("Start time " + SourceDataEnum.TIME.format((double) startTime, true));
+                // restore previous location and time (for training)
+                TelemetryProvider.INSTANCE.setDistanceTime(
+                        t.getDistance(), t.getTime() - startTime);
+            }
+
+            // rebuild journal file from the scratch
+            if (data != null) {
+                for (Telemetry tt : data) {
+                    storeTelemetry(tt);
+                }
+                rebuildChart();
+            }
         }
 	}
 
@@ -406,9 +425,12 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         case STOP:
             // decrease amount of time left.. Move to evalTimeHandler..
 			if ((data != null) && (!data.isEmpty())) {
-                Telemetry firstPoint = data.get(0);
-				Telemetry lastPoint = data.get(data.size() - 1);
-				long split = lastPoint.getTime() - firstPoint.getTime();
+                long split;
+                synchronized(data) {
+                    Telemetry firstPoint = data.get(0);
+                    Telemetry lastPoint = data.get(data.size() - 1);
+                    split = lastPoint.getTime() - firstPoint.getTime();
+                }
 				int minutes = userPrefs.getEvalTime();
 				minutes -= (split / MILLISECSMINUTE);
 				userPrefs.setEvalTime(minutes);

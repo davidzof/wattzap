@@ -30,21 +30,24 @@ import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import org.openstreetmap.gui.jmapviewer.OsmMercator;
 
 /*
  * Displays a map of the course and moves cross-hairs depending on position.
  *
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
+ *
+ * Removed "auto-scale" (quite annoying to track the route), added showing
+ * whole route before start (hmm. map size is assumed 300x300)
+ * @author Jarek
  */
 public class Map extends GPXPanel implements MessageCallback {
-	private static final long serialVersionUID = 1L;
-	private MainFrame frame;
-	private static long count = 0;
-	private int displayPeriod = 50;
-	GPXFile gpxFile;
-
 	private static Logger logger = LogManager.getLogger("Map");
+
+    private MainFrame frame;
+	private GPXFile gpxFile = null;
+    private int currentZoom;
 
 	public Map(MainFrame frame) {
 		super();
@@ -76,26 +79,15 @@ public class Map extends GPXPanel implements MessageCallback {
                     (!t.isAvailable(SourceDataEnum.LONGITUDE))) {
                 return;
             }
-            /*
-			if (count++ % displayPeriod == 0) {
-				if (zoom == 13) {
-					zoom = 15;
-					displayPeriod = 50;
-				} else {
-					zoom = 13;
-					displayPeriod = 20;
-				}
-			}
-            */
 
 			setCrosshairLat(t.getLatitude());
 			setCrosshairLon(t.getLongitude());
-            if (zoom < 0) {
-                zoom = 15;
+            if (currentZoom < 0) {
+                currentZoom = 13;
             } else {
-    			zoom = getZoom();
+    			currentZoom = getZoom();
             }
-			setDisplayPositionByLatLon(t.getLatitude(), t.getLongitude(), zoom);
+			setDisplayPositionByLatLon(t.getLatitude(), t.getLongitude(), currentZoom);
 			setShowCrosshair(true);
 			repaint();
 			break;
@@ -128,7 +120,6 @@ public class Map extends GPXPanel implements MessageCallback {
 				System.exit(0);
 			}
 
-			count = 0;
             if (isVisible()) {
 				setVisible(false);
     			frame.remove(this);
@@ -141,18 +132,43 @@ public class Map extends GPXPanel implements MessageCallback {
             RouteReader routeData = (RouteReader) o;
 			gpxFile = routeData.getGpxFile();
 			if (gpxFile != null) {
-				double centerLon = gpxFile.getMinLon()
-						+ (gpxFile.getMaxLon() - gpxFile.getMinLon()) / 2;
-				double centerLat = gpxFile.getMinLat()
-						+ (gpxFile.getMaxLat() - gpxFile.getMinLat()) / 2;
-                // TODO set scale to see whole route..
-				setDisplayPositionByLatLon(centerLat, centerLon, 12);
+                // How to get map size when app is started?? Lets assume
+                // size 300x300
+                int ww = getWidth();
+                if (ww < 1) {
+                    ww = 300;
+                }
+                int hh = getHeight();
+                if (hh < 1) {
+                    hh = 300;
+                }
+                for (currentZoom = 16; currentZoom > 3; currentZoom--) {
+                    int wd = OsmMercator.LonToX(gpxFile.getMaxLon(), currentZoom) -
+                            OsmMercator.LonToX(gpxFile.getMinLon(), currentZoom);
+                    int ht = OsmMercator.LatToY(gpxFile.getMinLat(), currentZoom) -
+                            OsmMercator.LatToY(gpxFile.getMaxLat(), currentZoom);
+                    if (wd < 0) {
+                        wd = -wd;
+                    }
+                    if (ht < 0) {
+                        ht = -ht;
+                    }
+                    if ((wd <= ww) && (ht <= hh)) {
+                        break;
+                    }
+                }
+                double centerLon = (gpxFile.getMinLon() + gpxFile.getMaxLon()) / 2.0;
+				double centerLat = (gpxFile.getMinLat() + gpxFile.getMaxLat()) / 2.0;
+                setDisplayPositionByLatLon(centerLat, centerLon, currentZoom);
+
 				this.addGPXFile(gpxFile);
     			repaint();
 
                 frame.add(this, "cell 0 0");
                 setVisible(true);
-                zoom = -1;
+
+                // set "street view" zoom when started
+                currentZoom = -1;
 			}
             break;
 		}

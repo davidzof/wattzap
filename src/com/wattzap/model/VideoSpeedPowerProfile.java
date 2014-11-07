@@ -54,10 +54,19 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        if (data == SourceDataEnum.PAUSE) {
+            return true;
+        }
+        return super.provides(data);
+    }
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
         if (t.isAvailable(SourceDataEnum.SPEED)) {
             if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
                 setValue(SourceDataEnum.POWER, 0.0);
+                setValue(SourceDataEnum.PAUSE, 2.0);
                 return;
             }
 
@@ -74,10 +83,17 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
             }
             setValue(SourceDataEnum.POWER, powerWatts);
         } else {
-            // in TRN mode.. current power equals target power
+            // in TRN mode.. current power equals target power. If no such..
+            // free-run training?
+            if (!t.isAvailable(SourceDataEnum.TARGET_POWER)) {
+                setValue(SourceDataEnum.POWER, 0.0);
+                setValue(SourceDataEnum.PAUSE, 2.0);
+                return;
+            }
             setValue(SourceDataEnum.POWER, t.getDouble(SourceDataEnum.TARGET_POWER));
         }
 
+        setValue(SourceDataEnum.PAUSE, 0.0);
         computeSpeed(t);
     }
 }

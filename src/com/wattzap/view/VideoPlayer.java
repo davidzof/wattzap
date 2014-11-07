@@ -43,6 +43,8 @@ import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 
 /**
@@ -99,7 +101,13 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 	}
 
 	public void init() {
-		mediaPlayerFactory = new MediaPlayerFactory();
+		addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                playVideo(null);
+            }
+		});
+
+        mediaPlayerFactory = new MediaPlayerFactory();
 		canvas = new java.awt.Canvas();
 		canvas.setBackground(Color.BLACK);
 		this.add(canvas, java.awt.BorderLayout.CENTER);

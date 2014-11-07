@@ -44,10 +44,14 @@ import com.wattzap.model.dto.Telemetry;
 import java.awt.Point;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.text.FieldPosition;
+import java.text.NumberFormat;
+import java.text.ParsePosition;
 import java.util.Map;
 import java.util.HashMap;
 import org.jfree.chart.ChartMouseEvent;
 import org.jfree.chart.ChartMouseListener;
+import org.jfree.chart.axis.NumberAxis;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.ui.RectangleEdge;
 
@@ -183,7 +187,9 @@ public class Profile extends JPanel implements MessageCallback {
 			plot = chart.getXYPlot();
 			// plot.setForegroundAlpha(0.85f);
 
-			plot.setBackgroundPaint(Color.white);
+            XYPlot plot = chart.getXYPlot();
+
+            plot.setBackgroundPaint(Color.white);
 			plot.setDomainGridlinePaint(Color.lightGray);
 			plot.setRangeGridlinePaint(Color.lightGray);
 
@@ -194,7 +200,36 @@ public class Profile extends JPanel implements MessageCallback {
 			domainAxis.setTickLabelPaint(Color.white);
 			domainAxis.setLabelPaint(Color.white);
 
-			double minY = series.getMinY();
+            if ("time_min".equals(xKey)) {
+                final NumberFormat timeFormat =
+                        new NumberFormat() {
+                            @Override
+                            public StringBuffer format(double number, StringBuffer toAppendTo, FieldPosition pos) {
+                                int min = (int) number;
+                                number -= min;
+                                int sec = (int) (number * 60);
+                                StringBuffer buf = new StringBuffer();
+                                buf.append(min);
+                                buf.append(':');
+                                if (sec < 10) {
+                                    buf.append('0');
+                                }
+                                buf.append(sec);
+                                return buf;
+                            }
+                            @Override
+                            public StringBuffer format(long number, StringBuffer toAppendTo, FieldPosition pos) {
+                                return null;
+                            }
+                            @Override
+                            public Number parse(String source, ParsePosition parsePosition) {
+                                return null;
+                            }
+                        };
+                ((NumberAxis) domainAxis).setNumberFormatOverride(timeFormat);
+            }
+
+            double minY = series.getMinY();
 			double maxY = series.getMaxY();
             double delta = (maxY - minY) / 10.0;
             if ((long) minY  == 0) {

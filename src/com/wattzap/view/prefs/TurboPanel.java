@@ -15,6 +15,7 @@
 */
 package com.wattzap.view.prefs;
 
+import com.wattzap.model.AutoResistanceCompEnum;
 import com.wattzap.model.EnumerationIntf;
 
 
@@ -74,5 +75,18 @@ public class TurboPanel extends ConfigPanel {
                 super.propertyChanged(prop, changed);
             }
         });
-	}
+
+        add(new ConfigFieldEnum(this, UserPreferences.RESISTANCE_COMP, "resistance_comp",
+                AutoResistanceCompEnum.values()) {
+            @Override
+            public EnumerationIntf getProperty() {
+                return AutoResistanceCompEnum.get(userPrefs.getResistanceComp());
+            }
+            @Override
+            public void setProperty(EnumerationIntf val) {
+                userPrefs.setResistanceComp(val.getKey());
+            }
+        });
+
+ 	}
 }

@@ -31,7 +31,8 @@ public class ConfigFieldInt implements ConfigFieldIntf {
 
     private final JTextField value;
 
-    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
+    public ConfigFieldInt(ConfigPanel panel, UserPreferences property,
+            String name, String val) {
         this.property = property;
 
         JLabel label = new JLabel();
@@ -40,7 +41,18 @@ public class ConfigFieldInt implements ConfigFieldIntf {
 		value = new JTextField(20);
         value.getDocument().putProperty("name", property.getName());
         value.getDocument().addDocumentListener(panel);
-		panel.add(value, "span");
+        if ((val == null) || (val.isEmpty())) {
+    		panel.add(value, "span");
+        } else {
+            panel.add(value);
+            JLabel vLabel = new JLabel();
+            vLabel.setText(val);
+            panel.add(vLabel, "span");
+        }
+    }
+
+    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
+        this(panel, property, name, null);
     }
 
     @Override

@@ -16,33 +16,42 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.model.dto.Telemetry;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Test module: sets value from config in wheelSpeed
+ * Modes for selecting resistance level of the turbo trainer.
  * @author Jarek
  */
-@SelectableDataSourceAnnotation
-public class WheelSpeedFromConfig extends TelemetryHandler {
-    private double wheelSpeed = 30.0;
+public enum AutoResistanceCompEnum implements EnumerationIntf {
+    BEST_LOAD("best_load"),
+    SAME_SPEED("same_speed");
 
-    @Override
-    public String getPrettyName() {
-        return "robot_speed";
+    private final String key;
+
+    private AutoResistanceCompEnum(String key) {
+        this.key = key;
     }
 
     @Override
-    public void configChanged(UserPreferences pref) {
-        wheelSpeed = pref.ROBOT_SPEED.getDouble();
+    public String getKey() {
+        return key;
     }
 
     @Override
-    public boolean provides(SourceDataEnum data) {
-        return data == SourceDataEnum.WHEEL_SPEED;
+    public boolean isValid() {
+        return true;
     }
 
-    @Override
-    public void storeTelemetryData(Telemetry t) {
-        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
+    private static final Map<String, AutoResistanceCompEnum> byKey;
+    static {
+        byKey = new HashMap<>();
+        for (AutoResistanceCompEnum en : values()) {
+            byKey.put(en.getKey(), en);
+        }
+    }
+
+    public static AutoResistanceCompEnum get(String key) {
+        return byKey.get(key);
     }
 }

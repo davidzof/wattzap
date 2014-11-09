@@ -18,6 +18,7 @@ package com.wattzap.model;
 
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.power.Power;
 
 /**
  * Power profile for climbing. At max slope it reports FTP, on flat it
@@ -25,9 +26,10 @@ import com.wattzap.model.dto.Telemetry;
  * @author Jarek
  */
 @SelectableDataSourceAnnotation
-public class SimulSpeedPowerProfile extends VirtualPowerProfile {
+public class SimulSpeedPowerProfile extends TelemetryHandler {
+    private Power power = null;
     private int ftp = 250;
-    private double maxSlope = 20.0;
+    private double maxSlope = 10.0;
 
     @Override
     public String getPrettyName() {
@@ -36,11 +38,15 @@ public class SimulSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
-
         if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.MAX_POWER)) {
+            (prefs == UserPreferences.MAX_POWER))
+        {
             ftp = prefs.getMaxPower();
+        }
+        if ((prefs == UserPreferences.INSTANCE) ||
+            (prefs == UserPreferences.TURBO_TRAINER))
+        {
+            power = prefs.getTurboTrainerProfile();
         }
     }
 
@@ -54,20 +60,39 @@ public class SimulSpeedPowerProfile extends VirtualPowerProfile {
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case POWER:
+            case WHEEL_SPEED:
+            case PAUSE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
+        int pause = 2;
+        double wheelSpeed = 0.0;
+        double powerWatts = 0.0;
+
         // doesn't set pause.. if no slope or maxSlope is too small, just
         // report half FTP.
-        if ((!t.isAvailable(SourceDataEnum.SLOPE)) || (maxSlope < 0.1)) {
-            setValue(SourceDataEnum.POWER, 0.5 * ftp);
+        if (ftp < 1.0) {
+            pause = 302;
+        } else if ((t.isAvailable(SourceDataEnum.SLOPE)) && (maxSlope > 0.1)) {
+            pause = 0;
+            powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
+            if (powerWatts < 0) {
+                powerWatts = 0;
+            }
+            if (power != null) {
+                wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
+            }
         }
-
-        double powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
-        if (powerWatts < 0) {
-            powerWatts = 0;
-        }
+        setValue(SourceDataEnum.PAUSE, pause);
+        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
         setValue(SourceDataEnum.POWER, powerWatts);
-
-        // compute speed as well
-        computeSpeed(t);
     }
 }

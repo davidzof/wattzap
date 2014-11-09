@@ -33,7 +33,9 @@ import com.wattzap.model.power.PowerProfiles;
  * @author Jarek
  */
 public enum UserPreferences {
+    TURBO_TRAINER("profile", "Tacx Satori / Blue Motion"),
     RESISTANCE("resistance", 1),
+    RESISTANCE_COMP("resistance_comp", "same_speed"),
 
     SPEED_SOURCE("speed_source", "speed2power"),
     CADENCE_SOURCE("cadence_source", "sandc"),
@@ -43,9 +45,9 @@ public enum UserPreferences {
     DEBUG("debug", false),
     MAX_POWER("maxpower", 250),
     HR_MAX("maxhr", 180),
+
+    // robot power/speed.
     ROBOT_POWER("robot", 210),
-    // speed of the wheel.. just for tests
-    @Deprecated
     ROBOT_SPEED("robot_speed", 30.0, 0.1),
 
     // 2133 is 700Cx23
@@ -72,7 +74,6 @@ public enum UserPreferences {
     ANT_USBM("antusbm", false),
 
     METRIC("units", true),
-	TURBO_TRAINER("profile", "Tacx Satori / Blue Motion"),
 
     DB_VERSION("dbVersion", "1.2"),
 
@@ -396,6 +397,13 @@ public enum UserPreferences {
 	}
 	public void setResistance(int r) {
         RESISTANCE.setInt(r);
+	}
+
+	public String getResistanceComp() {
+        return RESISTANCE_COMP.getString();
+	}
+	public void setResistanceComp(String comp) {
+        RESISTANCE_COMP.setString(comp);
 	}
 
 	public String getRouteDir() {

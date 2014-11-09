@@ -230,10 +230,16 @@ public enum TelemetryProvider implements MessageCallback
      * Next step.. set indicators
      */
     private void threadLoop() {
+        // initialize the number of handlers to be displayed. By default
+        // expected is one handler for the property, DISTANCE and TIME should
+        // not have any handlers.
         int[] lastHandlersNum = new int[SourceDataEnum.values().length];
         for (int i = 0; i < lastHandlersNum.length; i++) {
             lastHandlersNum[i] = -1;
         }
+        lastHandlersNum[SourceDataEnum.DISTANCE.ordinal()] = 0;
+        lastHandlersNum[SourceDataEnum.TIME.ordinal()] = 0;
+
         // send "dummy" telemetry, without any data except time and position.
         // it would be filled in a few seconds.
         if (t == null) {
@@ -316,39 +322,54 @@ public enum TelemetryProvider implements MessageCallback
                                 pause = p;
                             }
                         }
-                        // handler checks property, only telemetries do that!
-                        // in sensors modificationTime is used to check time,
-                        // and telemetryHandler report here value condition.
-                        if ((handler.getLastMessageTime() < 0) &&
-                            (handler.checks(prop)))
-                        {
-                            TelemetryValidityEnum target;
-                            if (handler.getModificationTime(prop) < 0) {
-                                target = TelemetryValidityEnum.TOO_SMALL;
-                            } else if (handler.getModificationTime(prop) > 0) {
-                                target = TelemetryValidityEnum.TOO_BIG;
-                            } else {
-                                target = TelemetryValidityEnum.OK;
-                            }
-                            switch (validity) {
-                                case NOT_PRESENT:
-                                case NOT_AVAILABLE:
-                                    break;
-                                case OK:
-                                    validity = target;
-                                    break;
-                                case TOO_BIG:
-                                case TOO_SMALL:
-                                    if (validity != target) {
-                                        validity = TelemetryValidityEnum.WRONG;
-                                    }
-                                    break;
-                                case WRONG:
-                                    // stays wrong..
-                                    break;
-                            }
+                    }
+                    // handler checks property, only telemetries do that!
+                    // in sensors modificationTime is used to check time,
+                    // and telemetryHandler report here value condition.
+                    if (handler.checks(prop)) {
+                        TelemetryValidityEnum target;
+                        if (handler.getModificationTime(prop) < 0) {
+                            target = TelemetryValidityEnum.TOO_SMALL;
+                        } else if (handler.getModificationTime(prop) > 0) {
+                            target = TelemetryValidityEnum.TOO_BIG;
+                        } else {
+                            target = TelemetryValidityEnum.OK;
+                        }
+                        switch (validity) {
+                            case NOT_PRESENT:
+                            case NOT_AVAILABLE:
+                                break;
+                            case OK:
+                                validity = target;
+                                break;
+                            case TOO_BIG:
+                            case TOO_SMALL:
+                                if (validity != target) {
+                                    validity = TelemetryValidityEnum.WRONG;
+                                }
+                                break;
+                            case WRONG:
+                                // stays wrong..
+                                break;
                         }
                     }
+                }
+
+                // special cases.. some values if reported negative, they should
+                // be removed from ODO
+                switch (prop) {
+                    case WHEEL_SPEED:
+                    case SPEED:
+                        if (value < 0.0) {
+                            validity = TelemetryValidityEnum.NOT_PRESENT;
+                            value = 0.0;
+                        }
+                        break;
+                    case RESISTANCE:
+                        if (value < 1.0) {
+                            logger.error("Wrong resistance, set 1");
+                            value = 1.0;
+                        }
                 }
 
                 // set validity, time/distance might be checked as well ("promoted"
@@ -371,10 +392,7 @@ public enum TelemetryProvider implements MessageCallback
                 }
             }
             t.setPaused(pause);
-            long prepare = System.currentTimeMillis() - start;
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
-            long processing = System.currentTimeMillis() - start;
-            logger.debug("Processing " + prepare + "/" + processing + "ms:: " + t);
 
             // sleep some time
             try {

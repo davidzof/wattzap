@@ -27,7 +27,8 @@ import com.wattzap.utils.Rolling;
  * @author Jarek
  */
 @SelectableDataSourceAnnotation
-public class VideoSpeedPowerProfile extends VirtualPowerProfile {
+public class VideoSpeedPowerProfile extends TelemetryHandler {
+    private Power power = null;
     private double weight = 85.0;
     private Rolling speedRoll = new Rolling(24);
 
@@ -38,7 +39,11 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
+        if ((prefs == UserPreferences.INSTANCE) ||
+            (prefs == UserPreferences.TURBO_TRAINER))
+        {
+            power = prefs.getTurboTrainerProfile();
+        }
 
         // when started.. speed might be very small, and route
         // doesn't progress "fast enough".
@@ -48,45 +53,61 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
         }
 
         if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.WEIGHT) ||
-                (prefs == UserPreferences.BIKE_WEIGHT)) {
+            (prefs == UserPreferences.WEIGHT) ||
+            (prefs == UserPreferences.BIKE_WEIGHT))
+        {
             weight = prefs.getTotalWeight();
         }
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case WHEEL_SPEED:
+            case POWER:
+            case PAUSE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
-        if (t.isAvailable(SourceDataEnum.SPEED)) {
-            if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
-                setValue(SourceDataEnum.POWER, 0.0);
-                setValue(SourceDataEnum.PAUSE, 2.0);
-                return;
-            }
+        boolean pause = true;
+        double wheelSpeed = 0.0;
+        double powerWatts = 0.0;
 
-            double avg;
+        if (power == null) {
+            // profile is not selected?
+        } else if (t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
+            // for trainings with video speed. These are only video trainigs with
+            // slope (or even with positions)
+            pause = false;
+            // smooth route speed a bit, in GPX speed is calculated on distance
+            // and might be very jumpy.
+            double routeSpeed;
             if (t.getRouteSpeed() >= 1.0) {
-                avg = speedRoll.add(t.getRouteSpeed());
+                routeSpeed = speedRoll.add(t.getRouteSpeed());
             } else {
-                avg = speedRoll.getAverage();
+                routeSpeed = speedRoll.getAverage();
             }
-
-            int powerWatts = Power.getPower(weight, t.getGradient() / 100.0, avg);
-            if (powerWatts < 0) {
-                powerWatts = 0;
-            }
-            setValue(SourceDataEnum.POWER, powerWatts);
+            powerWatts = Power.getPower(weight, t.getGradient() / 100.0, routeSpeed);
+            wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
+        } else if (t.isAvailable(SourceDataEnum.TARGET_POWER)) {
+            // in TRN mode.. current power equals target power, and speed is
+            // calculated on power
+            pause = false;
+            powerWatts = t.getDouble(SourceDataEnum.TARGET_POWER);
+            wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
         } else {
-            // in TRN mode.. current power equals target power. If no such..
-            // free-run training?
-            if (!t.isAvailable(SourceDataEnum.TARGET_POWER)) {
-                setValue(SourceDataEnum.POWER, 0.0);
-                setValue(SourceDataEnum.PAUSE, 2.0);
-                return;
-            }
-            setValue(SourceDataEnum.POWER, t.getDouble(SourceDataEnum.TARGET_POWER));
+            // route without video or free run.. Another profile must be taken.
+            // In fact if power is taken from sensor, speed doesn't have to be
+            // valid and training is paused without a reason..
         }
 
-        setValue(SourceDataEnum.PAUSE, 0.0);
-        computeSpeed(t);
+        setValue(SourceDataEnum.PAUSE, pause ? 2.0 : 0.0);
+        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
+        setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

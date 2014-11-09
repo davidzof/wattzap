@@ -20,54 +20,59 @@ import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 
 /**
- * Power computation: wheelSpeed on slope and weight gives power.
+ * Reports if wheelSpeed is correct (or too small/too big). It compares
+ * wheelSpeed with power, current load is checked.
+ *
  * @author Jarek
  */
 @SelectableDataSourceAnnotation
-public class Speed2PowerProfile extends TelemetryHandler {
+public class WheelSpeedChecker extends TelemetryHandler {
     private Power power = null;
 
-    @Override
-    public String getPrettyName() {
-        return "speed2power";
-    }
+    // whether trainerSpeed is too big/too small
+    private int speedValue = 0;
 
     @Override
     public void configChanged(UserPreferences prefs) {
         if ((prefs == UserPreferences.INSTANCE) ||
-            (prefs == UserPreferences.TURBO_TRAINER))
-        {
+                (prefs == UserPreferences.TURBO_TRAINER)) {
             power = prefs.getTurboTrainerProfile();
         }
     }
 
+    // checks wheelSpeed (versus power)
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return data == SourceDataEnum.WHEEL_SPEED;
+    }
+
+    // doesn't provide anything
     @Override
     public boolean provides(SourceDataEnum data) {
-        switch (data) {
-            case POWER:
-            case PAUSE:
-                return true;
-            default:
-                return false;
+        return false;
+    }
+
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        if (data == SourceDataEnum.WHEEL_SPEED) {
+            return (long) speedValue;
         }
+        return 0;
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        boolean pause = true;
-        double powerWatts = 0.0;
-
-        if ((t.isAvailable(SourceDataEnum.WHEEL_SPEED)) && (power != null)) {
-            // for trainings with video speed. These are only video trainigs with
-            // slope (or even with positions)
-            pause = false;
-            powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
-            if (powerWatts < 0) {
-                powerWatts = 0;
+        speedValue = 0;
+        if ((power != null) &&
+            (t.isAvailable(SourceDataEnum.WHEEL_SPEED)) &&
+            (t.isAvailable(SourceDataEnum.POWER)))
+        {
+            double wheelSpeed = power.getSpeed(t.getPower(), t.getResistance());
+            if (wheelSpeed < t.getWheelSpeed() / 1.1) {
+                speedValue = 1;
+            } else if (wheelSpeed > 1.1 * t.getWheelSpeed()) {
+                speedValue = -1;
             }
         }
-
-        setValue(SourceDataEnum.PAUSE, pause ? 2.0 : 0.0);
-        setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

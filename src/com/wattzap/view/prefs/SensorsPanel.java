@@ -82,7 +82,7 @@ public class SensorsPanel extends ConfigPanel {
 
         add(new ConfigFieldSourceSelector(this, UserPreferences.POWER_SOURCE,
                 "power_source", SourceDataEnum.POWER));
-        add(new ConfigFieldInt(this, UserPreferences.ROBOT_POWER, "robot_power"));
+        add(new ConfigFieldInt(this, UserPreferences.ROBOT_POWER, "robot_power", "W"));
 	}
 
     public JPanel getSensorPanel() {

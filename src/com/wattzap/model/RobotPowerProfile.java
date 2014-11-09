@@ -22,6 +22,7 @@ import com.wattzap.model.dto.Telemetry;
  * Simple profile: constant power
  * @author Jarek
  */
+@SelectableDataSourceAnnotation
 public class RobotPowerProfile extends VirtualPowerProfile {
     private double power;
 

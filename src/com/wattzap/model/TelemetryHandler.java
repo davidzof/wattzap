@@ -31,11 +31,17 @@ public abstract class TelemetryHandler
 {
     @Override
     public SourceDataHandlerIntf initialize() {
-		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
+        // activate handler, all telemetries are active (in fact.. some
+        // computations are not necessary, but who cares)
+        setLastMessageTime(-1);
+
+        // register messages
+        MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
         // initialize all config properties
         configChanged(UserPreferences.INSTANCE);
+
         // notify about new telemetryProvider
         MessageBus.INSTANCE.send(Messages.HANDLER, this);
         return this;
@@ -47,20 +53,6 @@ public abstract class TelemetryHandler
 
         MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
-    }
-
-    /**
-     * Method to enable and disable data processing. If handler is not active
-     * no data is processed by the handler.
-     * Changing the state might be done only in configChanged().
-     */
-    @Override
-    public void setActive(boolean active) {
-        if (active) {
-            setLastMessageTime(-1);
-        } else {
-            setLastMessageTime(0);
-        }
     }
 
     public abstract void storeTelemetryData(Telemetry t);

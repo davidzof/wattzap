@@ -1,5 +1,4 @@
-/*
- * This file is part of Wattzap Community Edition.
+/* This file is part of Wattzap Community Edition.
  *
  * Wattzap Community Edtion is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
@@ -14,22 +13,20 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.view.prefs;
+package com.wattzap.model;
 
-import com.wattzap.controller.Messages;
-import com.wattzap.model.UserPreferences;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-/**
- * General interface for single parameter
+/*
+ * Input data providers must be annotated by this annotation to be selected
+ * in (speed/cadence/hr/power) source selectors in config
  * @author Jarek
  */
-public interface ConfigFieldIntf {
-    // field name, this is key to get from resource bundle
-    String getName();
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.TYPE)
+public @interface SelectableDataSourceAnnotation {
 
-    // value in the field was changed, it must be set in property
-    void fieldChanged();
-
-    // property changed, it must be updated (if not "local" change)
-    void propertyChanged(UserPreferences prop, String locallyChanged);
 }

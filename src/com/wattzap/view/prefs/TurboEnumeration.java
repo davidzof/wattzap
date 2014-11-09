@@ -26,27 +26,31 @@ import java.util.List;
  * @author Jarek
  */
 public class TurboEnumeration implements EnumerationIntf {
-    public static EnumerationIntf ANY;
-    // it isn't real enum, it only fake it for the combo.
 
-    static TurboEnumeration[] turbos;
-    static {
-		List<Power> profiles = PowerProfiles.INSTANCE.getProfiles();
-        turbos = new TurboEnumeration[profiles.size()];
-        for (int i = 0; i < profiles.size(); i++) {
-            turbos[i] = new TurboEnumeration(profiles.get(i).description());
+    private static TurboEnumeration[] turbos = null;
+    public static TurboEnumeration[] getTurbos() {
+        if (turbos == null) {
+            List<Power> profiles = PowerProfiles.INSTANCE.getProfiles();
+            turbos = new TurboEnumeration[profiles.size()];
+            for (int i = 0; i < profiles.size(); i++) {
+                turbos[i] = new TurboEnumeration(profiles.get(i).description());
+            }
         }
-        ANY = turbos[0];
+        return turbos;
     }
 
     public static TurboEnumeration get(Power power) {
         assert turbos != null : "Turbos not initialized";
+        if (power == null) {
+            System.err.println("Turbo for null power requested");
+            return null;
+        }
         for (int i = 0; i < turbos.length; i++) {
             if (turbos[i].getKey().equals(power.description())) {
                 return turbos[i];
             }
         }
-        assert false : "Undefined power profile " + power.description();
+        System.err.println("Turbo " + power.description() + " not added?");
         return null;
     }
 
@@ -54,11 +58,6 @@ public class TurboEnumeration implements EnumerationIntf {
 
     private TurboEnumeration(String profile) {
         this.profile = profile;
-    }
-
-    @Override
-    public EnumerationIntf[] getValues() {
-        return turbos;
     }
 
     @Override
@@ -80,5 +79,10 @@ public class TurboEnumeration implements EnumerationIntf {
     @Override
     public boolean isValid() {
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "Trainer[" + getKey() + "]";
     }
 }

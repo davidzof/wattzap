@@ -24,6 +24,7 @@ import com.wattzap.model.dto.Telemetry;
  * reports 50% of FTP.. Just for "standalone" mode.
  * @author Jarek
  */
+@SelectableDataSourceAnnotation
 public class SimulSpeedPowerProfile extends VirtualPowerProfile {
     private int ftp = 250;
     private double maxSlope = 20.0;
@@ -54,6 +55,8 @@ public class SimulSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void storeTelemetryData(Telemetry t) {
+        // doesn't set pause.. if no slope or maxSlope is too small, just
+        // report half FTP.
         if ((!t.isAvailable(SourceDataEnum.SLOPE)) || (maxSlope < 0.1)) {
             setValue(SourceDataEnum.POWER, 0.5 * ftp);
         }

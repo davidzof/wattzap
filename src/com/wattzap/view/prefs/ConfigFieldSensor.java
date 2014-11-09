@@ -17,6 +17,8 @@
 package com.wattzap.view.prefs;
 
 import com.wattzap.MsgBundle;
+import com.wattzap.controller.MessageCallback;
+import com.wattzap.controller.Messages;
 import com.wattzap.model.SensorIntf;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataHandlerIntf;
@@ -27,15 +29,18 @@ import javax.swing.JLabel;
 import javax.swing.JTextField;
 
 /**
- *
+ * Panel for sensor build on additional panel for sensors.
+ * It handles hanlderRemoved callback.
  * @author Jarek
  */
-public class ConfigFieldSensor implements ConfigFieldIntf {
+public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
+    private final ConfigPanel panel;
     private final String name;
     private final String fieldName;
     private final SourceDataEnum data;
     private SensorIntf sensor;
 
+    private final JLabel label;
     private final JTextField value;
     private final JLabel current;
 
@@ -44,6 +49,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
     }
 
     public ConfigFieldSensor(ConfigPanel panel, String name, SourceDataEnum data) {
+        this.panel = panel;
         this.name = name;
         this.fieldName = "*" + name;
         this.data = data;
@@ -61,9 +67,9 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         }
 
         // build the interface
-        JLabel label = new JLabel();
+        label = new JLabel();
         label.setText(MsgBundle.getString(name));
-		panel.add(label);
+		panel.getSensorPanel().add(label);
 
         value = new JTextField(20);
         value.getDocument().putProperty("name", fieldName);
@@ -71,11 +77,11 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
 
         if ((data != null) && (data.format(0.0, true) != null)) {
             current = new JLabel();
-    		panel.add(value);
-    		panel.add(current, "span");
+    		panel.getSensorPanel().add(value);
+    		panel.getSensorPanel().add(current, "span");
         } else {
             current = null;
-    		panel.add(value, "span");
+    		panel.getSensorPanel().add(value, "span");
         }
 
         updateSensor();
@@ -166,5 +172,17 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         boolean metric = UserPreferences.METRIC.isMetric();
         current.setText(
             data.format(sensor.getValue(data), metric) + " " + data.getUnit(metric));
+    }
+
+    @Override
+    public void callback(Messages m, Object o) {
+        if ((m == Messages.HANDLER_REMOVED) && (sensor == o)) {
+            // remove configField from sensorPanel
+            panel.getSensorPanel().remove(label);
+            panel.getSensorPanel().remove(value);
+            if (current != null) {
+                panel.getSensorPanel().remove(current);
+            }
+        }
     }
 }

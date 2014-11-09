@@ -171,11 +171,6 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
     }
 
     @Override
-    public void setActive(boolean active) {
-        assert false : "Readers cannot be activated/deactivated";
-    }
-
-    @Override
     public boolean provides(SourceDataEnum data) {
         return getCurrentTraining().provides(data);
     }

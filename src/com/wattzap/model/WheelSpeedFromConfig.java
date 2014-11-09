@@ -19,31 +19,30 @@ package com.wattzap.model;
 import com.wattzap.model.dto.Telemetry;
 
 /**
- * Power profile which runs video with 1:1 speed, this is calculates power
- * which is value reversed for video speed.
+ * Test module: sets value from config in wheelSpeed
  * @author Jarek
  */
-public class SensorOnlyPowerProfile extends VirtualPowerProfile {
+@SelectableDataSourceAnnotation
+public class WheelSpeedFromConfig extends TelemetryHandler {
+    private double wheelSpeed = 30.0;
+
     @Override
     public String getPrettyName() {
-        return "sensorPowerProfile";
+        return "robot_speed";
+    }
+
+    @Override
+    public void configChanged(UserPreferences pref) {
+        wheelSpeed = pref.ROBOT_SPEED.getDouble();
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        // doesn't provide power! Only pauses if no power sensor is selected.
-        return (data == SourceDataEnum.PAUSE);
+        return data == SourceDataEnum.WHEEL_SPEED;
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        SensorIntf sensor = TelemetryProvider.INSTANCE.getSensor(SourceDataEnum.POWER);
-        if (sensor == null) {
-            setValue(SourceDataEnum.PAUSE, 250);
-        } else {
-            // sensor is available, but might not work: it is "handled" by
-            // general speedPause condition
-            setValue(SourceDataEnum.PAUSE, 0);
-        }
+        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
     }
 }

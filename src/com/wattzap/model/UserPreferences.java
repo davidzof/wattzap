@@ -34,11 +34,19 @@ import com.wattzap.model.power.PowerProfiles;
  */
 public enum UserPreferences {
     RESISTANCE("resistance", 1),
-    VIRTUAL_POWER("virtualPower", 0),
+
+    SPEED_SOURCE("speed_source", "speed2power"),
+    CADENCE_SOURCE("cadence_source", "sandc"),
+    HR_SOURCE("hr_source", "hrm"),
+    POWER_SOURCE("power_source", "sandc"),
+
     DEBUG("debug", false),
     MAX_POWER("maxpower", 250),
     HR_MAX("maxhr", 180),
     ROBOT_POWER("robot", 210),
+    // speed of the wheel.. just for tests
+    @Deprecated
+    ROBOT_SPEED("robot_speed", 30.0, 0.1),
 
     // 2133 is 700Cx23
     WHEEL_SIZE("wheelsize", 2133),
@@ -364,13 +372,6 @@ public enum UserPreferences {
 	}
 	public void setDebug(boolean value) {
         DEBUG.setBool(value);
-	}
-
-	public VirtualPowerEnum getVirtualPower() {
-		return VirtualPowerEnum.values()[VIRTUAL_POWER.getInt()];
-	}
-	public void setVirtualPower(VirtualPowerEnum value) {
-        VIRTUAL_POWER.setInt(value.ordinal());
 	}
 
     public int getRobotPower() {

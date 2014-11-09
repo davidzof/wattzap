@@ -50,6 +50,10 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
         changedProperty = null;
     }
 
+    public JPanel getSensorPanel() {
+        return null;
+    }
+
     public void add(ConfigFieldIntf field) {
         assert !fields.containsKey(field.getName()) :
             "Field " + field.getName() + " already in the panel";

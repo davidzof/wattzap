@@ -48,11 +48,6 @@ public abstract class SourceDataHandler
     }
 
     @Override
-    public void setActive(boolean active) {
-        assert false : "Only telemetryProcessors can be activated";
-    }
-
-    @Override
     public double getValue(SourceDataEnum data) {
         assert provides(data) : data + " is not provided";
         synchronized(this) {

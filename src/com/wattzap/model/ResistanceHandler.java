@@ -21,8 +21,11 @@ import com.wattzap.model.power.Power;
 
 /**
  * Default profile: power bases on wheelSpeed and trainer resistance level.
+ * Module is auto-loaded by SelectableDataSource, in fact trainers don't use
+ * selection mechanism (yet).
  * @author Jarek
  */
+@SelectableDataSourceAnnotation
 public class ResistanceHandler extends TelemetryHandler {
     private int resistance;
     private boolean autoResistance;
@@ -37,11 +40,15 @@ public class ResistanceHandler extends TelemetryHandler {
     public void configChanged(UserPreferences prefs) {
         if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.TURBO_TRAINER)) {
             power = prefs.getTurboTrainerProfile();
-            setActive(power.getResitanceLevels() != 1);
         }
 
         if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.RESISTANCE)) {
             if (prefs.getResistance() == 0) {
+                // for most trainers neutral return 3..
+                // Some trainers have only 1 level, so it cannot be used
+                // for that purpose
+                // resistance = power.getNeutral();
+
                 resistance = 1;
                 autoResistance = true;
             } else {
@@ -53,11 +60,20 @@ public class ResistanceHandler extends TelemetryHandler {
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        return (data == SourceDataEnum.RESISTANCE);
+        // resistance level is only provided when turbo has more than single
+        // resistance level. Otherwise it is 1.
+        if (data == SourceDataEnum.RESISTANCE) {
+            return (power != null) && (power.getResitanceLevels() > 1);
+        }
+        return false;
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
+        if (!provides(SourceDataEnum.RESISTANCE)) {
+            return;
+        }
+
         // default resistance taken from preferences
         if (autoResistance) {
             // Best matching (this is wheelSpeed best matches speed) shall be selected

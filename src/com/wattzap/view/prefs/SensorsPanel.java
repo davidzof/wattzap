@@ -15,26 +15,32 @@
 */
 package com.wattzap.view.prefs;
 
+import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.EnumerationIntf;
+import com.wattzap.model.Constants;
+import com.wattzap.model.SensorBuilder;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.VirtualPowerEnum;
 import java.util.List;
+import javax.swing.JPanel;
+import javax.swing.border.TitledBorder;
+import net.miginfocom.swing.MigLayout;
 
 /**
- * Pairs ANT devices
+ * Handles pairing, sensors, data selectors and their configs.
  *
  * @author David George
  * @date 25th August 2013
+ * @author Jarek
  */
 public class SensorsPanel extends ConfigPanel {
     private UserPreferences userPrefs = UserPreferences.INSTANCE;
     private Thread thread = null;
+    private JPanel sensorPanel;
 
     public SensorsPanel() {
 		super();
@@ -53,24 +59,35 @@ public class SensorsPanel extends ConfigPanel {
         });
 
         // build panels for all existing sensors
-        add(new ConfigFieldSensor(this, "sandc", SourceDataEnum.WHEEL_SPEED));
-        add(new ConfigFieldSensor(this, "hrm", SourceDataEnum.HEART_RATE));
-        // new panels shall be added here..
+        sensorPanel = new JPanel();
+        sensorPanel.setBorder(new TitledBorder(MsgBundle.getString("defined_sensors")));
+        MigLayout layout = new MigLayout();
+		sensorPanel.setLayout(layout);
+        add(sensorPanel, "span");
 
-        add(new ConfigFieldEnum(this, UserPreferences.VIRTUAL_POWER,
-                "virtual_power", VirtualPowerEnum.FTP_SIMULATION) {
-            @Override
-            public EnumerationIntf getProperty() {
-                return userPrefs.getVirtualPower();
-            }
-            @Override
-            public void setProperty(EnumerationIntf val) {
-                userPrefs.setVirtualPower((VirtualPowerEnum) val);
-            }
-        });
-        add(new ConfigFieldInt(this, UserPreferences.ROBOT_POWER, "robot"));
+        SensorBuilder.buildFields(this);
+
+        // selectors for speed/cadence/hr/power and additional params
+        add(new ConfigFieldSourceSelector(this, UserPreferences.SPEED_SOURCE,
+                "speed_source", SourceDataEnum.WHEEL_SPEED));
+        // TODO build "custom" panels only when option was selected
+        add(new ConfigFieldDouble(this, UserPreferences.ROBOT_SPEED, "robot_speed",
+                "%.1f", "km/h", "mph", Constants.KMTOMILES));
+
+        add(new ConfigFieldSourceSelector(this, UserPreferences.CADENCE_SOURCE,
+                "cadence_source", SourceDataEnum.CADENCE));
+
+        add(new ConfigFieldSourceSelector(this, UserPreferences.HR_SOURCE,
+                "hr_source", SourceDataEnum.HEART_RATE));
+
+        add(new ConfigFieldSourceSelector(this, UserPreferences.POWER_SOURCE,
+                "power_source", SourceDataEnum.POWER));
+        add(new ConfigFieldInt(this, UserPreferences.ROBOT_POWER, "robot_power"));
 	}
 
+    public JPanel getSensorPanel() {
+        return sensorPanel;
+    }
 
     public void checking(boolean enabled) {
         if (enabled) {

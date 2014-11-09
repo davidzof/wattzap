@@ -18,34 +18,42 @@ package com.wattzap.view.prefs;
 
 import com.wattzap.model.EnumerationIntf;
 import com.wattzap.model.UserPreferences;
+import com.wattzap.model.power.Power;
 
 /**
  *
  * @author Jarek
  */
 public class TurboResistanceEnumeration implements EnumerationIntf {
-    public static TurboResistanceEnumeration ANY;
-    // it isn't real enum, it only fake it for the combo.
 
-    static TurboResistanceEnumeration[] levels = null;
-    static {
-        rebuild();
+    private static TurboResistanceEnumeration[] levels = null;
+
+    public static TurboResistanceEnumeration[] getLevels() {
+        if (levels == null) {
+            rebuild();
+        }
+        return levels;
     }
 
     public static void rebuild() {
-        int num = UserPreferences.TURBO_TRAINER.getTurboTrainerProfile().getResitanceLevels();
+        int num = 1;
+        Power power = UserPreferences.TURBO_TRAINER.getTurboTrainerProfile();
+        if (power != null) {
+            num = power.getResitanceLevels();
+        }
         levels = new TurboResistanceEnumeration[num + 1];
         for (int i = 0; i <= num; i++) {
             levels[i] = new TurboResistanceEnumeration(i);
         }
-        ANY = levels[0];
     }
 
     public static TurboResistanceEnumeration get(int level) {
         assert levels != null : "Levels not initialized";
-        assert (level >= 0) && (level < levels.length) :
-                "Undefined level " + level + " requested";
-        return levels[level];
+        if ((level >= 0) && (level < levels.length)) {
+            return levels[level];
+        } else {
+            return null;
+        }
     }
 
 
@@ -53,11 +61,6 @@ public class TurboResistanceEnumeration implements EnumerationIntf {
 
     private TurboResistanceEnumeration(int level) {
         this.level = level;
-    }
-
-    @Override
-    public EnumerationIntf[] getValues() {
-        return levels;
     }
 
     @Override
@@ -76,5 +79,10 @@ public class TurboResistanceEnumeration implements EnumerationIntf {
     @Override
     public boolean isValid() {
         return true;
+    }
+
+    @Override
+    public String toString() {
+        return "Resistance[" + getKey() + "]";
     }
 }

@@ -35,7 +35,7 @@ public class TurboPanel extends ConfigPanel {
 		super();
 
         add(new ConfigFieldEnum(this, UserPreferences.TURBO_TRAINER, "profile",
-                TurboEnumeration.ANY) {
+                TurboEnumeration.getTurbos()) {
             @Override
             public EnumerationIntf getProperty() {
                 return TurboEnumeration.get(userPrefs.getTurboTrainerProfile());
@@ -47,7 +47,7 @@ public class TurboPanel extends ConfigPanel {
         });
 
         add(new ConfigFieldEnum(this, UserPreferences.RESISTANCE, "resistance",
-                TurboResistanceEnumeration.ANY) {
+                TurboResistanceEnumeration.getLevels()) {
             @Override
             public EnumerationIntf getProperty() {
                 return TurboResistanceEnumeration.get(userPrefs.getResistance());
@@ -67,7 +67,7 @@ public class TurboPanel extends ConfigPanel {
                 if (prop == UserPreferences.TURBO_TRAINER) {
                     // powerProfile was changed: create new resistance levels..
                     TurboResistanceEnumeration.rebuild();
-                    rebuild();
+                    setEnums(TurboResistanceEnumeration.getLevels());
                     // and select current one
                     super.propertyChanged(UserPreferences.RESISTANCE, null);
                 }

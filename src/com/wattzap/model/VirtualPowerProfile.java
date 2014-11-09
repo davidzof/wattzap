@@ -26,26 +26,12 @@ import com.wattzap.model.power.Power;
 public abstract class VirtualPowerProfile extends TelemetryHandler {
     protected Power power = null;
     private boolean speedComputed = false;
+
+    // whether trainerSpeed is too big/too small
     private int speedValue = 0;
 
     @Override
-    public SourceDataHandlerIntf initialize() {
-        super.initialize();
-
-        // config changed is called before handler registration to initialize
-        // all properties.. so it must be called once again to proper activate
-        // this handler...
-        configChanged(UserPreferences.VIRTUAL_POWER);
-        return this;
-    }
-
-    @Override
     public void configChanged(UserPreferences prefs) {
-        // activate/deactivate on virtual power setting
-        if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.VIRTUAL_POWER)) {
-            setActive(prefs.getVirtualPower().findActiveHandler() == this);
-        }
         if ((prefs == UserPreferences.INSTANCE) ||
                 (prefs == UserPreferences.TURBO_TRAINER)) {
             power = prefs.getTurboTrainerProfile();
@@ -68,10 +54,12 @@ public abstract class VirtualPowerProfile extends TelemetryHandler {
     @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
-            // "general" target
+            // "general" targets
+            case PAUSE:
             case POWER:
                 return true;
-            // wheel speed if computed
+
+            // report wheel speed for profiles without input data
             case WHEEL_SPEED:
                 return speedComputed;
 
@@ -94,13 +82,17 @@ public abstract class VirtualPowerProfile extends TelemetryHandler {
 
         // Check whether real wheel speed is not too small or too big. It needs
         // working speed sensor, otherwise is not reported.
+        // If any speed sensor is running, value from it is taken and checked
+        // against "computed". Non-sensor value is not taken into consideration
+        // (modification time is -1..1 then)
         speedValue = 0;
-        SensorIntf sensor = TelemetryProvider.INSTANCE.getSensor(WS);
-        if ((sensor != null) && (sensor.getModificationTime(WS) >
-                System.currentTimeMillis() - 5000)) {
-            if (wheelSpeed < sensor.getValue(WS) / 1.1) {
+        SourceDataHandlerIntf selected = TelemetryProvider.INSTANCE.getSelected(WS);
+        if ((selected != null) &&
+            (selected.getModificationTime(WS) > System.currentTimeMillis() - 5000))
+        {
+            if (wheelSpeed < selected.getValue(WS) / 1.1) {
                 speedValue = 1;
-            } else if (wheelSpeed > 1.1 * sensor.getValue(WS)) {
+            } else if (wheelSpeed > 1.1 * selected.getValue(WS)) {
                 speedValue = -1;
             }
         }

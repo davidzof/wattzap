@@ -74,7 +74,7 @@ public class GpxImporterTest {
 			d.setFtp(260);
 			System.out.println(d);
 			TcxWriter writer = new TcxWriter();
-			writer.save(gpxData, 0);
+			writer.save(gpxData, true);
 		} catch (Exception e) {
 
 		}

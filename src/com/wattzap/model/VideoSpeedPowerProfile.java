@@ -26,6 +26,7 @@ import com.wattzap.utils.Rolling;
  * target power.. all the time.
  * @author Jarek
  */
+@SelectableDataSourceAnnotation
 public class VideoSpeedPowerProfile extends VirtualPowerProfile {
     private double weight = 85.0;
     private Rolling speedRoll = new Rolling(24);
@@ -41,7 +42,7 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
 
         // when started.. speed might be very small, and route
         // doesn't progress "fast enough".
-        if (prefs == UserPreferences.VIRTUAL_POWER) {
+        if (prefs == UserPreferences.POWER_SOURCE) {
             speedRoll.clear();
             speedRoll.add(30);
         }
@@ -51,14 +52,6 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
                 (prefs == UserPreferences.BIKE_WEIGHT)) {
             weight = prefs.getTotalWeight();
         }
-    }
-
-    @Override
-    public boolean provides(SourceDataEnum data) {
-        if (data == SourceDataEnum.PAUSE) {
-            return true;
-        }
-        return super.provides(data);
     }
 
     @Override

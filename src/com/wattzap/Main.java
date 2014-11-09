@@ -47,15 +47,11 @@ import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.controller.TrainingController;
 import com.wattzap.model.Readers;
-import com.wattzap.model.ResistanceHandler;
-import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
-import com.wattzap.model.VirtualPowerEnum;
+import com.wattzap.model.SelectableDataSource;
+import com.wattzap.model.SensorBuilder;
 import com.wattzap.model.ant.AntSubsystem;
-import com.wattzap.model.ant.HeartRateSensor;
-import com.wattzap.model.ant.SpeedAndCadenceSensor;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
@@ -137,20 +133,12 @@ public class Main implements Runnable {
         // telemetry privider receives all subsystems/sensors/processors
         TelemetryProvider.INSTANCE.initialize();
 
-        PopupMessageIntf popupMsg = new PopupMessage(frame);
-        new AntSubsystem(popupMsg).initialize();
-
-        // TODO build sensors on config..
-        SourceDataHandlerIntf sandc = new SpeedAndCadenceSensor("sandc").initialize();
-        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.WHEEL_SPEED, sandc);
-        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.CADENCE, sandc);
-
-        SourceDataHandlerIntf hrm = new HeartRateSensor("hrm").initialize();
-        TelemetryProvider.INSTANCE.setSensor(SourceDataEnum.HEART_RATE, hrm);
+        // build all sensors and their subsystems
+        new AntSubsystem(new PopupMessage(frame)).initialize();
+        SensorBuilder.buildSensors();
 
         // Build necessary telemetry handlers. Make them enabled if possible.
-        VirtualPowerEnum.buildHandlers();
-        new ResistanceHandler().initialize();
+        SelectableDataSource.buildHandlers();
 
         // build main window layout
         MigLayout layout = new MigLayout("center", "[]10px[]", "");

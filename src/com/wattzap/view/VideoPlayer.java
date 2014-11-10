@@ -35,9 +35,9 @@ import uk.co.caprica.vlcj.player.embedded.FullScreenStrategy;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
@@ -159,7 +159,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		}
 
         // handle pause
-        String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
+        String pauseMsg = PauseMsgEnum.msg(t);
         if (pauseMsg != null) {
             Dimension size = mPlayer.getVideoDimension();
             if (size != null) {

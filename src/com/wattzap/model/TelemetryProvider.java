@@ -16,7 +16,6 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -70,62 +69,6 @@ public enum TelemetryProvider implements MessageCallback
         // set selected handlers
         configChanged(UserPreferences.INSTANCE);
         return this;
-    }
-
-    private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
-    static {
-        pauseMsgKeys.put(-2, "stopped");
-        pauseMsgKeys.put(-1, "initialize");
-        // normal training condition
-        pauseMsgKeys.put(0, null);
-        pauseMsgKeys.put(1, "start_training");
-        // speed is zero during normal training
-        pauseMsgKeys.put(2, "no_movement");
-        // pause button was pressed
-        pauseMsgKeys.put(3, "manual_pause");
-
-        // race preparation, wheelSpeed must be detected
-        pauseMsgKeys.put(10, "race_prepare");
-        // countdown
-        pauseMsgKeys.put(20, "9");
-        pauseMsgKeys.put(21, "8");
-        pauseMsgKeys.put(22, "7");
-        pauseMsgKeys.put(23, "6");
-        pauseMsgKeys.put(24, "5");
-        pauseMsgKeys.put(25, "4");
-        pauseMsgKeys.put(26, "3");
-        pauseMsgKeys.put(27, "2");
-        pauseMsgKeys.put(28, "1");
-        pauseMsgKeys.put(29, "race_start");
-        // normal race condition, any pause is not allowed
-        pauseMsgKeys.put(30, null);
-
-        // end of training. Set by video handler, cannot be overriden
-        pauseMsgKeys.put(100, "end_of_route");
-
-        // selected handler is not created (yet?). Select another options
-        // and condition shall be discarded.
-        pauseMsgKeys.put(300, "check_selected");
-        // some parameters are not set
-        pauseMsgKeys.put(301, "no_fthr");
-        pauseMsgKeys.put(302, "no_ftp");
-    }
-    public static String pauseMsg(int v, boolean nullIfUnknown) {
-        String key = pauseMsgKeys.get(v);
-        if (key == null) {
-            if (nullIfUnknown) {
-                return null;
-            } else {
-                return String.format("unknown[%d]", v);
-            }
-        }
-        if (MsgBundle.containsKey(key)) {
-            return MsgBundle.getString(key);
-        }
-        return key;
-    }
-    public static String pauseMsg(Telemetry t) {
-        return pauseMsg(t.getPaused(), true);
     }
 
     // subsystems to be handled
@@ -243,11 +186,11 @@ public enum TelemetryProvider implements MessageCallback
         // send "dummy" telemetry, without any data except time and position.
         // it would be filled in a few seconds.
         if (t == null) {
-            t = new Telemetry(-1);
+            t = new Telemetry(PauseMsgEnum.INITIALIZE);
             t.setDistance(distance);
             t.setTime(runtime);
         } else {
-            t.setPaused(-1); // starting
+            t.setPause(PauseMsgEnum.INITIALIZE);
         }
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
@@ -391,7 +334,7 @@ public enum TelemetryProvider implements MessageCallback
                     lastHandlersNum[prop.ordinal()] = handlersNum;
                 }
             }
-            t.setPaused(pause);
+            t.setPause(PauseMsgEnum.get(pause));
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
             // sleep some time
@@ -408,7 +351,7 @@ public enum TelemetryProvider implements MessageCallback
             // Handle normal routes (with distance) and routes with
             // time [s] in distance if no speed is provided by any handler.
             // (this is.. in trainings with TRN files).
-            if (pauseMsg(t) == null) {
+            if (PauseMsgEnum.msg(t) == null) {
                 if (t.isAvailable(SourceDataEnum.SPEED)) {
                     distance += t.getSpeed() * (timePassed / 1000.0) / 3600.0;
                 } else {
@@ -418,7 +361,7 @@ public enum TelemetryProvider implements MessageCallback
             }
         }
         // stopped, show proper message with last values
-        t.setPaused(-2);
+        t.setPause(PauseMsgEnum.STOPPED);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
     }
 

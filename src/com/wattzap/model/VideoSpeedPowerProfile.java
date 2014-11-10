@@ -106,7 +106,7 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
             // valid and training is paused without a reason..
         }
 
-        setValue(SourceDataEnum.PAUSE, pause ? 2.0 : 0.0);
+        setPause(pause ? PauseMsgEnum.NO_MOVEMENT : PauseMsgEnum.RUNNING);
         setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
         setValue(SourceDataEnum.POWER, powerWatts);
     }

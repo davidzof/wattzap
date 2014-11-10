@@ -310,16 +310,16 @@ public class GPXReader extends RouteReader {
 
         // set pause at end of route or when no running, otherwise unpause
         if (p == null) {
-            setValue(SourceDataEnum.PAUSE, 100.0); // end of training
+            setPause(PauseMsgEnum.END_OF_ROUTE);
             setValue(SourceDataEnum.SPEED, 0.0);
         } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
             if (t.getTime() < 1000) {
-                setValue(SourceDataEnum.PAUSE, 1.0); // start training
+                setPause(PauseMsgEnum.START);
             } else {
-                setValue(SourceDataEnum.PAUSE, 2.0); // keep moving
+                setPause(PauseMsgEnum.NO_MOVEMENT);
             }
         } else {
-            setValue(SourceDataEnum.PAUSE, 0.0); // running!
+            setPause(PauseMsgEnum.RUNNING);
         }
     }
 

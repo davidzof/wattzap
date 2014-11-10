@@ -28,8 +28,8 @@ import net.miginfocom.swing.MigLayout;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TelemetryValidityEnum;
@@ -174,7 +174,7 @@ public class Odo extends JPanel implements MessageCallback {
 
         // fill with "empty" values
         callback(Messages.CONFIG_CHANGED, UserPreferences.INSTANCE);
-        callback(Messages.TELEMETRY, new Telemetry(-1));
+        callback(Messages.TELEMETRY, new Telemetry(PauseMsgEnum.INITIALIZE));
 
         MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
@@ -185,7 +185,7 @@ public class Odo extends JPanel implements MessageCallback {
 		switch (message) {
             case TELEMETRY:
                 Telemetry t = (Telemetry) o;
-                paused = (TelemetryProvider.pauseMsg(t) != null);
+                paused = (PauseMsgEnum.msg(t) != null);
                 int num = 0;
                 int last = 0;
                 for (ValueCol column : columns) {

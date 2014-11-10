@@ -61,6 +61,10 @@ public abstract class SourceDataHandler
         }
     }
 
+    public void setPause(PauseMsgEnum pause) {
+        setValue(SourceDataEnum.PAUSE, pause.val());
+    }
+
     /**
      * Which values are checked by the handler (without touching the value).
      *

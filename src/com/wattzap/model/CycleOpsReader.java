@@ -454,7 +454,7 @@ public class CycleOpsReader extends RouteReader {
         double dist = 1000.0 * t.getDistance();
         // If end of route.. Just stop the training
         if (dist >= routeLen) {
-            setValue(SourceDataEnum.PAUSE, 100.0);
+            setPause(PauseMsgEnum.END_OF_ROUTE);
             return;
         }
 
@@ -487,7 +487,7 @@ public class CycleOpsReader extends RouteReader {
         double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                 slope / 100.0, t.getPower());
         setValue(SourceDataEnum.SPEED, realSpeed);
-        setValue(SourceDataEnum.PAUSE, 0.0);
+        setPause(PauseMsgEnum.RUNNING);
 
         AxisPointInterest iPoint = iPoints.get(dist);
         if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {

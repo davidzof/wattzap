@@ -40,6 +40,7 @@ import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
@@ -250,7 +251,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 
         // Telemetry provider controll messages are not added to the data
-        if (t.getPaused() < 0) {
+        if (PauseMsgEnum.msg(t) != null) {
             return;
         }
 

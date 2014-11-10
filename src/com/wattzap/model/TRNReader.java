@@ -184,7 +184,7 @@ public class TRNReader extends RouteReader {
         // handle telemetry for the time
         TrainingItem item = training.get(t.getDistance());
         if (item == null) {
-            setValue(SourceDataEnum.PAUSE, 100.0);
+            setPause(PauseMsgEnum.END_OF_ROUTE);
             return;
         }
 
@@ -196,7 +196,7 @@ public class TRNReader extends RouteReader {
         // distance equals the time [s], route time in [ms]
         setValue(SourceDataEnum.ROUTE_TIME, t.getDistance() * 1000.0);
         // no pause
-        setValue(SourceDataEnum.PAUSE, 0.0);
+        setPause(PauseMsgEnum.RUNNING);
         checks.clear();
         if (providesPower) {
             setValue(SourceDataEnum.TARGET_POWER, item.getPower());

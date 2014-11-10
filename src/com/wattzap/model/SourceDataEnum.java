@@ -125,7 +125,7 @@ public enum SourceDataEnum {
                     }
                     return timeFormat.format(new Date((long) value));
                 case -2: // pauseMsg
-                    String msg = TelemetryProvider.pauseMsg((int) value, true);
+                    String msg = PauseMsgEnum.get((int) value).key();
                     if (msg == null) {
                         msg = "-";
                     }

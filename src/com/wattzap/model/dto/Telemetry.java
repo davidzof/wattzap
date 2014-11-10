@@ -15,6 +15,7 @@
 */
 package com.wattzap.model.dto;
 
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.SourceDataEnum;
 import java.io.Serializable;
 
@@ -38,10 +39,10 @@ public class Telemetry implements Serializable {
             validity[val.ordinal()] = TelemetryValidityEnum.NOT_PRESENT;
         }
     }
-    public Telemetry(int pause) {
+    public Telemetry(PauseMsgEnum pause) {
         this();
         // all fields are "visible", but without a data
-        values[SourceDataEnum.PAUSE.ordinal()] = (double) pause;
+        values[SourceDataEnum.PAUSE.ordinal()] = (double) pause.val();
         for (SourceDataEnum val : SourceDataEnum.values()) {
             validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
         }
@@ -59,9 +60,11 @@ public class Telemetry implements Serializable {
     }
 
     public TelemetryValidityEnum getValidity(SourceDataEnum en) {
+        assert en != SourceDataEnum.PAUSE : "Cannot get validity of PAUSE";
         return validity[en.ordinal()];
     }
     public void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
+        assert en != SourceDataEnum.PAUSE : "Cannot set validity of PAUSE";
         validity[en.ordinal()] = valid;
     }
     public boolean isAvailable(SourceDataEnum en) {
@@ -203,11 +206,11 @@ public class Telemetry implements Serializable {
 		setInt(SourceDataEnum.RESISTANCE, resistance);
 	}
 
-    public int getPaused() {
-        return getInt(SourceDataEnum.PAUSE);
+    public PauseMsgEnum getPause() {
+        return PauseMsgEnum.get(getInt(SourceDataEnum.PAUSE));
     }
-    public void setPaused(int reason) {
-		setInt(SourceDataEnum.PAUSE, reason);
+    public void setPause(PauseMsgEnum reason) {
+		setInt(SourceDataEnum.PAUSE, reason.val());
     }
 
 	@Override

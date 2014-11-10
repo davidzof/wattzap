@@ -67,7 +67,7 @@ public class Speed2PowerProfile extends TelemetryHandler {
             }
         }
 
-        setValue(SourceDataEnum.PAUSE, pause ? 2.0 : 0.0);
+        setPause(pause ? PauseMsgEnum.NO_MOVEMENT : PauseMsgEnum.RUNNING);
         setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

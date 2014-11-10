@@ -65,10 +65,14 @@ public enum UserPreferences {
     TRAININGS_DIR("trainingLocation", getWD() + "/Trainings"),
     VIDEO_DIR("videoLocation", getWD() + "/Routes"),
 
+    // special property, not handled by the database, allow devices checking
+    PAIRING("pairing", false),
     RUNNING("running", false),
-    AUTO_START("autostart", false),
+
     LAST_FILENAME("last_filename", ""),
     LOAD_LAST("load_last", false),
+    AUTO_START("autostart", false),
+    AUTO_SAVE("autosave", false),
 
 
     ANT_ENABLED("ant_enabled", true),
@@ -81,11 +85,6 @@ public enum UserPreferences {
     // special property for sensors, used for notification about sensorId change
     // for specified sensorName.
     SENSORS("sensors"),
-    // special property, not handled by the database
-    PAIRING("pairing", false),
-
-    @Deprecated
-    SIMUL_SPEED("simulSpeed", false),
 
     // backward compability, cannot be get/set
 	INSTANCE;
@@ -96,6 +95,7 @@ public enum UserPreferences {
         EVAL_TIME.forAll = true;
         EVAL_TIME.intCrypted = true;
         PAIRING.keptInDB = false;
+        RUNNING.keptInDB = false;
     }
 
 	// why it must be always specified?? Are there system settings
@@ -447,6 +447,9 @@ public enum UserPreferences {
     }
 
 
+    public boolean autosave() {
+        return AUTO_SAVE.getBool();
+    }
 
     // Registration Stuff
 	public String getSerial() {
@@ -476,36 +479,6 @@ public enum UserPreferences {
 		EVAL_TIME.setInt(t);
 	}
 
-
-    @Deprecated
-    public boolean isVirtualPower() {
-        return SIMUL_SPEED.getBool();
-    }
-    @Deprecated
-    public void setVirtualPower(boolean ss) {
-        SIMUL_SPEED.setBool(ss);
-    }
-
-    // sensors handling
-	@Deprecated
-    public int getSCId() {
-		return getInt(user, "sandcId", 0);
-	}
-
-	@Deprecated
-	public void setSCId(int i) {
-		setInt(user, "sandcId", i);
-	}
-
-	@Deprecated
-	public int getHRMId() {
-		return getInt(user, "hrmid", 0);
-	}
-
-	@Deprecated
-	public void setHRMId(int i) {
-		setInt(user, "hrmid", i);
-	}
 
     public boolean isPairingEnabled() {
         return PAIRING.getBool();

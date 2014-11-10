@@ -274,10 +274,12 @@ public class Main implements Runnable {
         if (file != null) {
             Readers.runTraining(file);
         }
-        // start training is autostart. What about overriding this option
-        // when recovery is available?
+        // continue last training, journalFile is recovered and continues
+        // from the last point. Don't show any information about how many points
+        // were recovered, it is useless.
         if (userPrefs.autostart()) {
-            MessageBus.INSTANCE.send(Messages.START, new Double(0.0));
+            trainingController.performAction(TrainingController.recover, null);
+            MessageBus.INSTANCE.send(Messages.START, null);
         }
 	}
 

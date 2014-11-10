@@ -46,6 +46,8 @@ import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import java.awt.Component;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -65,11 +67,10 @@ import java.util.List;
  * values in the chart are shown again. "Session" is for
  * single application execution.
  * @author Jarek
- * TODO add synchronization for data.. exceptions are too often
  */
 public class TrainingDisplay extends JPanel implements MessageCallback {
 	private static final Logger logger = LogManager.getLogger("Training Display");
-	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
+	private static final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
 	private static final long MILLISECSMINUTE = 60000;
     private static final long CHARTTIMECORRECTION = 23 * 60 * 60 * 1000;
@@ -78,7 +79,6 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
     private SimpleXYChartSupport support = null;
 	private JComponent chart;
 
-    // Iterator<TrainingItem> training;
     private RouteReader reader = null;
 
     // used to save .tcx, to rebuild the chart. Kept in journal as well
@@ -89,11 +89,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
     private long startTime = 0;
     private String lastName = null;
 
-
     // last telemetry time, to ignore telemetries within one second
     private long time;
 
-    // TODO set on config?
 	boolean antEnabled = true;
     private boolean oosCreate = true;
 
@@ -233,7 +231,9 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         */
 
         time = resultTime;
-        // move time a bit.. to start from 0:00:00.. But why timezone is always +1?
+        // move time a bit.. to start from 0:00:00.. Time "starts" from
+        // Jan 1st 1960, 1:00, I wonder why.. So for display purposes Jan 2nd
+        // is better
 		support.addValues(time + CHARTTIMECORRECTION, values);
 	}
 
@@ -275,13 +275,17 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         storeTelemetry(tt);
     }
 
+    private static final String getJournalName() {
+        return userPrefs.getWD() + "/journal.ser";
+    }
+
     // store telemetry with "wall-clock" time
     private void storeTelemetry(Telemetry t) {
         if (oosCreate && (oos == null)) {
             oosCreate = false;
             try {
                 FileOutputStream fout = new FileOutputStream(
-                        userPrefs.getWD() + "/journal.ser", false);
+                        getJournalName(), false);
                 oos = new ObjectOutputStream(fout);
             } catch (Exception e) {
                 logger.error(e + ":: Can't create journal file "
@@ -308,10 +312,12 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         }
 	}
 
-    public void closeJournal() {
+    public void closeJournal(Component frame) {
         if ((data == null) || (data.isEmpty())) {
-			JOptionPane.showMessageDialog(this, "Logging not started yet",
-                    "Info", JOptionPane.INFORMATION_MESSAGE);
+            if (frame != null) {
+                JOptionPane.showMessageDialog(frame, "Logging not started yet",
+                        "Info", JOptionPane.INFORMATION_MESSAGE);
+            }
             return;
         }
         // close oos if exists
@@ -324,6 +330,11 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             }
             oos = null;
         }
+        File journal = new File(getJournalName());
+        if (!journal.delete()) {
+            logger.error("Cannot delte journal file");
+        }
+
         // clear data, this is start brand new session
         synchronized(data) {
             data.clear();
@@ -332,10 +343,12 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
         rebuildChart();
     }
 
-    public void loadJournal() {
+    public void loadJournal(Component frame) {
         if ((oos != null) || (data != null) || (startTime != 0)) {
-			JOptionPane.showMessageDialog(this, "Logging already started",
-                    "Info", JOptionPane.INFORMATION_MESSAGE);
+            if (frame != null) {
+                JOptionPane.showMessageDialog(frame, "Logging already started",
+                        "Info", JOptionPane.INFORMATION_MESSAGE);
+            }
             return;
         }
 
@@ -346,7 +359,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             ObjectInputStream objectInputStream = null;
             try {
                 FileInputStream streamIn = new FileInputStream(
-                        userPrefs.getWD() + "/journal.ser");
+                        getJournalName());
                 objectInputStream = new ObjectInputStream(streamIn);
 
                 while ((t = (Telemetry) objectInputStream.readObject()) != null) {
@@ -361,8 +374,10 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                 logger.error(e + ":: cannot read " + e.getLocalizedMessage());
             } finally {
                 logger.debug("read " + data.size() + " records");
-                JOptionPane.showMessageDialog(this, "Recovered " + data.size()
-                        + " records", "Info", JOptionPane.INFORMATION_MESSAGE);
+                if (frame != null) {
+                    JOptionPane.showMessageDialog(frame, "Recovered " + data.size()
+                            + " records", "Info", JOptionPane.INFORMATION_MESSAGE);
+                }
                 if (objectInputStream != null) {
                     try {
                         objectInputStream.close();

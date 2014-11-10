@@ -29,7 +29,10 @@ import com.wattzap.utils.TcxWriter;
 import com.wattzap.view.Workouts;
 import com.wattzap.view.training.TrainingAnalysis;
 import com.wattzap.view.training.TrainingDisplay;
+import java.awt.Component;
 import java.util.List;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Controller linked to training data.
@@ -39,10 +42,14 @@ import java.util.List;
  * @author David George
  * @date 1 January 2014
  */
-public class TrainingController implements ActionListener {
-	private final TrainingDisplay trainingDisplay;
+public class TrainingController implements ActionListener, MessageCallback {
+	private static final Logger logger = LogManager.getLogger("TrainingCtrl");
+
+    private final TrainingDisplay trainingDisplay;
 	private final JFrame mainFrame;
-	private final TrainingAnalysis analysis = new TrainingAnalysis();
+
+    private TrainingAnalysis analysis = null;
+	private Workouts workouts = null;
 
 	public final static String analyze = "A";
 	public final static String save = "S";
@@ -53,39 +60,53 @@ public class TrainingController implements ActionListener {
 	public final static String stop = "E";
     public final static String clear = "C";
 
-	Workouts workouts = null;
-
 	public TrainingController(TrainingDisplay trainingDisplay, JFrame frame) {
 		this.trainingDisplay = trainingDisplay;
-		mainFrame = frame;
+		this.mainFrame = frame;
+
+        MessageBus.INSTANCE.register(Messages.EXIT_APP, this);
 	}
 
+    @Override
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
+        performAction(command, mainFrame);
+    }
 
+    public void performAction(String command, Component frame) {
+        // replace with java 7 (?) switch/case?
         if (start.equals(command)) {
             MessageBus.INSTANCE.send(Messages.START, null);
+
         } else if (stop.equals(command)) {
             MessageBus.INSTANCE.send(Messages.STOP, null);
+
         } else if (save.equals(command)) {
 			List<Telemetry> data = trainingDisplay.getData();
 			if ((data == null) || (data.size() == 0)) {
-                JOptionPane.showMessageDialog(mainFrame, "No training data available",
-                        "No data", JOptionPane.WARNING_MESSAGE);
+                if (frame != null) {
+                    JOptionPane.showMessageDialog(frame, "No training data available",
+                            "No data", JOptionPane.WARNING_MESSAGE);
+                }
 				return;
 			}
 
 			boolean withGpsData = false;
 			Telemetry zero = data.get(0);
 			if (zero.isAvailable(SourceDataEnum.LATITUDE)) {
-				// gpsData == 0 is Yes
-				withGpsData = (JOptionPane.showConfirmDialog(mainFrame,
-						"Save with GPS and Altitude data?", "GPS Data",
-						JOptionPane.YES_NO_OPTION) == 0);
+                if (frame != null) {
+                    // gpsData == 0 is Yes
+                    withGpsData = (JOptionPane.showConfirmDialog(frame,
+                            "Save with GPS and Altitude data?", "GPS Data",
+                            JOptionPane.YES_NO_OPTION) == 0);
+                } else {
+                    withGpsData = true;
+                }
 			}
 
             TcxWriter writer = new TcxWriter();
 			String fileName = writer.save(data, withGpsData);
+            logger.debug("Save workout to " + fileName);
 			WorkoutData workoutData = TrainingAnalysis.analyze(data);
 			workoutData.setTcxFile(fileName);
 			workoutData.setFtp(UserPreferences.INSTANCE.getMaxPower());
@@ -93,23 +114,34 @@ public class TrainingController implements ActionListener {
 			UserPreferences.INSTANCE.addWorkout(workoutData);
             MessageBus.INSTANCE.send(Messages.WORKOUT_DATA, workoutData);
 
-			JOptionPane.showMessageDialog(mainFrame, "Saved workout to "
-					+ fileName, "Workout Saved",
-					JOptionPane.INFORMATION_MESSAGE);
+            if (frame != null) {
+                JOptionPane.showMessageDialog(frame, "Saved workout to "
+                        + fileName, "Workout Saved",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }
+            // and remove journal, it cannot be "reused" or strange errors
+            // will happen
+			trainingDisplay.closeJournal(frame);
 
 		} else if (analyze.equals(command)) {
 			List<Telemetry> data = trainingDisplay.getData();
 			WorkoutData wData = TrainingAnalysis.analyze(data);
 			if (wData != null) {
 				wData.setFtp(UserPreferences.INSTANCE.getMaxPower());
+                if (analysis == null) {
+                    analysis = new TrainingAnalysis();
+                }
 				analysis.show(wData);
 			}
+
         } else if (clear.equals(command)) {
-			trainingDisplay.closeJournal();
-		} else if (recover.equals(command)) {
+			trainingDisplay.closeJournal(frame);
+
+        } else if (recover.equals(command)) {
 			// recover data
-			trainingDisplay.loadJournal();
-		} else if (view.equals(command)) {
+			trainingDisplay.loadJournal(frame);
+
+        } else if (view.equals(command)) {
 			if (workouts == null) {
 				workouts = new Workouts();
 			} else {
@@ -117,4 +149,18 @@ public class TrainingController implements ActionListener {
 			}
 		}
 	}
+
+    @Override
+    public void callback(Messages m, Object o) {
+        // training is saved at the end. If already done nothing happen
+        if (m == Messages.EXIT_APP) {
+            performAction(stop, null);
+            // close training file
+            MessageBus.INSTANCE.send(Messages.CLOSE, null);
+            // save current training and clear journal.
+            if (UserPreferences.AUTO_SAVE.autosave()) {
+                performAction(save, null);
+            }
+        }
+    }
 }

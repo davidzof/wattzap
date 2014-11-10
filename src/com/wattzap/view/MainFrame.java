@@ -27,18 +27,16 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.wattzap.controller.MessageBus;
-import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 
 /**
  * Main Window, displays telemetry data and responds to close events
- * 
+ *
  * @author David George
  * @date 31 July 2013
  */
-public class MainFrame extends JFrame implements ActionListener,
-		MessageCallback {
+public class MainFrame extends JFrame implements ActionListener {
 	private static final long serialVersionUID = -4597500546349817204L;
 	private static final String appName = "WattzAp";
 
@@ -53,38 +51,24 @@ public class MainFrame extends JFrame implements ActionListener,
 
 		addWindowListener(new java.awt.event.WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
-				// remember position and size
-				MessageBus.INSTANCE.send(Messages.CLOSE, null);
-				UserPreferences.INSTANCE.shutDown();
-				System.exit(0);
+				closeApp();
 			}
 		});
-
-		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 	}
 
 	public void actionPerformed(ActionEvent e) {
-		String command = e.getActionCommand();
-		logger.info(command);
-		MessageBus.INSTANCE.send(Messages.CLOSE, null);
-		UserPreferences.INSTANCE.shutDown();
+        closeApp();
+	}
+
+    public void closeApp() {
+        MessageBus.INSTANCE.send(Messages.EXIT_APP, null);
+
+        // remember position and size
+        Rectangle r = this.getBounds();
+        UserPreferences.INSTANCE.setMainBounds(r);
+
+        // shutdown database
+        UserPreferences.INSTANCE.shutDown();
 		System.exit(0);
-	}
-
-	@Override
-	public void callback(Messages message, Object o) {
-		logger.info(message);
-		switch (message) {
-		case CLOSE:
-			// remember position and size	
-			Rectangle r = this.getBounds();
-			UserPreferences.INSTANCE.setMainBounds(r);
-			
-			this.invalidate();
-			this.validate();
-			// this.revalidate(); JDK 1.7 only
-
-			break;
-		}
-	}
+    }
 }

@@ -41,18 +41,11 @@ public enum Messages {
     // data: Telemetry
     TELEMETRY,
 
-    @Deprecated
-    HEARTRATE,
-    @Deprecated
-    SPEEDCADENCE,
-
-    // first and last message of the training? Save on stop?
-    START, STOP,
-
-    @Deprecated
-    TRAININGITEM,
-    @Deprecated
-    TRAINING,
+    // start/stop training. These deal with subsystems/sensors, control
+    // TelemetryProvider.
+    // data: none
+    START,
+    STOP,
 
     // new training data was saved
     // data: WorkoutData with all computed parameters
@@ -70,7 +63,14 @@ public enum Messages {
     // data: XYSeries to be shown
     PROFILE,
 
+    // Training data (routeReader) is loaded/closed.
+    // data: routeReader
     // TODO replace with TRAINING
     GPXLOAD,
-    CLOSE;
+    CLOSE,
+
+    // Application is going to be closed, modules shall handle their
+    // own jobs.
+    // data: nothing
+    EXIT_APP;
 }

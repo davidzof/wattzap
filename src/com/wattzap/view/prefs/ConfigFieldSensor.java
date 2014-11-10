@@ -69,7 +69,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
         // build the interface
         label = new JLabel();
         label.setText(MsgBundle.getString(name));
-		panel.getSensorPanel().add(label);
+		panel.add(label);
 
         value = new JTextField(20);
         value.getDocument().putProperty("name", fieldName);
@@ -77,11 +77,11 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
 
         if ((data != null) && (data.format(0.0, true) != null)) {
             current = new JLabel();
-    		panel.getSensorPanel().add(value);
-    		panel.getSensorPanel().add(current, "span");
+    		panel.add(value);
+    		panel.add(current, "span");
         } else {
             current = null;
-    		panel.getSensorPanel().add(value, "span");
+    		panel.add(value, "span");
         }
 
         updateSensor();
@@ -178,10 +178,10 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
     public void callback(Messages m, Object o) {
         if ((m == Messages.HANDLER_REMOVED) && (sensor == o)) {
             // remove configField from sensorPanel
-            panel.getSensorPanel().remove(label);
-            panel.getSensorPanel().remove(value);
+            panel.remove(label);
+            panel.remove(value);
             if (current != null) {
-                panel.getSensorPanel().remove(current);
+                panel.remove(current);
             }
         }
     }

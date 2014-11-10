@@ -80,6 +80,13 @@ public class Odo extends JPanel implements MessageCallback {
             this.valid = TelemetryValidityEnum.NOT_PRESENT;
         }
 
+        public SourceDataEnum getSourceData() {
+            return sourceData;
+        }
+        public boolean visible() {
+            return valid != TelemetryValidityEnum.NOT_PRESENT;
+        }
+
         public boolean shown(Telemetry t) {
             return true;
         }
@@ -128,6 +135,15 @@ public class Odo extends JPanel implements MessageCallback {
     }
 
     private final List<ValueCol> columns = new ArrayList<>();
+    private boolean fieldVisible(SourceDataEnum sourceData) {
+        for (ValueCol column : columns) {
+            if (column.getSourceData() == sourceData) {
+                return column.isVisible();
+            }
+        }
+        // column not added, so not visible
+        return false;
+    }
 
 	public Odo() {
 		super();
@@ -167,7 +183,12 @@ public class Odo extends JPanel implements MessageCallback {
                 return wheelSpeedShown;
             }
         });
-        columns.add(new ValueCol(SourceDataEnum.RESISTANCE));
+        columns.add(new ValueCol(SourceDataEnum.RESISTANCE) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.WHEEL_SPEED);
+            }
+        });
 
         // chronometer
         columns.add(new ValueCol(SourceDataEnum.TIME));
@@ -225,8 +246,14 @@ public class Odo extends JPanel implements MessageCallback {
             case CONFIG_CHANGED:
                 UserPreferences pref = (UserPreferences) o;
                 if ((pref == UserPreferences.METRIC) ||
-                        pref == UserPreferences.INSTANCE) {
+                    (pref == UserPreferences.INSTANCE))
+                {
                     metric = pref.isMetric();
+                }
+                if ((pref == UserPreferences.WHEEL_SPEED_VISIBLE) ||
+                    (pref == UserPreferences.INSTANCE))
+                {
+                    wheelSpeedShown = pref.isWheelSpeedVisible();
                 }
                 break;
         }

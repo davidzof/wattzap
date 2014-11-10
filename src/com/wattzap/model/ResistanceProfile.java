@@ -18,6 +18,7 @@ package com.wattzap.model;
 
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
+import com.wattzap.utils.Rolling;
 
 /**
  * Trainer load handler. When "auto" is set, it looks for best load to set.
@@ -35,6 +36,8 @@ public class ResistanceProfile extends TelemetryHandler {
     private boolean autoResistance = false;
     private int resistance = 1;
     private Power power = null;
+
+    private final Rolling roll = new Rolling(8);
 
     @Override
     public String getPrettyName() {
@@ -67,6 +70,7 @@ public class ResistanceProfile extends TelemetryHandler {
             (prefs == UserPreferences.RESISTANCE_COMP))
         {
             speedCond = AutoResistanceCompEnum.get(prefs.getResistanceComp());
+            roll.clear();
         }
     }
 
@@ -90,14 +94,16 @@ public class ResistanceProfile extends TelemetryHandler {
 
         // default resistance taken from preferences
         if (autoResistance) {
-            double minDiff = computeDiff(t, resistance);
+            int matching = resistance;
+            double minDiff = computeDiff(t, matching);
             for (int level = 1; level <= power.getResitanceLevels(); level++) {
                 double diff = computeDiff(t, level);
                 if (diff < minDiff) {
-                    resistance = level;
+                    matching = level;
                     minDiff = diff;
                 }
             }
+            resistance = (int) (roll.add(matching) + 0.5);
         }
         setValue(SourceDataEnum.RESISTANCE, resistance);
     }

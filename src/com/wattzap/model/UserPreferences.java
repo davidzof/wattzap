@@ -47,8 +47,9 @@ public enum UserPreferences {
     HR_MAX("maxhr", 180),
 
     // robot power/speed.
-    ROBOT_POWER("robot", 210),
+    ROBOT_POWER("robot_power", 210),
     ROBOT_SPEED("robot_speed", 30.0, 0.1),
+    WHEEL_SPEED_VISIBLE("speed_visible", false),
 
     // 2133 is 700Cx23
     WHEEL_SIZE("wheelsize", 2133),
@@ -380,6 +381,20 @@ public enum UserPreferences {
     }
     public void setRobotPower(int power) {
         ROBOT_POWER.setInt(power);
+    }
+
+    public double getRobotSpeed() {
+        return ROBOT_SPEED.getDouble();
+    }
+    public void setRobotSpeed(double speed) {
+        ROBOT_SPEED.setDouble(speed);
+    }
+
+    public boolean isWheelSpeedVisible() {
+        return WHEEL_SPEED_VISIBLE.getBool();
+    }
+    public void setWheelSpeedVisible(boolean visible) {
+        WHEEL_SPEED_VISIBLE.setBool(visible);
     }
 
     public Power getTurboTrainerProfile() {

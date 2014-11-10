@@ -28,7 +28,6 @@ import com.wattzap.utils.Rolling;
  */
 @SelectableDataSourceAnnotation
 public class VideoSpeedPowerProfile extends TelemetryHandler {
-    private Power power = null;
     private double weight = 85.0;
     private Rolling speedRoll = new Rolling(24);
 
@@ -39,12 +38,6 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        if ((prefs == UserPreferences.INSTANCE) ||
-            (prefs == UserPreferences.TURBO_TRAINER))
-        {
-            power = prefs.getTurboTrainerProfile();
-        }
-
         // when started.. speed might be very small, and route
         // doesn't progress "fast enough".
         if (prefs == UserPreferences.POWER_SOURCE) {
@@ -63,7 +56,6 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
     @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
-            case WHEEL_SPEED:
             case POWER:
             case PAUSE:
                 return true;
@@ -75,12 +67,9 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
     @Override
     public void storeTelemetryData(Telemetry t) {
         boolean pause = true;
-        double wheelSpeed = 0.0;
         double powerWatts = 0.0;
 
-        if (power == null) {
-            // profile is not selected?
-        } else if (t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
+        if (t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
             // for trainings with video speed. These are only video trainigs with
             // slope (or even with positions)
             pause = false;
@@ -93,13 +82,11 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
                 routeSpeed = speedRoll.getAverage();
             }
             powerWatts = Power.getPower(weight, t.getGradient() / 100.0, routeSpeed);
-            wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
         } else if (t.isAvailable(SourceDataEnum.TARGET_POWER)) {
             // in TRN mode.. current power equals target power, and speed is
             // calculated on power
             pause = false;
             powerWatts = t.getDouble(SourceDataEnum.TARGET_POWER);
-            wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
         } else {
             // route without video or free run.. Another profile must be taken.
             // In fact if power is taken from sensor, speed doesn't have to be
@@ -107,7 +94,6 @@ public class VideoSpeedPowerProfile extends TelemetryHandler {
         }
 
         setPause(pause ? PauseMsgEnum.NO_MOVEMENT : PauseMsgEnum.RUNNING);
-        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
         setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

@@ -18,7 +18,6 @@ package com.wattzap.model;
 
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.power.Power;
 
 /**
  * Power profile for climbing. At max slope it reports FTP, on flat it
@@ -27,7 +26,6 @@ import com.wattzap.model.power.Power;
  */
 @SelectableDataSourceAnnotation
 public class SimulSpeedPowerProfile extends TelemetryHandler {
-    private Power power = null;
     private int ftp = 250;
     private double maxSlope = 10.0;
 
@@ -42,11 +40,6 @@ public class SimulSpeedPowerProfile extends TelemetryHandler {
             (prefs == UserPreferences.MAX_POWER))
         {
             ftp = prefs.getMaxPower();
-        }
-        if ((prefs == UserPreferences.INSTANCE) ||
-            (prefs == UserPreferences.TURBO_TRAINER))
-        {
-            power = prefs.getTurboTrainerProfile();
         }
     }
 
@@ -63,7 +56,6 @@ public class SimulSpeedPowerProfile extends TelemetryHandler {
     public boolean provides(SourceDataEnum data) {
         switch (data) {
             case POWER:
-            case WHEEL_SPEED:
             case PAUSE:
                 return true;
             default:
@@ -74,7 +66,6 @@ public class SimulSpeedPowerProfile extends TelemetryHandler {
     @Override
     public void storeTelemetryData(Telemetry t) {
         PauseMsgEnum pause;
-        double wheelSpeed = 0.0;
         double powerWatts = 0.0;
 
         // doesn't set pause.. if no slope or maxSlope is too small, just
@@ -87,14 +78,10 @@ public class SimulSpeedPowerProfile extends TelemetryHandler {
             if (powerWatts < 0) {
                 powerWatts = 0;
             }
-            if (power != null) {
-                wheelSpeed = power.getSpeed((int) powerWatts, t.getResistance());
-            }
         } else {
             pause = PauseMsgEnum.WRONG_TRAINING;
         }
         setPause(pause);
-        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
         setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

@@ -50,7 +50,7 @@ import com.wattzap.model.Readers;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.SelectableDataSource;
-import com.wattzap.model.SensorBuilder;
+import com.wattzap.model.SensorTypeEnum;
 import com.wattzap.model.ant.AntSubsystem;
 import com.wattzap.view.AboutPanel;
 import com.wattzap.view.MainFrame;
@@ -135,7 +135,7 @@ public class Main implements Runnable {
 
         // build all sensors and their subsystems
         new AntSubsystem(new PopupMessage(frame)).initialize();
-        SensorBuilder.buildSensors();
+        SensorTypeEnum.buildSensors();
 
         // Build necessary telemetry handlers. Make them enabled if possible.
         SelectableDataSource.buildHandlers();

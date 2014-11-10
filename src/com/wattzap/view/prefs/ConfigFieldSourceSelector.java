@@ -48,6 +48,11 @@ public class ConfigFieldSourceSelector extends ConfigFieldEnum implements Messag
     }
 
     @Override
+    public void remove() {
+        assert false : "Field cannot be removed";
+    }
+
+    @Override
     public EnumerationIntf getProperty() {
         String key = property.getString();
         for (EnumerationIntf en : sources.getValues()) {

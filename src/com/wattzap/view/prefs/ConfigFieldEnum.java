@@ -55,7 +55,7 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
         value.removeAllItems();
         this.enums = enums;
         for (EnumerationIntf en : enums) {
-            if (MsgBundle.containsKey(en.getKey())) {
+            if (en.inBundle() && MsgBundle.containsKey(en.getKey())) {
                 value.addItem(MsgBundle.getString(en.getKey()));
             } else {
                 value.addItem(en.getKey());
@@ -64,6 +64,11 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
                 // TODO block this option.. or rather indicate it is wrong
             }
         }
+    }
+
+    @Override
+    public void remove() {
+        assert false : "Field cannot be removed";
     }
 
     @Override

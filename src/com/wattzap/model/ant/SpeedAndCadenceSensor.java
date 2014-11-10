@@ -41,10 +41,6 @@ public class SpeedAndCadenceSensor extends AntSensor {
     // wheel circumference [mm], taken from configuration
     double wheelSize = 1496.0;
 
-    public SpeedAndCadenceSensor(String name) {
-        setPrettyName(name);
-    }
-
     @Override
     public void configChanged(UserPreferences property) {
         wheelSize = property.getWheelsize();

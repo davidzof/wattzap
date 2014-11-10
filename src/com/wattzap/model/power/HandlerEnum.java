@@ -52,6 +52,11 @@ public class HandlerEnum implements EnumerationIntf {
     }
 
     @Override
+    public boolean inBundle() {
+        return !(handler instanceof Sensor);
+    }
+
+    @Override
     public boolean isValid() {
         // check if sensor is processing messages
         if (handler instanceof Sensor) {

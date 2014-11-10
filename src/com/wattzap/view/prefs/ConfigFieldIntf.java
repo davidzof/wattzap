@@ -16,7 +16,6 @@
  */
 package com.wattzap.view.prefs;
 
-import com.wattzap.controller.Messages;
 import com.wattzap.model.UserPreferences;
 
 /**
@@ -32,4 +31,7 @@ public interface ConfigFieldIntf {
 
     // property changed, it must be updated (if not "local" change)
     void propertyChanged(UserPreferences prop, String locallyChanged);
+
+    // field removal
+    void remove();
 }

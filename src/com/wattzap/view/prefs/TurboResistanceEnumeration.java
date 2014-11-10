@@ -82,6 +82,11 @@ public class TurboResistanceEnumeration implements EnumerationIntf {
     }
 
     @Override
+    public boolean inBundle() {
+        return (level == 0);
+    }
+
+    @Override
     public String toString() {
         return "Resistance[" + getKey() + "]";
     }

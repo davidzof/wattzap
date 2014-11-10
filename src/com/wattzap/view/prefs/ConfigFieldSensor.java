@@ -88,6 +88,11 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
     }
 
     @Override
+    public void remove() {
+        assert false : "Remove field.. Not implemented yet";
+    }
+
+    @Override
     public String getName() {
         // must be same as during registration in value field..
         return fieldName;

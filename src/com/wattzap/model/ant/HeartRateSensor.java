@@ -29,10 +29,6 @@ public class HeartRateSensor extends AntSensor {
 
     private int bits = -1;
 
-    public HeartRateSensor(String name) {
-        setPrettyName(name);
-    }
-
     @Override
     public void configChanged(UserPreferences config) {
         /* nothing to be configured. SensorId is handled by AntSensor class */

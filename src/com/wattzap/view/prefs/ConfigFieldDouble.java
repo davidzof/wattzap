@@ -77,6 +77,11 @@ public class ConfigFieldDouble implements ConfigFieldIntf {
     }
 
     @Override
+    public void remove() {
+        assert false : "Field cannot be removed";
+    }
+
+    @Override
     public String getName() {
         // must be same as during registration in value field..
         return property.getName();

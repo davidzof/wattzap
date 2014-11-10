@@ -58,6 +58,12 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
         // initialize values and labels, only in this field
         field.propertyChanged(UserPreferences.INSTANCE, null);
     }
+    public void remove(ConfigFieldIntf field) {
+        assert fields.containsKey(field.getName()) :
+            "Field " + field.getName() + " not in the panel";
+        fields.remove(field.getName());
+        field.remove();
+    }
 
     public List<ConfigFieldSensor> getSensorFields() {
         List<ConfigFieldSensor> list = new ArrayList<>();

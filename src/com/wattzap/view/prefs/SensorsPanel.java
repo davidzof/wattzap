@@ -17,7 +17,8 @@ package com.wattzap.view.prefs;
 
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.SensorBuilder;
+import com.wattzap.model.SensorTypeEnum;
+import com.wattzap.model.SensorIntf;
 import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.SubsystemIntf;
 import com.wattzap.model.TelemetryProvider;
@@ -37,8 +38,8 @@ public class SensorsPanel extends ConfigPanel {
 
     public SensorsPanel() {
 		super();
-        // register MsgBundle
         MessageBus.INSTANCE.register(Messages.HANDLER, this);
+        MessageBus.INSTANCE.register(Messages.HANDLER_REMOVED, this);
 
         add(new ConfigFieldCheck(this, UserPreferences.ANT_ENABLED, "ant_enabled"));
         add(new ConfigFieldCheck(this, UserPreferences.ANT_USBM, "ant_usbm"));
@@ -51,7 +52,13 @@ public class SensorsPanel extends ConfigPanel {
             }
         });
 
-        SensorBuilder.buildFields(this);
+        // add panels for all sensors in configuration. All must be
+        // correctly defined.
+        List<String> sensors = UserPreferences.SENSORS.getSensors();
+        for (String sensor : sensors) {
+            SensorTypeEnum type = UserPreferences.SENSORS.getSensorType(sensor);
+            add(new ConfigFieldSensor(this, sensor, type.getDefaultData()));
+        }
 	}
 
     public void checking(boolean enabled) {
@@ -108,10 +115,26 @@ public class SensorsPanel extends ConfigPanel {
     @Override
     public void callback(Messages m, Object o) {
         if (m == Messages.HANDLER) {
+            SensorTypeEnum type = SensorTypeEnum.getByClass(o.getClass());
+            if (type != null) {
+                SensorIntf sensor = (SensorIntf) o;
+                boolean found = false;
+                List<ConfigFieldSensor> sensorFields = getSensorFields();
+                for (ConfigFieldSensor sensorField : sensorFields) {
+                    if (sensorField.getName().equals(sensor.getPrettyName())) {
+                        sensorField.updateSensor();
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    add(new ConfigFieldSensor(this, sensor.getPrettyName(), type.getDefaultData()));
+                }
+            }
+        } else if (m == Messages.HANDLER_REMOVED) {
             List<ConfigFieldSensor> sensorFields = getSensorFields();
             for (ConfigFieldSensor sensorField : sensorFields) {
                 if (sensorField.getName().equals(((SourceDataHandlerIntf) o).getPrettyName())) {
-                    sensorField.updateSensor();
+                    remove(sensorField);
                 }
             }
         }

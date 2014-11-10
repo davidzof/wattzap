@@ -82,6 +82,11 @@ public class TurboEnumeration implements EnumerationIntf {
     }
 
     @Override
+    public boolean inBundle() {
+        return false;
+    }
+
+    @Override
     public String toString() {
         return "Trainer[" + getKey() + "]";
     }

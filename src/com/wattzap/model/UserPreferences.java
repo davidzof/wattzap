@@ -25,6 +25,7 @@ import java.util.UUID;
 import com.wattzap.model.dto.WorkoutData;
 import com.wattzap.model.power.Power;
 import com.wattzap.model.power.PowerProfiles;
+import java.util.ArrayList;
 
 /**
  * Singleton helper to read/write user preferences to a backing store
@@ -487,14 +488,26 @@ public enum UserPreferences {
         PAIRING.setBool(enabled);
     }
 
-    public void setSensorId(String sensorName, int sensorId) {
+    public List<String> getSensors() {
+        List<String> sensors = new ArrayList<>();
+        List<String> properties = getDS().getProperties(user);
+        for (String prop : properties) {
+            if (prop.charAt(0) == '*') {
+                sensors.add(prop.substring(1));
+            }
+        }
+        return sensors;
+    }
+    public void setSensor(String sensorName, SensorTypeEnum sensorType, int sensorId) {
         // sensor id might be changed from multiple threads at once:
         // the most "dangerous" one is SensorID query thread: multiple
         // sensors might report id more or less same time
         // This notification must be synchronized, or assertions are raised.
+        assert sensorType != null : "Sensor " + sensorName + " has type NULL";
+        String sensorStr = sensorType.getType() + ":" + sensorId;
         synchronized(SENSORS) {
-            if (getInt(user, "*" + sensorName, 0)  != sensorId) {
-                setInt(user, "*" + sensorName, sensorId);
+            if (!sensorStr.equals(get(user, "*" + sensorName, ""))) {
+                set(user, "*" + sensorName, sensorStr);
                 SENSORS.strVal = sensorName;
                 SENSORS.intVal = sensorId;
                 MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSORS);
@@ -503,9 +516,27 @@ public enum UserPreferences {
             }
         }
     }
+    public void setSensorId(String sensorName, int sensorId) {
+        synchronized(SENSORS) {
+            setSensor(sensorName, getSensorType(sensorName), sensorId);
+        }
+    }
     public int getSensorId(String sensorName) {
         synchronized(SENSORS) {
-            return getInt(user, "*" + sensorName, 0);
+            String sensorStr = get(user, "*" + sensorName, "0");
+            // if not found.. index is -1, so substring is string itself
+            int index = sensorStr.indexOf(':');
+            return Integer.parseInt(sensorStr.substring(index + 1));
+        }
+	}
+    public SensorTypeEnum getSensorType(String sensorName) {
+        synchronized(SENSORS) {
+            String sensorStr = get(user, "*" + sensorName, "0");
+            int index = sensorStr.indexOf(':');
+            if (index > 0) {
+                return SensorTypeEnum.getByType(sensorStr.substring(0, index));
+            }
+            return null;
         }
 	}
     public void removeSensor(String sensorName) {

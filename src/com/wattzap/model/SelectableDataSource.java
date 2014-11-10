@@ -50,6 +50,11 @@ public class SelectableDataSource {
         }
 
         @Override
+        public boolean inBundle() {
+            return true;
+        }
+
+        @Override
         public String toString() {
             return "Source[none]";
         }

@@ -27,4 +27,6 @@ public interface EnumerationIntf {
     int ordinal();
     // if value is valid
     boolean isValid();
+    // if label is translated
+    boolean inBundle();
 }

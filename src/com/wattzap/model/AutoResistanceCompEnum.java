@@ -43,6 +43,11 @@ public enum AutoResistanceCompEnum implements EnumerationIntf {
         return true;
     }
 
+    @Override
+    public boolean inBundle() {
+        return true;
+    }
+
     private static final Map<String, AutoResistanceCompEnum> byKey;
     static {
         byKey = new HashMap<>();

@@ -49,10 +49,15 @@ public abstract class TelemetryHandler
 
     @Override
     public void release() {
-        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
-
         MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.unregister(Messages.CONFIG_CHANGED, this);
+
+        // not ready anymore
+        setLastMessageTime(0);
+
+        // request handler removal
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
     }
 
     public abstract void storeTelemetryData(Telemetry t);

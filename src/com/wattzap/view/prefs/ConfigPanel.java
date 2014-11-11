@@ -51,6 +51,8 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     }
 
     public void add(ConfigFieldIntf field) {
+        assert field.getName() != null :
+            "Field doesn't have a name";
         assert !fields.containsKey(field.getName()) :
             "Field " + field.getName() + " already in the panel";
 
@@ -75,7 +77,7 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
         return list;
     }
 
-    private void fieldChanged(String name) {
+    protected void fieldChanged(String name) {
         // if listener was called with no property or unknown one..
         if ((name == null) || (!fields.containsKey(name))) {
             return;

@@ -63,8 +63,8 @@ public class ConfigFieldDouble implements ConfigFieldIntf {
         label.setText(MsgBundle.getString(name));
 		panel.add(label);
 
-        value = new JTextField(20);
-        value.getDocument().putProperty("name", property.getName());
+        value = new JTextField(10);
+        value.getDocument().putProperty("name", getName());
         value.getDocument().addDocumentListener(panel);
         if ((metricUnit != null) || (imperialUnit != null)) {
     		panel.add(value);
@@ -82,7 +82,7 @@ public class ConfigFieldDouble implements ConfigFieldIntf {
     }
 
     @Override
-    public String getName() {
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }

@@ -62,7 +62,11 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 		setFileFilter(filter);
 
 		File last = new File(UserPreferences.INSTANCE.getDefaultFilename());
-		setCurrentDirectory(last.getParentFile());
+        if (last.exists()) {
+    		setCurrentDirectory(last.getParentFile());
+        } else {
+            setCurrentDirectory(new File(UserPreferences.INSTANCE.getRouteDir()));
+        }
 	}
 
 	/*

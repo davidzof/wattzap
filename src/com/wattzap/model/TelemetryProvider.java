@@ -53,6 +53,11 @@ public enum TelemetryProvider implements MessageCallback
 
     private Thread runner = null;
 
+    @Override
+    public String toString() {
+        return "TelemetryProvider:: ss=" + subsystems + ", handlers=" + handlers;
+    }
+
     public TelemetryProvider initialize() {
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);

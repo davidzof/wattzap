@@ -86,15 +86,19 @@ public enum UserPreferences {
     // special property for sensors, used for notification about sensorId change
     // for specified sensorName.
     SENSORS("sensors"),
+    // special property for selected sensor type. Not in DB.
+    SENSOR_TYPE("sensor_type", "ant_hr"),
 
     // backward compability, cannot be get/set
 	INSTANCE;
 
+    // TODO via annotations
     static {
         SERIAL.forAll = true;
         REGKEY.forAll = true;
         EVAL_TIME.forAll = true;
         EVAL_TIME.intCrypted = true;
+        SENSORS.keptInDB = false;
         PAIRING.keptInDB = false;
         RUNNING.keptInDB = false;
     }
@@ -104,6 +108,7 @@ public enum UserPreferences {
     private static String user = System.getProperty("user.name");
 
     // property values
+    // TODO all constnt fields final
     private final String name;
     private boolean forAll = false;
     private boolean initialized = false;
@@ -121,7 +126,6 @@ public enum UserPreferences {
     private UserPreferences(String name) {
         this.name = name;
         this.initialized = true;
-        this.keptInDB = false;
     }
     private UserPreferences(String name, String val) {
         this.name = name;
@@ -146,6 +150,7 @@ public enum UserPreferences {
         return name;
     }
     public String getString() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (strVal != null) : name + " is not a string";
             if (!initialized) {
@@ -169,6 +174,7 @@ public enum UserPreferences {
         }
     }
     public int getInt() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (intVal != null) : name + " is not an integer";
             if (!initialized) {
@@ -200,6 +206,7 @@ public enum UserPreferences {
         }
     }
     public double getDouble() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (doubleVal != null) : name + " is not a double";
             if (!initialized) {
@@ -224,6 +231,7 @@ public enum UserPreferences {
         }
     }
     public boolean getBool() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (boolVal != null) : name + " is not a bool";
             if (!initialized) {
@@ -289,6 +297,13 @@ public enum UserPreferences {
     }
     public void setStarted(boolean started) {
         RUNNING.setBool(started);
+    }
+
+    public boolean isPairingEnabled() {
+        return PAIRING.getBool();
+    }
+    public void setPairing(boolean enabled) {
+        PAIRING.setBool(enabled);
     }
 
     public boolean isAntEnabled() {
@@ -436,10 +451,10 @@ public enum UserPreferences {
         TRAININGS_DIR.setString(s);
 	}
 
+    public boolean getLoadLastTrainig() {
+        return LOAD_LAST.getBool();
+    }
     public String getDefaultFilename() {
-        if ((!LOAD_LAST.getBool()) || (LAST_FILENAME.getString().isEmpty())) {
-            return null;
-        }
         return LAST_FILENAME.getString();
     }
 
@@ -481,13 +496,6 @@ public enum UserPreferences {
 	}
 
 
-    public boolean isPairingEnabled() {
-        return PAIRING.getBool();
-    }
-    public void setPairing(boolean enabled) {
-        PAIRING.setBool(enabled);
-    }
-
     public List<String> getSensors() {
         List<String> sensors = new ArrayList<>();
         List<String> properties = getDS().getProperties(user);
@@ -504,7 +512,7 @@ public enum UserPreferences {
         // sensors might report id more or less same time
         // This notification must be synchronized, or assertions are raised.
         assert sensorType != null : "Sensor " + sensorName + " has type NULL";
-        String sensorStr = sensorType.getType() + ":" + sensorId;
+        String sensorStr = sensorType.getKey() + ":" + sensorId;
         synchronized(SENSORS) {
             if (!sensorStr.equals(get(user, "*" + sensorName, ""))) {
                 set(user, "*" + sensorName, sensorStr);
@@ -521,6 +529,9 @@ public enum UserPreferences {
             setSensor(sensorName, getSensorType(sensorName), sensorId);
         }
     }
+    public String getSensor(String sensorName) {
+        return get(user, "*" + sensorName, "undefined");
+	}
     public int getSensorId(String sensorName) {
         synchronized(SENSORS) {
             String sensorStr = get(user, "*" + sensorName, "0");
@@ -534,7 +545,7 @@ public enum UserPreferences {
             String sensorStr = get(user, "*" + sensorName, "0");
             int index = sensorStr.indexOf(':');
             if (index > 0) {
-                return SensorTypeEnum.getByType(sensorStr.substring(0, index));
+                return SensorTypeEnum.byType(sensorStr.substring(0, index));
             }
             return null;
         }
@@ -545,7 +556,12 @@ public enum UserPreferences {
         }
     }
 
-
+	public SensorTypeEnum getSensorType() {
+        return SensorTypeEnum.byType(SENSOR_TYPE.getString());
+	}
+	public void setSensorType(SensorTypeEnum type) {
+		SENSOR_TYPE.setString(type.getKey());
+	}
 
 
     public void addWorkout(WorkoutData data) {

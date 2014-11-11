@@ -18,6 +18,7 @@ package com.wattzap.model;
 
 import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
+import com.wattzap.model.ant.TrainerSensor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,10 +31,11 @@ import java.util.Map;
  *
  * @author Jarek
  */
-public enum SensorTypeEnum {
+public enum SensorTypeEnum implements EnumerationIntf {
     // ANT+ sensors
     ANT_SPEED_CADENCE("ant_sc", SpeedAndCadenceSensor.class, SourceDataEnum.WHEEL_SPEED),
-    ANT_HEART_RATE("ant_hr", HeartRateSensor.class, SourceDataEnum.HEART_RATE);
+    ANT_HEART_RATE("ant_hr", HeartRateSensor.class, SourceDataEnum.HEART_RATE),
+    ANT_TRAINER("ant_trainer", TrainerSensor.class, SourceDataEnum.RESISTANCE);
 
     private static final UserPreferences prefs = UserPreferences.SENSORS;
 
@@ -41,10 +43,10 @@ public enum SensorTypeEnum {
     private static final Map<String, SensorTypeEnum> sensorTypes = new HashMap<>();
     static {
         for (SensorTypeEnum en : values()) {
-            sensorTypes.put(en.getType(), en);
+            sensorTypes.put(en.getKey(), en);
         }
     }
-    public static SensorTypeEnum getByType(String type) {
+    public static SensorTypeEnum byType(String type) {
         return sensorTypes.get(type);
     }
 
@@ -55,7 +57,7 @@ public enum SensorTypeEnum {
             sensorClasses.put(en.getSensorClass(), en);
         }
     }
-    public static SensorTypeEnum getByClass(Class clazz) {
+    public static SensorTypeEnum byClass(Class clazz) {
         return sensorClasses.get(clazz);
     }
 
@@ -68,7 +70,9 @@ public enum SensorTypeEnum {
         this.clazz = clazz;
         this.defData = defData;
     }
-    public String getType() {
+
+    @Override
+    public String getKey() {
         return type;
     }
     public Class getSensorClass() {
@@ -79,33 +83,23 @@ public enum SensorTypeEnum {
     }
 
 
-    // TODO build it on config settings!
     public static void buildSensors() {
         List<String> sensors = prefs.getSensors();
-
-        int found = 0;
         for (String sensor : sensors) {
-            SensorTypeEnum type = prefs.getSensorType(sensor);
-            if (type == null) {
-                System.err.println("Sensor " + sensor + " has no type defined");
-                prefs.removeSensor(sensor);
-            } else {
-                found++;
-                buildSensor(sensor, type, prefs.getSensorId(sensor));
-            }
-        }
-        // add default sensors if none defined. It takes place every time
-        // all sensors were removed. To be removed!!!!
-        if (found == 0) {
-            System.err.println("Add default sensors..");
-            prefs.setSensor("sandc", ANT_SPEED_CADENCE, 0);
-            buildSensor("sandc", ANT_SPEED_CADENCE, 0);
-            prefs.setSensor("hrm", ANT_HEART_RATE, 0);
-            buildSensor("hrm", ANT_HEART_RATE, 0);
+            buildSensor(sensor);
         }
     }
 
-    public static void buildSensor(String name, SensorTypeEnum type, int id) {
+    public static SensorIntf buildSensor(String name) {
+        SensorTypeEnum type = prefs.getSensorType(name);
+        if (type == null) {
+            System.err.println("Sensor " + name + " has unknown def " +
+                    prefs.getSensor(name) + ", build HR");
+            type = ANT_HEART_RATE;
+        }
+        return buildSensor(name, type, prefs.getSensorId(name));
+    }
+    public static SensorIntf buildSensor(String name, SensorTypeEnum type, int id) {
         SensorIntf sensor = null;
         try {
             sensor = (SensorIntf) type.getSensorClass().newInstance();
@@ -116,5 +110,16 @@ public enum SensorTypeEnum {
             sensor.setPrettyName(name);
             sensor.initialize();
         }
+        return sensor;
+    }
+
+    @Override
+    public boolean isValid() {
+        return true;
+    }
+
+    @Override
+    public boolean inBundle() {
+        return true;
     }
 }

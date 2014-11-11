@@ -40,18 +40,20 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
             String name, EnumerationIntf[] enums) {
         this.property = property;
 
-        JLabel label = new JLabel();
-        label.setText(MsgBundle.getString(name));
-		panel.add(label);
+        if (name != null) {
+            JLabel label = new JLabel();
+            label.setText(MsgBundle.getString(name));
+            panel.add(label);
+        }
 
         value = new JComboBox();
         setEnums(enums);
-        value.setActionCommand(property.getName());
+        value.setActionCommand(getName());
         value.addActionListener(panel);
 		panel.add(value, "span");
     }
 
-    public void setEnums(EnumerationIntf[] enums) {
+    public final void setEnums(EnumerationIntf[] enums) {
         value.removeAllItems();
         this.enums = enums;
         for (EnumerationIntf en : enums) {
@@ -72,7 +74,7 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
     }
 
     @Override
-    public String getName() {
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }

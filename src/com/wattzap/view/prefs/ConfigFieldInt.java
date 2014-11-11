@@ -38,8 +38,8 @@ public class ConfigFieldInt implements ConfigFieldIntf {
         JLabel label = new JLabel();
         label.setText(MsgBundle.getString(name));
 		panel.add(label);
-		value = new JTextField(20);
-        value.getDocument().putProperty("name", property.getName());
+		value = new JTextField(10);
+        value.getDocument().putProperty("name", getName());
         value.getDocument().addDocumentListener(panel);
         if ((val == null) || (val.isEmpty())) {
     		panel.add(value, "span");
@@ -61,7 +61,7 @@ public class ConfigFieldInt implements ConfigFieldIntf {
     }
 
     @Override
-    public String getName() {
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }

@@ -270,9 +270,8 @@ public class Main implements Runnable {
 
         // autoload last trainig file (if any was loaded and config check is
         // enabled. All interrested handlers must exist.
-        String file = userPrefs.getDefaultFilename();
-        if (file != null) {
-            Readers.runTraining(file);
+        if (userPrefs.getLoadLastTrainig()) {
+            Readers.runTraining(userPrefs.getDefaultFilename());
         }
         // continue last training, journalFile is recovered and continues
         // from the last point. Don't show any information about how many points

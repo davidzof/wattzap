@@ -117,13 +117,15 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
         if (button != null) {
             group.remove(button);
             panel.remove(button);
+            button.removeActionListener(panel);
         }
         if (label != null) {
             panel.remove(label);
         }
-        if (value != null) {
-            panel.remove(value);
-        }
+
+        panel.remove(value);
+        value.getDocument().removeDocumentListener(panel);
+
         if (current != null) {
             panel.remove(current);
         }

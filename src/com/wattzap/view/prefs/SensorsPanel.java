@@ -129,10 +129,10 @@ public class SensorsPanel extends ConfigPanel {
         button.setSelected(true);
 	}
     private JButton createButton(String name) {
-        JButton button = new JButton(MsgBundle.getString(name));
-        button.setActionCommand("!" + name);
-        button.addActionListener(this);
-        return button;
+        JButton btn = new JButton(MsgBundle.getString(name));
+        btn.setActionCommand("!" + name);
+        btn.addActionListener(this);
+        return btn;
     }
 
     private SensorIntf getSensor(String name) {
@@ -166,8 +166,8 @@ public class SensorsPanel extends ConfigPanel {
     private void sensorThread() {
         List<SubsystemIntf> subsystems = TelemetryProvider.INSTANCE.getSubsystems();
 
-        // start all subsystems. If training is started, they are for sure
-        // started and it shows warning in the log.
+        // start all subsystems. Cannot switch pairing when training was
+        // started and subsystems are running).
         for (SubsystemIntf subsystem : subsystems) {
             subsystem.open();
         }
@@ -187,8 +187,9 @@ public class SensorsPanel extends ConfigPanel {
             }
         }
 
-        // stop all subsystems back, if not started. Otherwise they are
-        // already closed, but who cares (only entry in the log again..)
+        // stop all subsystems back, if not started. Otherwise they should
+        // stay opened. When training is being started, running is set and
+        // then pairing is disabled.
         if (!userPrefs.isStarted()) {
             for (SubsystemIntf subsystem : subsystems) {
                 subsystem.close();
@@ -201,7 +202,9 @@ public class SensorsPanel extends ConfigPanel {
     public void callback(Messages m, Object o) {
         boolean repaint = false;
 
-        if (m == Messages.HANDLER) {
+        if (m == Messages.CONFIG_CHANGED) {
+            // TODO on isStarted() change availability of PAIRING switch
+        } else if (m == Messages.HANDLER) {
             SensorTypeEnum type = SensorTypeEnum.byClass(o.getClass());
             if (type != null) {
                 SensorIntf sensor = (SensorIntf) o;
@@ -221,9 +224,10 @@ public class SensorsPanel extends ConfigPanel {
         } else if (m == Messages.HANDLER_REMOVED) {
             List<ConfigFieldSensor> sensorFields = getSensorFields();
             for (ConfigFieldSensor sensorField : sensorFields) {
-                if (sensorField.getName().equals("*" +
-                        ((SourceDataHandlerIntf) o).getPrettyName())) {
+                String name = ((SourceDataHandlerIntf) o).getPrettyName();
+                if (sensorField.getName().equals("*" + name)) {
                     remove(sensorField);
+                    userPrefs.removeSensor(name);
                     repaint = true;
                 }
             }
@@ -233,6 +237,7 @@ public class SensorsPanel extends ConfigPanel {
         }
         super.callback(m, o);
     }
+
 
     // handles !name (editor name changed), !type (editor type changed),
     // !{button} (button pressed) and @sensor (sensor line selected) actions
@@ -301,7 +306,6 @@ public class SensorsPanel extends ConfigPanel {
 
         // To update sensor.. It must be removed and added once again
         if ((deleteStr.equals(action)) || (updateStr.equals(action))) {
-            userPrefs.removeSensor(selected.getPrettyName());
             lastId = selected.getSensorId();
             // sensor is released, so it should disappear from the interface
             selected.release();

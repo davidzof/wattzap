@@ -63,7 +63,8 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     public void remove(ConfigFieldIntf field) {
         assert fields.containsKey(field.getName()) :
             "Field " + field.getName() + " not in the panel";
-        fields.remove(field.getName());
+        assert field == fields.remove(field.getName()) :
+                "Another field removed from the interface";
         field.remove();
     }
 

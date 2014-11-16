@@ -33,10 +33,11 @@ public class SourcesPanel extends ConfigPanel {
     public SourcesPanel() {
 		super();
 
+        add(new ConfigFieldCheck(this, UserPreferences.WHEEL_SPEED_VISIBLE, "ws_visible"));
+
         // selectors for speed/cadence/hr/power and additional params
         add(new ConfigFieldSourceSelector(this, UserPreferences.SPEED_SOURCE,
                 "speed_source", SourceDataEnum.WHEEL_SPEED));
-        add(new ConfigFieldCheck(this, UserPreferences.WHEEL_SPEED_VISIBLE, "ws_visible"));
         add(new ConfigFieldDouble(this, UserPreferences.ROBOT_SPEED, "robot_speed",
                 "%.1f", "km/h", "mph", Constants.KMTOMILES));
 

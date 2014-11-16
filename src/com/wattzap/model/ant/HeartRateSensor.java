@@ -17,22 +17,14 @@
 package com.wattzap.model.ant;
 
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.UserPreferences;
 
 /**
  *
  * @author Jarek
  */
 public class HeartRateSensor extends AntSensor {
-    private static final int HRM_CHANNEL_PERIOD = 8070;
+    private static final int HRM_CHANNEL_PERIOD = 8070; // 4.06Hz
 	private static final int HRM_DEVICE_TYPE = 120; // 0x78
-
-    private int bits = -1;
-
-    @Override
-    public void configChanged(UserPreferences config) {
-        /* nothing to be configured. SensorId is handled by AntSensor class */
-    }
 
     @Override
     public int getSensorType() {
@@ -45,10 +37,21 @@ public class HeartRateSensor extends AntSensor {
     }
 
     @Override
+    public int getTransmissionType() {
+        return 1;
+    }
+
+    private final AntCumulativeComp hrComp = new AntCumulativeComp(
+            4, 2, 2048, // max ticks between heart beat, min HR 30bpm
+            6, 1, 4, // heartbeats per [s], max heart rate 240bpm
+            8 // about 2s to get the average
+    );
+
+    @Override
     public void storeReceivedData(long time, int[] data) {
-        int rate = data[7];
-        if ((40 < rate) && (rate <= 220)) {
-            setValue(SourceDataEnum.HEART_RATE, rate);
+        double compRate = hrComp.compute(time, data);
+        if (compRate > 0.0) {
+            setValue(SourceDataEnum.HEART_RATE, compRate * 60.0);
         }
     }
 

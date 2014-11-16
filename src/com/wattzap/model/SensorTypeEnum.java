@@ -16,9 +16,11 @@
  */
 package com.wattzap.model;
 
+import com.wattzap.model.ant.CadenceSensor;
 import com.wattzap.model.ant.HeartRateSensor;
 import com.wattzap.model.ant.SpeedAndCadenceSensor;
-import com.wattzap.model.ant.TrainerSensor;
+import com.wattzap.model.ant.SpeedSensor;
+import com.wattzap.model.ant.StrideSensor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +37,9 @@ public enum SensorTypeEnum implements EnumerationIntf {
     // ANT+ sensors
     ANT_SPEED_CADENCE("ant_sc", SpeedAndCadenceSensor.class, SourceDataEnum.WHEEL_SPEED),
     ANT_HEART_RATE("ant_hr", HeartRateSensor.class, SourceDataEnum.HEART_RATE),
-    ANT_TRAINER("ant_trainer", TrainerSensor.class, SourceDataEnum.RESISTANCE);
+    ANT_SPEED("ant_speed", SpeedSensor.class, SourceDataEnum.WHEEL_SPEED),
+    ANT_CADENCE("ant_cad", CadenceSensor.class, SourceDataEnum.CADENCE),
+    ANT_STRIDE_CAD("ant_stride", StrideSensor.class, SourceDataEnum.HEART_RATE);
 
     private static final UserPreferences prefs = UserPreferences.SENSORS;
 

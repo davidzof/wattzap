@@ -378,6 +378,9 @@ public enum TelemetryProvider implements MessageCallback
                 configChanged((UserPreferences) o);
                 break;
             case START:
+                UserPreferences.RUNNING.setBool(true);
+                // disable pairing if running: but all subsystems are left enabled
+                UserPreferences.PAIRING.setBool(false);
                 if (runner == null) {
                     runner = new Thread() {
                         @Override
@@ -399,6 +402,7 @@ public enum TelemetryProvider implements MessageCallback
                 } else {
                     logger.error("TelemetryProvider not started");
                 }
+                UserPreferences.RUNNING.setBool(false);
                 break;
 
             case SUBSYSTEM:

@@ -176,7 +176,9 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
         }
     }
     public boolean isValid(int val) {
-        return (val >= 0) && (val < 65536);
+        // sensorId is 20bits, most significant nibble from transmission
+        // type contains "missing" 4 bits.
+        return (val >= 0) && (val < 0x100000);
     }
 
     public final void updateSensor() {

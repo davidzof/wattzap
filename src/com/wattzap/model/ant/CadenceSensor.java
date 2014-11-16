@@ -17,43 +17,51 @@
 package com.wattzap.model.ant;
 
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.UserPreferences;
 
 /**
- * "Faked" sensor, just to test sensor handling mechanism.
  *
  * @author Jarek
  */
-public class TrainerSensor extends AntSensor {
-    private static final int HRM_CHANNEL_PERIOD = 8070;
-	private static final int HRM_DEVICE_TYPE = 120; // 0x78
 
-    private int bits = -1;
+public class CadenceSensor extends AntSensor {
 
-    @Override
-    public void configChanged(UserPreferences config) {
-        /* nothing to be configured. SensorId is handled by AntSensor class */
-    }
+    private static final int ANT_SPORT_CADENCE_PERIOD = 8102; // ~4.04Hz
+	private static final int ANT_SPORT_CADENCE_TYPE = 122; // 0x7A
 
     @Override
     public int getSensorType() {
-        return HRM_DEVICE_TYPE;
+        return ANT_SPORT_CADENCE_TYPE;
     }
 
     @Override
     public int getSensorPeriod() {
-        return HRM_CHANNEL_PERIOD;
+        return ANT_SPORT_CADENCE_PERIOD;
     }
 
     @Override
+    public int getTransmissionType() {
+        return 1;
+    }
+
+    private final AntCumulativeComp cadenceComp = new AntCumulativeComp(
+            4, 2, 4096, // max ticks between crank rotations, min cadence 15rpm
+            6, 2, 5, // crank rotations per [s], max cadence 300rpm
+            4 // about 1s to get the average
+    );
+
+    @Override
     public void storeReceivedData(long time, int[] data) {
-        setValue(SourceDataEnum.RESISTANCE, data[6]);
+        double cadence = cadenceComp.compute(time, data);
+        if (cadence > 0.0) {
+            // cadence => convert to rotations per min
+            setValue(SourceDataEnum.CADENCE, cadence * 60.0);
+        }
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
-            case RESISTANCE:
+            case CADENCE:
                 return true;
             default:
                 return false;

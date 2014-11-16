@@ -23,14 +23,14 @@ import com.wattzap.model.UserPreferences;
  *
  * @author Jarek
  */
-public class SpeedAndCadenceSensor extends AntSensor {
+public class SpeedSensor extends AntSensor {
 
-    private static final int ANT_SPORT_SPEED_PERIOD = 8086;
-	private static final int ANT_SPORT_SandC_TYPE = 121; // 0x78
+    private static final int ANT_SPORT_SPEED_PERIOD = 8118; // ~4.04Hz
+	private static final int ANT_SPORT_SPEED_TYPE = 123; // 0x7B
 
     @Override
     public int getSensorType() {
-        return ANT_SPORT_SandC_TYPE;
+        return ANT_SPORT_SPEED_TYPE;
     }
 
     @Override
@@ -40,18 +40,13 @@ public class SpeedAndCadenceSensor extends AntSensor {
 
     @Override
     public int getTransmissionType() {
-        return 1;
+        return 0x01;
     }
 
     private final AntCumulativeComp speedComp = new AntCumulativeComp(
             4, 2, 4096, // max ticks between wheel rotations, min speed ~2km/h
             6, 2, 16, // max wheel rotations per second, max speed ~120km/h
             6 // about 1.5s to get the average
-    );
-    private final AntCumulativeComp cadenceComp = new AntCumulativeComp(
-            0, 2, 4096, // max ticks between crank rotations, min cadence 15rpm
-            2, 2, 5, // crank rotations per [s], max cadence 300rpm
-            4 // about 1s to get the average
     );
 
     // wheel circumference [m], taken from configuration
@@ -64,18 +59,12 @@ public class SpeedAndCadenceSensor extends AntSensor {
             // speed => convert to km/h
             setValue(SourceDataEnum.WHEEL_SPEED, 3.6 * wheelSize * speed);
         }
-        double cadence = cadenceComp.compute(time, data);
-        if (cadence > 0.0) {
-            // cadence => convert to rotations per min
-            setValue(SourceDataEnum.CADENCE, cadence * 60.0);
-        }
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
             case WHEEL_SPEED:
-            case CADENCE:
                 return true;
             default:
                 return false;

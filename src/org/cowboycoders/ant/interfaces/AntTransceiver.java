@@ -54,6 +54,8 @@ import javax.usb.UsbNotActiveException;
 import javax.usb.UsbNotOpenException;
 import javax.usb.UsbPipe;
 import javax.usb.UsbServices;
+import org.cowboycoders.ant.interfaces.AbstractAntTransceiver;
+import org.cowboycoders.ant.interfaces.AntCommunicationException;
 
 import org.cowboycoders.ant.messages.StandardMessage;
 import org.cowboycoders.ant.messages.commands.ResetMessage;
@@ -62,7 +64,8 @@ import org.cowboycoders.ant.utils.UsbUtils;
 
 public class AntTransceiver extends AbstractAntTransceiver {
 
-	public final static Logger LOGGER = Logger.getLogger(AntTransceiver.class
+    public static org.apache.log4j.Logger logger = null;
+    public final static Logger LOGGER = Logger.getLogger(AntTransceiver.class
 			.getName());
 
 	public static final Level LOG_LEVEL = Level.SEVERE;
@@ -195,21 +198,32 @@ public class AntTransceiver extends AbstractAntTransceiver {
     }
 
     private static final String digits = "0123456789abcdef";
-	private void logData(Level level, byte[] data, String tag) {
-        if (LOGGER.isLoggable(level)) {
-            StringBuffer logBuffer = new StringBuffer(tag.length() + 2 + 3 * data.length + 3);
+	private void logData(Level level, byte[] data, int length, String tag) {
+        if (length == 0) {
+            return;
+        }
+        if ((LOGGER.isLoggable(level) || (logger != null))) {
+            StringBuffer logBuffer = new StringBuffer(tag.length() + 2 + 3 * length + 10);
             logBuffer.append(tag);
-            logBuffer.append(" :");
+            logBuffer.append('[');
+            logBuffer.append(length);
+            logBuffer.append(']');
+            logBuffer.append(":");
 
-            for (Byte b : data) {
+            for (int i = 0; i < length; i++) {
+                int b = (int) data[i];
+                if (b < 0) {
+                    b += 0x100;
+                }
                 logBuffer.append(' ');
                 logBuffer.append(digits.charAt((b >> 4) & 0x0f));
                 logBuffer.append(digits.charAt(b & 0x0f));
             }
 
-            logBuffer.append((String.format("\n")));
-
             LOGGER.log(level, logBuffer.toString());
+            if (logger != null) {
+                logger.debug(logBuffer);
+            }
         }
 	}
 
@@ -360,7 +374,7 @@ public class AntTransceiver extends AbstractAntTransceiver {
 							// inPipe.close();
 						}
 
-						logData(Level.FINER, data, "read");
+						logData(Level.FINER, data, len, "read");
 
 						// process remaining bytes from last buffer
 						if (last != null) {
@@ -707,8 +721,8 @@ public class AntTransceiver extends AbstractAntTransceiver {
 			if (!pipe.isOpen())
 				pipe.open();
 			LOGGER.finest("pre submit");
+			logData(Level.FINER, data, data.length, "wrote");
 			pipe.syncSubmit(data);
-			logData(Level.FINER, data, "wrote");
 		} finally {
 			if (pipe != null) {
 				pipe.close();

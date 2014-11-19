@@ -18,16 +18,9 @@ package com.wattzap.view.training;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.io.EOFException;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 import javax.swing.JComponent;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import org.apache.log4j.LogManager;
@@ -40,14 +33,11 @@ import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
-import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
-import java.awt.Component;
-import java.io.File;
+import java.awt.Toolkit;
 import java.util.List;
 
 /**
@@ -72,47 +62,34 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 	private static final Logger logger = LogManager.getLogger("Training Display");
 	private static final UserPreferences userPrefs = UserPreferences.INSTANCE;
 
-	private static final long MILLISECSMINUTE = 60000;
     private static final long CHARTTIMECORRECTION = 23 * 60 * 60 * 1000;
 
     private final List<SourceDataEnum> addedItems = new ArrayList<>();
+    private SimpleXYChartDescriptor descriptor = null;
     private SimpleXYChartSupport support = null;
-	private JComponent chart;
-
-    private RouteReader reader = null;
-
-    // used to save .tcx, to rebuild the chart. Kept in journal as well
-    private ArrayList<Telemetry> data = null;
-	private ObjectOutputStream oos = null;
-
-    // default "session" data.
-    private long startTime = 0;
-    private String lastName = null;
-
-    // last telemetry time, to ignore telemetries within one second
+	private JComponent chart = null;
     private long time;
 
+    private RouteReader reader = null;
 	boolean antEnabled = true;
-    private boolean oosCreate = true;
 
-	public TrainingDisplay(Dimension screenSize) {
+	public TrainingDisplay() {
+        // why the size is as given? I thing about 2/3rd of parent window
+        // (then it will be moved to MainFrame)
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
 		setPreferredSize(new Dimension(screenSize.width / 2, 400));
-		setLayout(new BorderLayout());
+
+        setLayout(new BorderLayout());
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.START, this);
-		MessageBus.INSTANCE.register(Messages.STOP, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
+		MessageBus.INSTANCE.register(Messages.TD, this);
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 
+        // rebuild imediatelly
         callback(Messages.CONFIG_CHANGED, userPrefs);
 	}
-
-    // name to be stored in history (database)
-    public String getLastName() {
-        return lastName;
-    }
 
     private void addItem(SimpleXYChartDescriptor descriptor,
             SourceDataEnum item, Color color, double lineWidth) {
@@ -123,15 +100,11 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
     }
 
     private synchronized void rebuildChart() {
-		if (chart != null) {
-            addedItems.clear();
-			remove(chart);
-			chart = null;
-		}
+        addedItems.clear();
 
         // long minValue, long maxValue, long initialYMargin,
         // double chartFactor, boolean hideableItems, int valuesBuffer
-        SimpleXYChartDescriptor descriptor = SimpleXYChartDescriptor.decimal(
+        descriptor = SimpleXYChartDescriptor.decimal(
                 0, 200, 300, 1.0, true, 600);
 
 		Color darkOrange = new Color(246, 46, 00);
@@ -167,22 +140,41 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             */
 		}
 
-		support = ChartFactory.createSimpleXYChart(descriptor);
+        time = -1;
+
+        // request all training data
+        MessageBus.INSTANCE.send(Messages.TD_REQ, this);
+    }
+
+    // Put current data in the chart.
+    private synchronized void rebuildData(List<Telemetry> data) {
+		if (chart != null) {
+			remove(chart);
+			chart = null;
+		}
+
+        support = ChartFactory.createSimpleXYChart(descriptor);
 		chart = support.getChart();
 		add(chart, BorderLayout.CENTER);
 		chart.setVisible(true);
 		chart.revalidate();
-        time = -1;
 
-        // put current data in the chart. In "normal" telemetry time
-        // starts from 0, while in ones read from journal it start
-        // from startTime
-        if (data != null) {
-            synchronized(data) {
-                for (Telemetry t : data) {
-                    update(t, startTime);
-                }
+        if ((data != null) && (!data.isEmpty())) {
+            System.err.println("Update data, any received");
+            // In "normal" telemetry time starts from 0, while in ones read from
+            // journal it start from startTime
+            long startTime = data.get(0).getTime();
+            for (Telemetry t : data) {
+                update(t, startTime);
             }
+        } else {
+            System.err.println("No data, show 0:0 time");
+            long[] values = new long[addedItems.size()];
+            for (int i = 0; i < addedItems.size(); i++) {
+                values[i] = 0;
+            }
+            // reset axis to 0:00
+            support.addValues(CHARTTIMECORRECTION, values);
         }
 	}
 
@@ -237,176 +229,6 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		support.addValues(time + CHARTTIMECORRECTION, values);
 	}
 
-	/*
-	 * Save every one point for every second
-     *
-	 * Collection contains telemetries with "wall" time, pauses are not
-     * counted..
-	 * @param t
-	 */
-	private void add(Telemetry t) {
-        if (data == null) {
-            // not started?
-            return;
-        }
-
-        // Telemetry provider controll messages are not added to the data
-        if (PauseMsgEnum.msg(t) != null) {
-            return;
-        }
-
-        // in data (and journal as well) time starts from startTime (when
-        // session was started for the first time), so time must be corrected
-        long time = t.getTime() + startTime;
-
-        // don't add telemetry too often..
-        Telemetry tt;
-        synchronized(data) {
-            if (!data.isEmpty()) {
-                Telemetry tn = data.get(data.size() - 1);
-                if (time < tn.getTime() + 1000) {
-                    return;
-                }
-            }
-            tt = new Telemetry(t);
-            tt.setTime(time);
-            data.add(tt);
-        }
-        storeTelemetry(tt);
-    }
-
-    private static final String getJournalName() {
-        return userPrefs.getWD() + "/journal.ser";
-    }
-
-    // store telemetry with "wall-clock" time
-    private void storeTelemetry(Telemetry t) {
-        if (oosCreate && (oos == null)) {
-            oosCreate = false;
-            try {
-                FileOutputStream fout = new FileOutputStream(
-                        getJournalName(), false);
-                oos = new ObjectOutputStream(fout);
-            } catch (Exception e) {
-                logger.error(e + ":: Can't create journal file "
-                        + e.getLocalizedMessage());
-            }
-        }
-        if (oos != null) {
-            try {
-                oos.writeObject(t);
-            } catch (Exception e) {
-                // TODO Auto-generated catch block
-                logger.error(e + "Can't write telemetry data to journal "
-                        + e.getLocalizedMessage());
-            }
-        }
-    }
-
-	public List<Telemetry> getData() {
-        if (data == null) {
-            return null;
-        }
-        synchronized(data) {
-    		return new ArrayList<Telemetry>(data);
-        }
-	}
-
-    public void closeJournal(Component frame) {
-        if ((data == null) || (data.isEmpty())) {
-            if (frame != null) {
-                JOptionPane.showMessageDialog(frame, "Logging not started yet",
-                        "Info", JOptionPane.INFORMATION_MESSAGE);
-            }
-            return;
-        }
-        // close oos if exists
-        if (oos != null) {
-            try {
-                oos.close();
-            } catch (IOException e) {
-                logger.error("Can't close journal file "
-                        + e.getLocalizedMessage());
-            }
-            oos = null;
-        }
-        File journal = new File(getJournalName());
-        if (!journal.delete()) {
-            logger.error("Cannot delte journal file");
-        }
-
-        // clear data, this is start brand new session
-        synchronized(data) {
-            data.clear();
-            TelemetryProvider.INSTANCE.setDistanceTime(0.0, 0);
-        }
-        rebuildChart();
-    }
-
-    public void loadJournal(Component frame) {
-        if ((oos != null) || (data != null) || (startTime != 0)) {
-            if (frame != null) {
-                JOptionPane.showMessageDialog(frame, "Logging already started",
-                        "Info", JOptionPane.INFORMATION_MESSAGE);
-            }
-            return;
-        }
-
-        data = new ArrayList<Telemetry>();
-        synchronized(data) {
-            Telemetry t = null;
-
-            ObjectInputStream objectInputStream = null;
-            try {
-                FileInputStream streamIn = new FileInputStream(
-                        getJournalName());
-                objectInputStream = new ObjectInputStream(streamIn);
-
-                while ((t = (Telemetry) objectInputStream.readObject()) != null) {
-                    data.add(t);
-                    if (startTime == 0) {
-                        startTime = t.getTime();
-                    }
-                }
-            } catch (EOFException ex) {
-                // nothing.. just normal response..
-            } catch (Exception e) {
-                logger.error(e + ":: cannot read " + e.getLocalizedMessage());
-            } finally {
-                logger.debug("read " + data.size() + " records");
-                if (frame != null) {
-                    JOptionPane.showMessageDialog(frame, "Recovered " + data.size()
-                            + " records", "Info", JOptionPane.INFORMATION_MESSAGE);
-                }
-                if (objectInputStream != null) {
-                    try {
-                        objectInputStream.close();
-                    } catch (IOException e) {
-                        logger.error(e + ":: Cannot close " + e.getLocalizedMessage());
-                    }
-                }
-            }
-
-            if (t == null) {
-                // nothing was read.. pitty
-                System.err.println("No data read from journal");
-                data = null;
-            } else {
-                System.err.println("Start time " + SourceDataEnum.TIME.format((double) startTime, true));
-                // restore previous location and time (for training)
-                TelemetryProvider.INSTANCE.setDistanceTime(
-                        t.getDistance(), t.getTime() - startTime);
-            }
-
-            // rebuild journal file from the scratch
-            if (data != null) {
-                for (Telemetry tt : data) {
-                    storeTelemetry(tt);
-                }
-                rebuildChart();
-            }
-        }
-	}
 
 	@Override
 	public void callback(Messages message, Object o) {
@@ -414,7 +236,6 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		case TELEMETRY:
             Telemetry t = (Telemetry) o;
             update(t, 0);
-            add(t);
 			break;
 
         case CONFIG_CHANGED:
@@ -426,43 +247,19 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
             }
             break;
 
-		case START:
-            if (startTime == 0) {
-                startTime = System.currentTimeMillis();
-            }
-			if (chart == null) {
-				rebuildChart();
-			}
-            if (data == null) {
-                data = new ArrayList<Telemetry>();
-            }
-			break;
-
-        case STOP:
-            // decrease amount of time left.. Move to evalTimeHandler..
-			if ((data != null) && (!data.isEmpty())) {
-                long split;
-                synchronized(data) {
-                    Telemetry firstPoint = data.get(0);
-                    Telemetry lastPoint = data.get(data.size() - 1);
-                    split = lastPoint.getTime() - firstPoint.getTime();
-                }
-				int minutes = userPrefs.getEvalTime();
-				minutes -= (split / MILLISECSMINUTE);
-				userPrefs.setEvalTime(minutes);
-			}
-			break;
-
         // TODO replace with TRAINING LOAD
         case GPXLOAD:
             reader = (RouteReader) o;
-            lastName = reader.getName();
             rebuildChart();
             break;
 
         case CLOSE:
 			reader = null;
             rebuildChart();
+			break;
+
+        case TD:
+            rebuildData((List<Telemetry>) o);
 			break;
         }
 	}

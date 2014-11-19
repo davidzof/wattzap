@@ -76,7 +76,6 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 public class VideoPlayer extends JFrame implements MessageCallback {
 	private static Logger logger = LogManager.getLogger("Video Player");
 
-	private final JFrame mainFrame;
 	private final JPanel odo;
 
     private EmbeddedMediaPlayer mPlayer;
@@ -89,11 +88,10 @@ public class VideoPlayer extends JFrame implements MessageCallback {
     private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
     private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
 
-	public VideoPlayer(JFrame main, JPanel odo) {
+	public VideoPlayer(JPanel odo) {
 		super();
 
 		this.odo = odo;
-		this.mainFrame = main;
 
 		setTitle("Video - www.WattzAp.com");
 		ImageIcon img = new ImageIcon("icons/video.jpg");
@@ -109,7 +107,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
         mediaPlayerFactory = new MediaPlayerFactory();
 		canvas = new java.awt.Canvas();
-		canvas.setBackground(Color.BLACK);
+		canvas.setBackground(Color.GRAY);
 		this.add(canvas, java.awt.BorderLayout.CENTER);
 		mediaPlayerFactory.newVideoSurface(canvas);
 
@@ -181,7 +179,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		// check position: time for video position and for gpx must be
         // more or less same. Otherwise resync.
         long videoTime  = (long) (len * mPlayer.getPosition());
-        long routeTime = t.getRouteTime();
+        long routeTime = (t == null) ? 0 : t.getRouteTime();
         long deltaTime = videoTime - routeTime;
         if ((deltaTime < -10000) || (10000 < deltaTime)) {
             logger.warn("Setting expected position " + routeTime +
@@ -191,7 +189,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         }
 
         double rate = 1.0;
-        if (t.isAvailable(SourceDataEnum.SPEED)) {
+        if ((t != null) && (t.isAvailable(SourceDataEnum.SPEED))) {
             // compute ratio for video
             bikeSpeed.add(t.getSpeed());
             // "advertisments" are ignored, usually they are skipped by
@@ -205,7 +203,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             rate *= (1.0 - deltaTime / 30000.0);
         }
 
-        if (logger.isDebugEnabled()) {
+        if ((t != null) && (logger.isDebugEnabled())) {
             StringBuilder str = new StringBuilder(200);
             str.append("VideoPlayer");
             str.append(" dist=");
@@ -262,27 +260,22 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         if (videoFile == null) {
 			Rectangle r = getBounds();
 			UserPreferences.INSTANCE.setVideoBounds(r);
-
+            UserPreferences.ODO_VISIBLE.setBool(true);
             setVisible(false);
-
-            remove(odo);
-			revalidate(this);
-			mainFrame.add(odo, "cell 0 2, grow");
-			revalidate(mainFrame);
             len = -1;
         } else {
-            mainFrame.remove(odo);
-            mainFrame.repaint();
-
+            UserPreferences.ODO_VISIBLE.setBool(false);
+            odo.setVisible(true);
             add(odo, java.awt.BorderLayout.SOUTH);
             revalidate(this);
 
             // wait for first telemetry
             mPlayer.enableOverlay(false);
             mPlayer.prepareMedia(videoFile);
-
             setVisible(true);
+
             len = 0;
+            setSpeed(null);
         }
     }
 

@@ -15,14 +15,12 @@
 */
 package com.wattzap.view;
 
-import javax.swing.JOptionPane;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.gpxcreator.gpxpanel.GPXFile;
 import com.gpxcreator.gpxpanel.GPXPanel;
-import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -45,11 +43,11 @@ import org.openstreetmap.gui.jmapviewer.OsmMercator;
 public class Map extends GPXPanel implements MessageCallback {
 	private static Logger logger = LogManager.getLogger("Map");
 
-    private MainFrame frame;
+    //private MainFrame frame;
 	private GPXFile gpxFile = null;
     private int currentZoom;
 
-	public Map(MainFrame frame) {
+	public Map() {
 		super();
 
 		// Alternative Source
@@ -59,9 +57,6 @@ public class Map extends GPXPanel implements MessageCallback {
 		// http://switch2osm.org/serving-tiles/
 		// http://wiki.openstreetmap.org/wiki/JTileDownloader#Screenshots
 		// this.setTileSource(tileSource)
-
-		this.frame = frame;
-		setVisible(false);
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
@@ -93,45 +88,21 @@ public class Map extends GPXPanel implements MessageCallback {
 			break;
 
         case CLOSE:
-			if (this.isVisible()) {
-				frame.remove(this);
-				if (gpxFile != null) {
-					this.removeGPXFile(gpxFile);
-                    gpxFile = null;
-				}
-				setVisible(false);
-				frame.invalidate();
-				frame.validate();
-				// frame.revalidate(); JDK 1.7 ONLY
-			}
-			break;
+            o = null;
+            // no break: continue in GPXLOAD
 
         case GPXLOAD:
-			// code to see if we are registered
-			if (!UserPreferences.INSTANCE.isRegistered()
-					&& (UserPreferences.INSTANCE.getEvalTime()) <= 0) {
-				logger.info("Out of time "
-						+ UserPreferences.INSTANCE.getEvalTime());
-				JOptionPane.showMessageDialog(this,
-						MsgBundle.getString("trial_expired"),
-						MsgBundle.getString("warning"),
-                        JOptionPane.WARNING_MESSAGE);
-				UserPreferences.INSTANCE.shutDown();
-				System.exit(0);
-			}
-
-            if (isVisible()) {
-				setVisible(false);
-    			frame.remove(this);
-				if (gpxFile != null) {
-					this.removeGPXFile(gpxFile);
-                    gpxFile = null;
-				}
+            if (gpxFile != null) {
+                removeGPXFile(gpxFile);
+                gpxFile = null;
             }
 
             RouteReader routeData = (RouteReader) o;
-			gpxFile = routeData.getGpxFile();
-			if (gpxFile != null) {
+            if (routeData != null) {
+    			gpxFile = routeData.getGpxFile();
+            }
+
+            if (gpxFile != null) {
                 // How to get map size when app is started?? Lets assume
                 // size 300x300
                 int ww = getWidth();
@@ -161,15 +132,14 @@ public class Map extends GPXPanel implements MessageCallback {
 				double centerLat = (gpxFile.getMinLat() + gpxFile.getMaxLat()) / 2.0;
                 setDisplayPositionByLatLon(centerLat, centerLon, currentZoom);
 
-				this.addGPXFile(gpxFile);
+				// view map, whole route shall be visible
+                addGPXFile(gpxFile);
     			repaint();
-
-                frame.add(this, "cell 0 0");
-                setVisible(true);
 
                 // set "street view" zoom when started
                 currentZoom = -1;
 			}
+            UserPreferences.MAP_VISIBLE.setBool(gpxFile != null);
             break;
 		}
 	}

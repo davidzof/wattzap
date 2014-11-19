@@ -19,7 +19,6 @@ import com.wattzap.MsgBundle;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
 
 import javax.swing.JPanel;
 
@@ -40,6 +39,7 @@ import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.Constants;
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import java.awt.Point;
 import java.awt.geom.Point2D;
@@ -64,11 +64,11 @@ import org.jfree.ui.RectangleEdge;
  * @author Jarek
  * Some small improvements. Profile shows any profile (this is defined by current
  * RouteReader). It might be distance/altitude, time/power..
- * TODO add action listener to set new position on click, and remove slider.
- * TODO If x-axis key is time, there should be shown xx:xx instead of number of
- * seconds..
+ * TODO Profile CANNOT show the training name. The component doesn't handle
+ * UTF-8, while some files contains "national" characters (which cannot be
+ * displayed correctly)
  */
-public class Profile extends JPanel implements MessageCallback {
+public class Profile extends JPanel implements MessageCallback, ChartMouseListener {
 	private static Logger logger = LogManager.getLogger("Profile");
     private static final Map<String, Double> valCorrections = new HashMap<>();
     static {
@@ -82,6 +82,30 @@ public class Profile extends JPanel implements MessageCallback {
         valCorrections.put("altitude_feet", Constants.MTOFEET);
     }
 
+    private static final NumberFormat timeFormat = new NumberFormat() {
+        @Override
+        public StringBuffer format(double number, StringBuffer toAppendTo, FieldPosition pos) {
+            int min = (int) number;
+            number -= min;
+            int sec = (int) (number * 60);
+            StringBuffer buf = new StringBuffer();
+            buf.append(min);
+            buf.append(':');
+            if (sec < 10) {
+                buf.append('0');
+            }
+            buf.append(sec);
+            return buf;
+        }
+        @Override
+        public StringBuffer format(long number, StringBuffer toAppendTo, FieldPosition pos) {
+            return null;
+        }
+        @Override
+        public Number parse(String source, ParsePosition parsePosition) {
+            return null;
+        }
+    };
 
     private ValueMarker marker = null;
 	private XYPlot plot = null;
@@ -91,9 +115,10 @@ public class Profile extends JPanel implements MessageCallback {
     private String routeName = null;
     private double distance = 0.0;
 
-	public Profile(Dimension d) {
+	public Profile() {
 		super();
-		// this.setPreferredSize(d);
+        // Dimension d
+		// setPreferredSize(d);
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
 		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
@@ -120,41 +145,63 @@ public class Profile extends JPanel implements MessageCallback {
     }
 
     @Override
+    public void chartMouseClicked(ChartMouseEvent cme) {
+        handleClick(cme.getTrigger().getPoint());
+    }
+
+    @Override
+    public void chartMouseMoved(ChartMouseEvent cme) {
+        // nothing
+    }
+
+    @Override
 	public void callback(Messages message, Object o) {
-		switch (message) {
+        boolean rebuildSeries = false;
+        switch (message) {
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 			distance = t.getDistance();
+            if (valCorrections.containsKey(xKey)) {
+                distance /= valCorrections.get(xKey);
+            }
 			break;
 		case STARTPOS:
 			distance = (Double) o;
+            if (valCorrections.containsKey(xKey)) {
+                distance /= valCorrections.get(xKey);
+            }
 			break;
 
         case CLOSE:
-			if (this.isVisible()) {
-				remove(chartPanel);
-				setVisible(false);
-				revalidate();
-			}
-			return;
+            rebuildSeries = true;
+            o = null;
+            break;
         case GPXLOAD:
-			// Note if we are loading a Power Profile there is no GPX data so we don't show the chart panel
 			RouteReader routeData = (RouteReader) o;
-            routeName = routeData.getName();
-			logger.debug("Load " + routeName);
+            rebuildSeries = true;
             o = routeData.getSeries();
-            /* no break: continue in PROFILE */
+            break;
 
         case PROFILE:
+            rebuildSeries = true;
+            break;
+        }
+
+        if (rebuildSeries) {
             XYSeries series = (XYSeries) o;
 			if (chartPanel != null) {
 				remove(chartPanel);
-                if (series == null) {
-					setVisible(false);
-					chartPanel.revalidate();
-					return;
-				}
-			} else if (series == null) {
+                chartPanel.removeChartMouseListener(this);
+                chartPanel.revalidate();
+                if ((plot != null) && (marker != null)) {
+                    plot.removeDomainMarker(marker);
+                }
+                chartPanel = null;
+                plot = null;
+                marker = null;
+			}
+            if (series == null) {
+                UserPreferences.PROFILE_VISIBLE.setBool(false);
 				return;
 			}
 
@@ -172,7 +219,7 @@ public class Profile extends JPanel implements MessageCallback {
 			XYDataset xyDataset = new XYSeriesCollection(series);
 			final JFreeChart chart = ChartFactory.createXYAreaChart(
 					// title
-					routeName,
+					null, // routeName,
 					MsgBundle.getString(xKey), // domain axis label
 					MsgBundle.getString(yKey), // range axis label
 					xyDataset, // data
@@ -201,31 +248,6 @@ public class Profile extends JPanel implements MessageCallback {
 			domainAxis.setLabelPaint(Color.white);
 
             if ("time_min".equals(xKey)) {
-                final NumberFormat timeFormat =
-                        new NumberFormat() {
-                            @Override
-                            public StringBuffer format(double number, StringBuffer toAppendTo, FieldPosition pos) {
-                                int min = (int) number;
-                                number -= min;
-                                int sec = (int) (number * 60);
-                                StringBuffer buf = new StringBuffer();
-                                buf.append(min);
-                                buf.append(':');
-                                if (sec < 10) {
-                                    buf.append('0');
-                                }
-                                buf.append(sec);
-                                return buf;
-                            }
-                            @Override
-                            public StringBuffer format(long number, StringBuffer toAppendTo, FieldPosition pos) {
-                                return null;
-                            }
-                            @Override
-                            public Number parse(String source, ParsePosition parsePosition) {
-                                return null;
-                            }
-                        };
                 ((NumberAxis) domainAxis).setNumberFormatOverride(timeFormat);
             }
 
@@ -242,42 +264,25 @@ public class Profile extends JPanel implements MessageCallback {
 			// chartPanel.setSize(100, 800);
 
             // handle clicks to change training position
-            ChartMouseListener chartListener = new ChartMouseListener() {
-                @Override
-                public void chartMouseClicked(ChartMouseEvent cme) {
-                    handleClick(cme.getTrigger().getPoint());
-                }
-                @Override
-                public void chartMouseMoved(ChartMouseEvent cme) {
-                    // nothing
-                }
-            };
-            chartPanel.addChartMouseListener(chartListener);
+            chartPanel.addChartMouseListener(this);
 
 			setLayout(new BorderLayout());
 			add(chartPanel, BorderLayout.CENTER);
 			setBackground(Color.black);
 			chartPanel.revalidate();
-
-			setVisible(true);
-			break;
+            UserPreferences.PROFILE_VISIBLE.setBool(true);
 		}
 
-        // marker must be recreated all the time?
         if (plot != null) {
             if (marker != null) {
-                plot.removeDomainMarker(marker);
-            }
-            if (valCorrections.containsKey(xKey)) {
-                marker = new ValueMarker(distance / valCorrections.get(xKey));
+                marker.setValue(distance);
             } else {
                 marker = new ValueMarker(distance);
+                marker.setPaint(Color.blue);
+                BasicStroke stroke = new BasicStroke(2);
+                marker.setStroke(stroke);
+                plot.addDomainMarker(marker);
             }
-
-            marker.setPaint(Color.blue);
-            BasicStroke stroke = new BasicStroke(2);
-            marker.setStroke(stroke);
-            plot.addDomainMarker(marker);
         }
 	}
 }

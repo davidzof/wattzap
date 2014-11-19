@@ -117,7 +117,7 @@ public class CycleOpsReader extends RouteReader {
         boolean firstTag = true;
 
         try {
-            xsr = xif.createXMLStreamReader(fis, "ISO-8859-1");
+            xsr = xif.createXMLStreamReader(fis);
             while (xsr.hasNext()) {
                 xsr.next();
 
@@ -294,11 +294,11 @@ public class CycleOpsReader extends RouteReader {
         // video.. but this is not available here. One must manually add
         // this point to the file..
         if (videoPoints.size() < 1) {
-            System.err.println("No video poits in the file");
+            System.err.println("No video points in the file");
             videoTag = null;
         }
         if ((videoTag != null) && (videoPoints.get(0).getDistance() < 0.0)) {
-            System.err.print("First point before start");
+            System.err.print("First point before start (negative distance)");
             videoTag = null;
         }
         if ((videoTag != null) && (videoPoints.get(0).getDistance() > 0.1)) {
@@ -319,12 +319,12 @@ public class CycleOpsReader extends RouteReader {
         double down = 0.0;
         double up = 0.0;
         double delta = 20.0;
-        Rolling avgSlope = new Rolling(20);
+        Rolling avgSlope = new Rolling(10);
         // prefetch.. To have best slope: interpolate on segment starting before
         // and ending after the point. Some videos have a bit late positions
         // and pre should be bigger, eg. I saw 6seconds delay @36km/h, it is
         // 60m, so pre should be 260m.. But in general it looks more-or-less ok.
-        double pre = (20 / 2) * delta;
+        double pre = (10 / 2) * delta;
         for (double dist = 0; dist < routeLen - delta; dist += delta) {
             double alt = altPoints.interpolate(dist,
                         altPoints.get(dist).getAltitude(),

@@ -61,8 +61,8 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
         return getObject().getCurrentTraining();
     }
 
-    public static String runTraining(String fileName) {
-        return getObject().startTraining(fileName);
+    public static String loadTraining(String fileName) {
+        return getObject().load(fileName);
     }
 
 
@@ -123,7 +123,7 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
 		return null;
 	}
 
-    public String startTraining(String fileName) {
+    public String load(String fileName) {
         String lastMessage = "Cannot start";
 
         if (currentTraining != null) {

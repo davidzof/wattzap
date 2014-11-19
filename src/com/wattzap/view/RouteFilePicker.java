@@ -79,7 +79,7 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 		int retVal = showOpenDialog(frame);
         if (retVal == JFileChooser.APPROVE_OPTION) {
     		File file = getSelectedFile();
-            String msg = Readers.runTraining(file.getAbsolutePath());
+            String msg = Readers.loadTraining(file.getAbsolutePath());
             // if proper file.. store path as new "default" training. Otherwise
             // current training stays still loaded.
             if (msg == null) {

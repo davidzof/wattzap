@@ -26,6 +26,7 @@ import java.util.Map;
  * @author Jarek
  */
 public enum PauseMsgEnum {
+    NOT_STARTED(-3, "not_started"),
     STOPPED(-2, "stopped"),
     INITIALIZE(-1, "initialize"),
     // normal training condition
@@ -109,6 +110,9 @@ public enum PauseMsgEnum {
     }
 
     public static String msg(Telemetry t) {
+        if (t == null) {
+            return msg(NOT_STARTED, true);
+        }
         return msg(t.getPause(), true);
     }
 }

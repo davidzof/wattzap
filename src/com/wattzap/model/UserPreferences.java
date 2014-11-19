@@ -89,6 +89,13 @@ public enum UserPreferences {
     // special property for selected sensor type. Not in DB.
     SENSOR_TYPE("sensor_type", "ant_hr"),
 
+    // panels in main form
+    TRAINING_VISIBLE("training_visible", false),
+    PROFILE_VISIBLE("profile_visible", false),
+    ODO_VISIBLE("odo_visible", false),
+    MAP_VISIBLE("map_visible", false),
+
+
     // backward compability, cannot be get/set
 	INSTANCE;
 
@@ -101,6 +108,12 @@ public enum UserPreferences {
         SENSORS.keptInDB = false;
         PAIRING.keptInDB = false;
         RUNNING.keptInDB = false;
+
+        // panels visibility
+        TRAINING_VISIBLE.keptInDB = false;
+        PROFILE_VISIBLE.keptInDB = false;
+        ODO_VISIBLE.keptInDB = false;
+        MAP_VISIBLE.keptInDB = false;
     }
 
 	// why it must be always specified?? Are there system settings

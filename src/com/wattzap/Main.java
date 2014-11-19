@@ -15,9 +15,6 @@
 */
 package com.wattzap;
 
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Toolkit;
 import java.io.IOException;
@@ -25,14 +22,11 @@ import java.io.IOException;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
 import javax.swing.UIManager;
 import javax.swing.UIManager.LookAndFeelInfo;
-import javax.swing.WindowConstants;
 
-import net.miginfocom.swing.MigLayout;
 
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -126,47 +120,41 @@ public class Main implements Runnable {
 
 	@Override
 	public void run() {
+        // handles panels adding, driven by XXX_VISIBLE properties
 		MainFrame frame = new MainFrame();
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		frame.setBounds(userPrefs.getMainBounds());
+        PopupMessage popup = new PopupMessage(frame);
 
         // telemetry privider receives all subsystems/sensors/processors
         TelemetryProvider.INSTANCE.initialize();
 
         // build all sensors and their subsystems
-        new AntSubsystem(new PopupMessage(frame)).initialize();
+        new AntSubsystem(popup).initialize();
         SensorTypeEnum.buildSensors();
 
         // Build necessary telemetry handlers. Make them enabled if possible.
         SelectableDataSource.buildHandlers();
 
-        // build main window layout
-        MigLayout layout = new MigLayout("center", "[]10px[]", "");
-		Container contentPane = frame.getContentPane();
-		contentPane.setBackground(Color.BLACK);
-		contentPane.setLayout(layout);
+        // keeps all the telemetry data, handles several menu callbacks
+        TrainingController trainingController = new TrainingController(popup);
 
-		// show chart with training data
-        TrainingDisplay trainingDisplay = new TrainingDisplay(screenSize);
-		frame.add(trainingDisplay, "cell 0 0");
+		// show chart with training data.
+        frame.add(UserPreferences.TRAINING_VISIBLE, new TrainingDisplay());
+        UserPreferences.TRAINING_VISIBLE.setBool(true);
 
-		// map shows when training with gpx route is started.
-        new Map(frame);
+        // map shows when training with gpx route is started.
+        frame.add(UserPreferences.MAP_VISIBLE, new Map());
 
         // show route profile (either altitude.. or power, or anything else)
-        Profile profile = new Profile(screenSize);
-		profile.setVisible(false);
-		frame.add(profile, "cell 0 1, grow");
+        frame.add(UserPreferences.PROFILE_VISIBLE, new Profile());
 
         // reusable panel for showing the telemetric data (either in main window
-        // or in video window if visible)
+        // or in video window when video found for current training)
         JPanel odo = new Odo();
-		frame.add(odo, "cell 0 2, grow");
+        frame.add(UserPreferences.ODO_VISIBLE, odo);
+        UserPreferences.ODO_VISIBLE.setBool(true);
 
-		// Menu Bar
-        TrainingController trainingController = new TrainingController(
-				trainingDisplay, frame);
 
+        // Menu Bar
 		JMenuBar menuBar = new JMenuBar();
 
 		JMenu appMenu = new JMenu("Application");
@@ -210,6 +198,10 @@ public class Main implements Runnable {
 		JMenu trainingMenu = new JMenu(MsgBundle.getString("training"));
 		menuBar.add(trainingMenu);
 
+		JMenuItem pauseMenuItem = new JMenuItem(MsgBundle.getString("pause"));
+		pauseMenuItem.setActionCommand(TrainingController.pause);
+		pauseMenuItem.addActionListener(trainingController);
+		trainingMenu.add(pauseMenuItem);
 
 		JMenuItem startMenuItem = new JMenuItem(MsgBundle.getString("start"));
 		startMenuItem.setActionCommand(TrainingController.start);
@@ -230,7 +222,6 @@ public class Main implements Runnable {
 		clearMenuItem.setActionCommand(TrainingController.clear);
 		clearMenuItem.addActionListener(trainingController);
 		trainingMenu.add(clearMenuItem);
-
 
 		JMenuItem recoverMenuItem = new JMenuItem(MsgBundle.getString("recover"));
 		recoverMenuItem.setActionCommand(TrainingController.recover);
@@ -254,30 +245,30 @@ public class Main implements Runnable {
 		frame.setJMenuBar(menuBar);
 		// End Menu
 
-		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-		// frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
-		frame.setVisible(true);
+        // TODO add LEDs for speed/cadence/HR/power. Status panel is best one
 
-		// video player window: handles everything via MsgBundle
-		VideoPlayer videoPlayer = new VideoPlayer(frame, odo);
+		// video player window: hidden odo (in main panel) is shown next to
+        // the video
+		VideoPlayer videoPlayer = new VideoPlayer(odo);
 		try {
 			videoPlayer.init();
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(frame, e.getMessage(),
-                    MsgBundle.getString("warning"), JOptionPane.INFORMATION_MESSAGE);
-			logger.info(e.getMessage());
+            popup.showWarning("Initialization", "Cannot build video window (" +
+                    e.getLocalizedMessage() + ")");
+			logger.info(e.getMessage(), e);
 		}
 
         // autoload last trainig file (if any was loaded and config check is
         // enabled. All interrested handlers must exist.
         if (userPrefs.getLoadLastTrainig()) {
-            Readers.runTraining(userPrefs.getDefaultFilename());
+            Readers.loadTraining(userPrefs.getDefaultFilename());
         }
+
         // continue last training, journalFile is recovered and continues
         // from the last point. Don't show any information about how many points
         // were recovered, it is useless.
         if (userPrefs.autostart()) {
-            trainingController.performAction(TrainingController.recover, null);
+            trainingController.loadJournal(null);
             MessageBus.INSTANCE.send(Messages.START, null);
         }
 	}

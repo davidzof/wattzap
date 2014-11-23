@@ -21,7 +21,7 @@ package com.wattzap.model.dto;
  * @author Jarek
  */
 public class AxisPoint {
-    private final double dist;
+    private double dist;
 
     public AxisPoint(double dist) {
         this.dist = dist;
@@ -38,5 +38,9 @@ public class AxisPoint {
      */
     public String checkData(AxisPoint next) {
         return null;
+    }
+
+    public void normalize(double ratio) {
+        this.dist *= ratio;
     }
 }

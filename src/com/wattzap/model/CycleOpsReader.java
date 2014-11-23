@@ -238,7 +238,7 @@ public class CycleOpsReader extends RouteReader {
                         } else if ((ln.equals("Name")) && (iPoint != null)) {
                             xsr.next();
                             if (xsr.isCharacters()) {
-                                iPoint.setName(xsr.getText());
+                                iPoint.setMessage(xsr.getText());
                             }
                         }
                         break;
@@ -491,7 +491,7 @@ public class CycleOpsReader extends RouteReader {
 
         AxisPointInterest iPoint = iPoints.get(dist);
         if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {
-            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, iPoint.getName());
+            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, iPoint.getMessage());
         }
     }
 

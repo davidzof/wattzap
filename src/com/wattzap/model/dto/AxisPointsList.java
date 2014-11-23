@@ -49,18 +49,37 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
     public String checkData() {
         sort(comp);
         P prev = null;
+        int p = 0;
         for (P point : this) {
+            p++;
             if (prev == null) {
                 prev = point;
             } else {
                 String ret = prev.checkData(point);
                 if (ret != null) {
-                    return ret + " at " + point.getDistance();
+                    return ret + " at " + point.getDistance() + " [" + p +
+                            " of " + size() + "]";
                 }
                 prev = point;
             }
         }
         return null;
+    }
+
+    public void normalize(double totalDist) {
+        // nothing to normalize??
+        if (size() < 1) {
+            return;
+        }
+        // last point must represent totalDist point
+        double ratio = get(size() - 1).getDistance() / totalDist;
+        if ((ratio < 0.99) || (ratio > 1.01)) {
+            System.err.println(get(0).getClass().getSimpleName() +
+                    ":: normalization ratio " + ratio);
+        }
+        for (AxisPoint p : this) {
+            p.normalize(ratio);
+        }
     }
 
     /**

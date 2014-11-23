@@ -23,13 +23,19 @@ import com.wattzap.model.dto.AxisPoint;
  * @author Jarek
  */
 public class AxisPointVideo extends AxisPoint {
-    private final double time;
-    private double speed;
+    private final double time; // [s]
+    private double speed; // [km/h]
 
     public AxisPointVideo(double dist, double time) {
         super(dist);
         this.time = time;
-        this.speed = 0.0;
+        this.speed = -1.0;
+    }
+
+    public AxisPointVideo(double dist, double time, double speed) {
+        super(dist);
+        this.time = time;
+        this.speed = speed;
     }
 
     // return point time
@@ -46,19 +52,27 @@ public class AxisPointVideo extends AxisPoint {
     public String checkData(AxisPoint nextPoint) {
         AxisPointVideo next = (AxisPointVideo) nextPoint;
         if (time > next.getTime()) {
-            return "Time moves back";
+            return "Time moves back, delta " + (time - next.getTime());
         }
 
-        if (time < next.getTime()) {
-            speed = 3.6 * (next.getDistance() - getDistance()) /
-                    (next.getTime() - getTime());
-            if (speed > 120.0) {
-                return "Speed bigger than 120km/h";
+        if (speed < 0.0) {
+            if (time < next.getTime()) {
+                speed = 3.6 * (next.getDistance() - getDistance()) /
+                        (next.getTime() - getTime());
+                if (speed > 120.0) {
+                    return "Speed bigger than 120km/h";
+                }
+            } else {
+                speed = 30.0;
             }
-        } else {
-            speed = 30.0;
         }
         return null;
+    }
+
+    @Override
+    public void normalize(double ratio) {
+        super.normalize(ratio);
+        speed *= ratio;
     }
 
     @Override

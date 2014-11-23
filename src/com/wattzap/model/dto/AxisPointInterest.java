@@ -23,29 +23,34 @@ import com.wattzap.model.dto.AxisPoint;
  * @author Jarek
  */
 public class AxisPointInterest extends AxisPoint {
-    private String name;
+    private String message;
 
     public AxisPointInterest(double dist) {
         super(dist);
-        this.name = null;
+        this.message = null;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public AxisPointInterest(double dist, String message) {
+        super(dist);
+        this.message = message;
     }
 
-    public String getName() {
-        return name;
+    public void setMessage(String name) {
+        this.message = name;
+    }
+
+    public String getMessage() {
+        return message;
     }
 
     public boolean isUsable() {
-        return name != null;
+        return (message != null) && (!message.isEmpty());
     }
 
     @Override
     public String toString() {
         return "[Interest(" + getDistance() + ")" +
-                (isUsable() ? " name=" + name : "") +
+                (isUsable() ? " name=" + message : "") +
                 "]";
     }
 }

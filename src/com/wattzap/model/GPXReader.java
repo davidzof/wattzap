@@ -15,11 +15,11 @@
 */
 package com.wattzap.model;
 
+import com.wattzap.model.dto.AxisPointsList;
 import java.io.File;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
@@ -29,7 +29,6 @@ import com.gpxcreator.gpxpanel.WaypointGroup;
 import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
-import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 
 /*
@@ -44,44 +43,15 @@ public class GPXReader extends RouteReader {
     private double totalWeight = 85.0;
     private Power power = null;
 
-    private GPXFile gpxFile;
-	private XYSeries series;
-
-    private File currentFile;
     private String gpxName;
 
     private static final int gradientDistance = 100; // distance to calculate
 														// gradients over.
-	private double maxSlope = 0;
-	private double minSlope = 0;
-
-	private Point[] points = null;
-	private int currentPoint = 0;
-    private double lastDistance = 0.0;
+	private AxisPointsList<Point> points = null;
 
     @Override
 	public String getExtension() {
 		return "gpx";
-	}
-
-    @Override
-	public double getMaxSlope() {
-		return maxSlope;
-	}
-
-	@Override
-	public double getMinSlope() {
-		return minSlope;
-	}
-
-    @Override
-	public String getPath() {
-		return currentFile.getParent();
-	}
-
-	@Override
-	public String getVideoFile() {
-		return FileName.stripExtension(currentFile.getName()) + ".avi";
 	}
 
 	@Override
@@ -94,32 +64,7 @@ public class GPXReader extends RouteReader {
 		return gpxFile;
 	}
 
-    @Override
-	public XYSeries getSeries() {
-		return series;
-	}
-
-	// Get the point that corresponds to the distance (in km)
-    // TODO getPoint() uses bisection, return values shall be mediana for distance
-	private Point getPoint(double distance) {
-        if (lastDistance > distance) {
-            currentPoint = 0;
-        }
-        lastDistance = distance;
-
-        while ((currentPoint < points.length) && (points[currentPoint].getDistanceFromStart() < (distance * 1000))) {
-			currentPoint++;
-		}
-        if (currentPoint >= points.length) {
-            return null;
-        } else if (currentPoint > 0) {
-			return points[currentPoint - 1];
-		} else {
-			return points[0];
-		}
-	}
-
-	/**
+    /**
 	 * Load GPX data from file
 	 *
 	 * @param filename
@@ -127,13 +72,8 @@ public class GPXReader extends RouteReader {
 	 *
 	 */
     @Override
-	public String load(String filename) {
-        currentFile = new File(filename);
-        if (!currentFile.exists()) {
-            return "File doesn't exist";
-        }
-
-        gpxFile = new GPXFile(currentFile);
+	public String load(File file) {
+        gpxFile = new GPXFile(file);
         if (gpxFile == null) {
             return "Cannot read file";
         }
@@ -154,7 +94,6 @@ public class GPXReader extends RouteReader {
         }
 
         List<WaypointGroup> segs = route.getTracksegs();
-		this.series = new XYSeries("");
 
 		double distance = 0.0;
 		long startTime = System.currentTimeMillis();
@@ -192,7 +131,7 @@ public class GPXReader extends RouteReader {
 					}
 				}
 
-				Point p = new Point();
+				Point p = new Point(distance);
 				p.setElevation(wp.getEle());
 				p.setLatitude(wp.getLat());
 				p.setLongitude(wp.getLon());
@@ -201,11 +140,9 @@ public class GPXReader extends RouteReader {
 				double leg = distance(wp.getLat(), last.getLat(), wp.getLon(),
 						last.getLon(), last.getEle(), wp.getEle());
 				distance += leg;
-				p.setDistanceFromStart(distance);
 
 				// smooth altitudes a bit
 				altitude.add(wp.getEle());
-				series.add(distance / 1000, altitude.getAverage());
 
 				// speed = distance / time
 				if (currentTime > 0) {
@@ -262,23 +199,34 @@ public class GPXReader extends RouteReader {
 			segment[i++].setGradient(gradient.getAverage());
 			// gradient done
 
-			// resistance levels - use blocks of 500 meters
-			// levels done
-
-			// combine segment
-			points = ArrayUtils.addAll(points, segment);
+			// combine segments
+            if (points == null) {
+                points = new AxisPointsList<>();
+            }
+            points.addAll(segment);
 		}
-        return null;
+        if (points.size() < 2) {
+            return "No track";
+        }
+        String ret = points.checkData();
+        routeLen = distance;
+        return ret;
 	}
 
     @Override
 	public void close() {
-        gpxFile = null;
         points = null;
-        series = null;
-		currentPoint = 0;
-        lastDistance = 0;
 	}
+
+    @Override
+    public XYSeries createProfile() {
+        XYSeries series = new XYSeries("distance_km,altitude_m");
+        for (Point point : points) {
+            series.add(point.getDistance() / 1000.0, point.getElevation());
+        }
+        return series;
+    }
+
 
 	/**
 	 * Calculate distance between two points in latitude and longitude taking
@@ -335,14 +283,7 @@ public class GPXReader extends RouteReader {
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        Point p = getPoint(t.getDistance());
-        Point pp = p;
-        double ratio = 0.0;
-        if (currentPoint < points.length) {
-            pp = points[currentPoint];
-            ratio = (1000.0 * t.getDistance() - p.getDistanceFromStart()) /
-                    (pp.getDistanceFromStart()- p.getDistanceFromStart());
-        }
+        Point p = points.get(1000.0 * t.getDistance());
         if (p != null) {
             double realSpeed = 3.6 * power.getRealSpeed(totalWeight,
                 p.getGradient() / 100.0, t.getPower());
@@ -350,7 +291,14 @@ public class GPXReader extends RouteReader {
 
             // interpolate time on distance, the most important interpolation
             // other don't matter, are just for display purposes.
-            double time = p.getTime() + ratio * (pp.getTime() - p.getTime());
+            // If time is not correctly interpolated, then video (speed and
+            // position) are incorrectly computed and strange video effects
+            // happens
+            double time = p.getTime();
+            Point pp = points.getNext();
+            if (pp != null) {
+                time = points.interpolate(1000.0 * t.getDistance(), time, pp.getTime());
+            }
             setValue(SourceDataEnum.ROUTE_TIME, time);
 
             setValue(SourceDataEnum.ROUTE_SPEED, p.getSpeed());
@@ -362,16 +310,16 @@ public class GPXReader extends RouteReader {
 
         // set pause at end of route or when no running, otherwise unpause
         if (p == null) {
-            setValue(SourceDataEnum.PAUSE, 100.0); // end of training
+            setPause(PauseMsgEnum.END_OF_ROUTE);
             setValue(SourceDataEnum.SPEED, 0.0);
         } else if (getValue(SourceDataEnum.SPEED) < 0.01) {
             if (t.getTime() < 1000) {
-                setValue(SourceDataEnum.PAUSE, 1.0); // start training
+                setPause(PauseMsgEnum.START);
             } else {
-                setValue(SourceDataEnum.PAUSE, 2.0); // keep moving
+                setPause(PauseMsgEnum.NO_MOVEMENT);
             }
         } else {
-            setValue(SourceDataEnum.PAUSE, 0.0); // running!
+            setPause(PauseMsgEnum.RUNNING);
         }
     }
 

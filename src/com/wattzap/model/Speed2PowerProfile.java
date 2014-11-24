@@ -17,41 +17,57 @@
 package com.wattzap.model;
 
 import com.wattzap.model.dto.Telemetry;
-import com.wattzap.model.dto.TelemetryValidityEnum;
+import com.wattzap.model.power.Power;
 
 /**
- * Default profile: power bases on wheelSpeed and trainer resistance level.
+ * Power computation: wheelSpeed on slope and weight gives power.
  * @author Jarek
  */
-public class Speed2PowerProfile extends VirtualPowerProfile {
+@SelectableDataSourceAnnotation
+public class Speed2PowerProfile extends TelemetryHandler {
+    private Power power = null;
+
     @Override
     public String getPrettyName() {
         return "speed2power";
     }
 
     @Override
-    public boolean provides(SourceDataEnum data) {
-        if (data == SourceDataEnum.PAUSE) {
-            return true;
+    public void configChanged(UserPreferences prefs) {
+        if ((prefs == UserPreferences.INSTANCE) ||
+            (prefs == UserPreferences.TURBO_TRAINER))
+        {
+            power = prefs.getTurboTrainerProfile();
         }
-        return super.provides(data); //To change body of generated methods, choose Tools | Templates.
     }
 
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case POWER:
+            case PAUSE:
+                return true;
+            default:
+                return false;
+        }
+    }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        if (t.getValidity(SourceDataEnum.WHEEL_SPEED) != TelemetryValidityEnum.NOT_PRESENT) {
-            // We have a time value and rotation value, lets calculate the speed
-            // if no active resistance hanlder, resistance is 1 (by default), so
-            // it works fine for one level trainers.
-            int powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
-            setValue(SourceDataEnum.POWER, powerWatts);
-            setValue(SourceDataEnum.PAUSE, 0.0);
-        } else {
-            // sensor not available?? cannot run. For trainings without sensor
-            // another profile must be selected..
-            setValue(SourceDataEnum.PAUSE, 251.0);
-            setValue(SourceDataEnum.POWER, 0.0);
+        boolean pause = true;
+        double powerWatts = 0.0;
+
+        if ((t.isAvailable(SourceDataEnum.WHEEL_SPEED)) && (power != null)) {
+            // for trainings with video speed. These are only video trainigs with
+            // slope (or even with positions)
+            pause = false;
+            powerWatts = power.getPower(t.getWheelSpeed(), t.getResistance());
+            if (powerWatts < 0) {
+                powerWatts = 0;
+            }
         }
+
+        setPause(pause ? PauseMsgEnum.NO_MOVEMENT : PauseMsgEnum.RUNNING);
+        setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

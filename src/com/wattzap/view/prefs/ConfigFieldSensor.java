@@ -16,57 +16,86 @@
  */
 package com.wattzap.view.prefs;
 
-import com.wattzap.MsgBundle;
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.MessageCallback;
+import com.wattzap.controller.Messages;
 import com.wattzap.model.SensorIntf;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import java.awt.Color;
+import javax.swing.ButtonGroup;
 import javax.swing.JLabel;
+import javax.swing.JRadioButton;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 
 /**
- *
+ * Panel for sensor build on additional panel for sensors.
+ * It handles callbacks for handlers.
  * @author Jarek
  */
-public class ConfigFieldSensor implements ConfigFieldIntf {
+public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
+    private final ConfigPanel panel;
+    private final ButtonGroup group;
     private final String name;
-    private final String fieldName;
     private final SourceDataEnum data;
     private SensorIntf sensor;
 
+    private final JLabel label;
+    private final JRadioButton button;
     private final JTextField value;
     private final JLabel current;
 
-    public ConfigFieldSensor(ConfigPanel panel, String name) {
-        this(panel, name, null);
+    public ConfigFieldSensor(ConfigPanel panel, ButtonGroup group, String name) {
+        this(panel, group, name, null);
     }
 
-    public ConfigFieldSensor(ConfigPanel panel, String name, SourceDataEnum data) {
+    public ConfigFieldSensor(ConfigPanel panel, ButtonGroup group, String name,
+            SourceDataEnum data) {
+        this.panel = panel;
+        this.group = group;
         this.name = name;
-        this.fieldName = "*" + name;
         this.data = data;
 
         // initialize the sensor to change id
-        this.sensor = null;
-        for (SourceDataHandlerIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
-            if ((handler instanceof SensorIntf) && (name.equals(handler.getPrettyName()))) {
-                this.sensor = (SensorIntf) handler;
-                break;
+        // It must be deffered a bit to handle all notifications properly
+        // (TelemetryProvider handles same messages as other, but queue is one
+        sensor = null;
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                for (SourceDataHandlerIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
+                    if ((handler instanceof SensorIntf) &&
+                            (name.equals(handler.getPrettyName()))) {
+                        sensor = (SensorIntf) handler;
+                        updateSensor();
+                        break;
+                    }
+                }
             }
-        }
-        if (sensor == null) {
-            System.err.println("Sensor handler doesn't exist for " + name);
-        }
+        });
 
         // build the interface
-        JLabel label = new JLabel();
-        label.setText(MsgBundle.getString(name));
-		panel.add(label);
+        if (group == null) {
+            button = null;
+            label = new JLabel();
+            label.setText(name);
+    		panel.add(label);
+        } else {
+            label = null;
+            button = new JRadioButton(name);
+            button.setEnabled(true);
+            button.setActionCommand("@" + name);
+            button.addActionListener(panel);
+            group.add(button);
+            button.setSelected(true);
+            panel.add(button);
+        }
 
-        value = new JTextField(20);
-        value.getDocument().putProperty("name", fieldName);
+        value = new JTextField(6);
+        value.getDocument().putProperty("name", getName());
         value.getDocument().addDocumentListener(panel);
 
         if ((data != null) && (data.format(0.0, true) != null)) {
@@ -78,19 +107,40 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
     		panel.add(value, "span");
         }
 
-        updateSensor();
+        MessageBus.INSTANCE.register(Messages.HANDLER_REMOVED, this);
+    }
+
+    @Override
+    public void remove() {
+        MessageBus.INSTANCE.unregister(Messages.HANDLER_REMOVED, this);
+
+        if (button != null) {
+            group.remove(button);
+            panel.remove(button);
+            button.removeActionListener(panel);
+        }
+        if (label != null) {
+            panel.remove(label);
+        }
+
+        panel.remove(value);
+        value.getDocument().removeDocumentListener(panel);
+
+        if (current != null) {
+            panel.remove(current);
+        }
     }
 
     @Override
     public String getName() {
         // must be same as during registration in value field..
-        return fieldName;
+        return "*" + name;
     }
 
     @Override
     public void propertyChanged(UserPreferences prop, String changed) {
         // "ignore" changes made in the field directly
-        if ((prop == UserPreferences.SENSORS) && (fieldName.equals(changed))) {
+        if ((prop == UserPreferences.SENSORS) && (getName().equals(changed))) {
             return;
         }
 
@@ -126,10 +176,12 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         }
     }
     public boolean isValid(int val) {
-        return (val >= 0) && (val < 65536);
+        // sensorId is 20bits, most significant nibble from transmission
+        // type contains "missing" 4 bits.
+        return (val >= 0) && (val < 0x100000);
     }
 
-    public void updateSensor() {
+    public final void updateSensor() {
         if (current == null) {
             return;
         }
@@ -139,13 +191,14 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
             return;
         }
 
-        // if sensor doesn't work.. or requested data is not provided..
+        // if sensor doesn't work..
         if (sensor.getLastMessageTime() == 0) {
-            current.setText("disabled");
+            current.setText("");
             return;
         }
+        // if requested data is not provided..
         if (!sensor.provides(data)) {
-            current.setText("closed");
+            current.setText("no data");
             return;
         }
         // if sensor paired, just set sensor id..
@@ -166,5 +219,14 @@ public class ConfigFieldSensor implements ConfigFieldIntf {
         boolean metric = UserPreferences.METRIC.isMetric();
         current.setText(
             data.format(sensor.getValue(data), metric) + " " + data.getUnit(metric));
+    }
+
+    @Override
+    public void callback(Messages m, Object o) {
+        if ((m == Messages.HANDLER_REMOVED) && (sensor == o) && (sensor != null)) {
+            // remove configField from sensorPanel, object is ready to be
+            // garbaged
+            remove();
+        }
     }
 }

@@ -25,7 +25,10 @@ package com.wattzap.controller;
 public enum Messages {
     // any value in the config properties was changed (simple value, sensor,
     // subsystem, default source, trainer, etc).
-    // data: ???
+    // data: changed property
+// any value in the config properties was changed (simple value, sensor,
+    // subsystem, default source, trainer, etc).
+    // data: changed property
     CONFIG_CHANGED,
 
     // subsystem opened or closed. Reconfiguration is allowed only when stopped
@@ -37,20 +40,15 @@ public enum Messages {
     // data: handler object
     HANDLER, HANDLER_REMOVED,
 
+    // complete data created by TelemetryProvider
+    // data: Telemetry
     TELEMETRY,
 
-    @Deprecated
-    HEARTRATE,
-    @Deprecated
-    SPEEDCADENCE,
-
-    // first and last message of the training? Save on stop?
-    START, STOP,
-
-    @Deprecated
-    TRAININGITEM,
-    @Deprecated
-    TRAINING,
+    // start/stop training. These deal with subsystems/sensors, control
+    // TelemetryProvider.
+    // data: none
+    START,
+    STOP,
 
     // new training data was saved
     // data: WorkoutData with all computed parameters
@@ -60,11 +58,29 @@ public enum Messages {
     // data: (double) position
     STARTPOS,
 
-    // message shown in the interface
-    // data: string
+    // message to be shown in the interface (somehow)
+    // data: String
     ROUTE_MSG,
 
+    // new profile is to be shown
+    // data: XYSeries to be shown
+    PROFILE,
+
+    // Training data (routeReader) is loaded/closed.
+    // data: routeReader
     // TODO replace with TRAINING
     GPXLOAD,
-    CLOSE;
+    CLOSE,
+
+    // Application is going to be closed, modules shall handle their
+    // own jobs.
+    // data: nothing
+    EXIT_APP,
+
+    // training data (all telemetries recorded in the session)
+    // data: training data collection
+    TD,
+    // request to "resend" training data
+    // data: handler to get the TD notification
+    TD_REQ;
 }

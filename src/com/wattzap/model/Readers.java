@@ -61,8 +61,8 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
         return getObject().getCurrentTraining();
     }
 
-    public static String runTraining(String fileName) {
-        return getObject().startTraining(fileName);
+    public static String loadTraining(String fileName) {
+        return getObject().load(fileName);
     }
 
 
@@ -123,8 +123,13 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
 		return null;
 	}
 
-    public String startTraining(String fileName) {
-        String lastMessage;
+    public String load(String fileName) {
+        String lastMessage = "Cannot start";
+
+        if (currentTraining != null) {
+            MessageBus.INSTANCE.send(Messages.CLOSE, currentTraining);
+        }
+        // current trainig = null;
 
         String ext = FileName.getExtension(fileName);
         RouteReader training = getReader(ext);
@@ -142,21 +147,11 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
         // training loaded correctly, unregister previous one, and register
         // current.
         if (lastMessage == null) {
-            synchronized(this) {
-                // close current training, it will be cleared via CLOSE callback.
-                if (currentTraining != null) {
-                    MessageBus.INSTANCE.send(Messages.CLOSE, currentTraining);
-                }
-                // training is ready to be run
-                currentTraining = training;
-                if (currentTraining != null) {
-                    currentTraining.configChanged(UserPreferences.INSTANCE);
-                    MessageBus.INSTANCE.send(Messages.GPXLOAD, currentTraining);
-                }
+            // training is ready to be run
+            currentTraining = training;
+            if (currentTraining != null) {
+                currentTraining.activate();
             }
-        } else if (training != null) {
-            // object was created, but some errors were reported..
-            training.close();
         }
         return lastMessage;
     }
@@ -165,7 +160,6 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
     /*
      * Telemetry handler interface
      */
-
     @Override
     public String getPrettyName() {
         return getCurrentTraining().getName();
@@ -174,11 +168,6 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
     @Override
     public void setPrettyName(String name) {
         assert false : "Cannot change the name";
-    }
-
-    @Override
-    public void setActive(boolean active) {
-        assert false : "Readers cannot be activated/deactivated";
     }
 
     @Override

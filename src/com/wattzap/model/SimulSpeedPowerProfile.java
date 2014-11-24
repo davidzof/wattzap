@@ -24,9 +24,10 @@ import com.wattzap.model.dto.Telemetry;
  * reports 50% of FTP.. Just for "standalone" mode.
  * @author Jarek
  */
-public class SimulSpeedPowerProfile extends VirtualPowerProfile {
+@SelectableDataSourceAnnotation
+public class SimulSpeedPowerProfile extends TelemetryHandler {
     private int ftp = 250;
-    private double maxSlope = 20.0;
+    private double maxSlope = 10.0;
 
     @Override
     public String getPrettyName() {
@@ -35,10 +36,9 @@ public class SimulSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
-
         if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.MAX_POWER)) {
+            (prefs == UserPreferences.MAX_POWER))
+        {
             ftp = prefs.getMaxPower();
         }
     }
@@ -53,18 +53,35 @@ public class SimulSpeedPowerProfile extends VirtualPowerProfile {
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case POWER:
+            case PAUSE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
-        if ((!t.isAvailable(SourceDataEnum.SLOPE)) || (maxSlope < 0.1)) {
-            setValue(SourceDataEnum.POWER, 0.5 * ftp);
-        }
+        PauseMsgEnum pause;
+        double powerWatts = 0.0;
 
-        double powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
-        if (powerWatts < 0) {
-            powerWatts = 0;
+        // doesn't set pause.. if no slope or maxSlope is too small, just
+        // report half FTP.
+        if (ftp < 1.0) {
+            pause = PauseMsgEnum.NO_FTP;
+        } else if ((t.isAvailable(SourceDataEnum.SLOPE)) && (maxSlope > 0.1)) {
+            pause = PauseMsgEnum.RUNNING;
+            powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
+            if (powerWatts < 0) {
+                powerWatts = 0;
+            }
+        } else {
+            pause = PauseMsgEnum.WRONG_TRAINING;
         }
+        setPause(pause);
         setValue(SourceDataEnum.POWER, powerWatts);
-
-        // compute speed as well
-        computeSpeed(t);
     }
 }

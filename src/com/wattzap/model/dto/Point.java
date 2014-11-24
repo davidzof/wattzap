@@ -16,21 +16,26 @@
 package com.wattzap.model.dto;
 
 /**
- * 
+ *
  * Represents a data point from a route or power file (gpx, rlv, pwr etc)
- * 
+ *
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  */
-public class Point {
+public class Point extends AxisPoint {
 	private double latitude;
 	private double longitude;
 	private double elevation;
-	private double distanceFromStart;
 	private double gradientOrPower;
 	private double speed;
 	// private double level;
 	private long time;
+
+    public Point(double distanceFromStart) {
+        super(distanceFromStart);
+    }
+
+
 
 	public double getSpeed() {
 		return speed;
@@ -89,18 +94,14 @@ public class Point {
 	}
 
 	public double getDistanceFromStart() {
-		return distanceFromStart;
-	}
-
-	public void setDistanceFromStart(double distanceFromStart) {
-		this.distanceFromStart = distanceFromStart;
+		return getDistance();
 	}
 
 	@Override
 	public String toString() {
 		return "Point [latitude=" + latitude + ", longitude=" + longitude
 				+ ", elevation=" + elevation + ", distanceFromStart="
-				+ distanceFromStart + ", gradient=" + gradientOrPower
+				+ getDistance() + ", gradient=" + gradientOrPower
 				+ ", speed=" + speed + ", time=" + time + "]";
 	}
 }

@@ -20,7 +20,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -34,6 +33,7 @@ import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import java.util.List;
 
 /**
  * Write out a a track in the Garmin training center database, tcx format. As
@@ -267,7 +267,7 @@ public class TcxWriter /* implements TrackWriter */{
 	 * @param withGpsData
 	 * @return
 	 */
-	public String save(ArrayList<Telemetry> data, boolean withGpsData) {
+	public String save(List<Telemetry> data, boolean withGpsData) {
 		String fileName = null;
 		if (data == null || data.size() == 0) {
 			logger.info("No training data to save");

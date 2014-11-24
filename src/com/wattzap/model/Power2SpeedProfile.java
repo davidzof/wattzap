@@ -20,51 +20,45 @@ import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 
 /**
- * Default profile: power bases on wheelSpeed and trainer resistance level.
+ * Class to compute wheel speed on power. One can use conjunction of this
+ * handler and speed2power.. but it has no sense and power shall be always
+ * 0. This situation is barely undetectable (only direct checking in one of
+ * them is the solution)
+ *
  * @author Jarek
  */
-public class ResistanceHandler extends TelemetryHandler {
-    private int resistance;
-    private boolean autoResistance;
-    private Power power = null;
+@SelectableDataSourceAnnotation
+public class Power2SpeedProfile extends TelemetryHandler {
+    protected Power power = null;
 
     @Override
     public String getPrettyName() {
-        return "resistance";
+        return "power2speed";
     }
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.TURBO_TRAINER)) {
+        if ((prefs == UserPreferences.INSTANCE) ||
+                (prefs == UserPreferences.TURBO_TRAINER)) {
             power = prefs.getTurboTrainerProfile();
-            setActive(power.getResitanceLevels() != 1);
-        }
-
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.RESISTANCE)) {
-            if (prefs.getResistance() == 0) {
-                resistance = 1;
-                autoResistance = true;
-            } else {
-                resistance = prefs.getResistance();
-                autoResistance = false;
-            }
         }
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        return (data == SourceDataEnum.RESISTANCE);
+        // TODO pause if no power
+        if (data == SourceDataEnum.WHEEL_SPEED) {
+            return true;
+        }
+        return false;
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        // default resistance taken from preferences
-        if (autoResistance) {
-            // Best matching (this is wheelSpeed best matches speed) shall be selected
-            setValue(SourceDataEnum.RESISTANCE, 1);
-        } else {
-            // set default resistance: from config
-            setValue(SourceDataEnum.RESISTANCE, resistance);
+        if (power == null) {
+            return;
         }
+        double wheelSpeed = power.getSpeed(t.getPower(), t.getResistance());
+        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
     }
 }

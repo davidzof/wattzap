@@ -35,14 +35,16 @@ import uk.co.caprica.vlcj.player.embedded.FullScreenStrategy;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 import java.awt.Dimension;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 
 /**
@@ -74,7 +76,6 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 public class VideoPlayer extends JFrame implements MessageCallback {
 	private static Logger logger = LogManager.getLogger("Video Player");
 
-	private final JFrame mainFrame;
 	private final JPanel odo;
 
     private EmbeddedMediaPlayer mPlayer;
@@ -87,11 +88,10 @@ public class VideoPlayer extends JFrame implements MessageCallback {
     private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
     private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
 
-	public VideoPlayer(JFrame main, JPanel odo) {
+	public VideoPlayer(JPanel odo) {
 		super();
 
 		this.odo = odo;
-		this.mainFrame = main;
 
 		setTitle("Video - www.WattzAp.com");
 		ImageIcon img = new ImageIcon("icons/video.jpg");
@@ -99,9 +99,15 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 	}
 
 	public void init() {
-		mediaPlayerFactory = new MediaPlayerFactory();
+		addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                playVideo(null);
+            }
+		});
+
+        mediaPlayerFactory = new MediaPlayerFactory();
 		canvas = new java.awt.Canvas();
-		canvas.setBackground(Color.BLACK);
+		canvas.setBackground(Color.GRAY);
 		this.add(canvas, java.awt.BorderLayout.CENTER);
 		mediaPlayerFactory.newVideoSurface(canvas);
 
@@ -151,7 +157,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		}
 
         // handle pause
-        String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
+        String pauseMsg = PauseMsgEnum.msg(t);
         if (pauseMsg != null) {
             Dimension size = mPlayer.getVideoDimension();
             if (size != null) {
@@ -173,7 +179,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		// check position: time for video position and for gpx must be
         // more or less same. Otherwise resync.
         long videoTime  = (long) (len * mPlayer.getPosition());
-        long routeTime = t.getRouteTime();
+        long routeTime = (t == null) ? 0 : t.getRouteTime();
         long deltaTime = videoTime - routeTime;
         if ((deltaTime < -10000) || (10000 < deltaTime)) {
             logger.warn("Setting expected position " + routeTime +
@@ -183,7 +189,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         }
 
         double rate = 1.0;
-        if (t.isAvailable(SourceDataEnum.SPEED)) {
+        if ((t != null) && (t.isAvailable(SourceDataEnum.SPEED))) {
             // compute ratio for video
             bikeSpeed.add(t.getSpeed());
             // "advertisments" are ignored, usually they are skipped by
@@ -197,8 +203,9 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             rate *= (1.0 - deltaTime / 30000.0);
         }
 
-        if (logger.isDebugEnabled()) {
+        if ((t != null) && (logger.isDebugEnabled())) {
             StringBuilder str = new StringBuilder(200);
+            str.append("VideoPlayer");
             str.append(" dist=");
             str.append(SourceDataEnum.DISTANCE.format(t.getDistance(), true));
             str.append(" speed=");
@@ -253,27 +260,22 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         if (videoFile == null) {
 			Rectangle r = getBounds();
 			UserPreferences.INSTANCE.setVideoBounds(r);
-
+            UserPreferences.ODO_VISIBLE.setBool(true);
             setVisible(false);
-
-            remove(odo);
-			revalidate(this);
-			mainFrame.add(odo, "cell 0 2, grow");
-			revalidate(mainFrame);
             len = -1;
         } else {
-            mainFrame.remove(odo);
-            mainFrame.repaint();
-
+            UserPreferences.ODO_VISIBLE.setBool(false);
+            odo.setVisible(true);
             add(odo, java.awt.BorderLayout.SOUTH);
             revalidate(this);
 
             // wait for first telemetry
             mPlayer.enableOverlay(false);
             mPlayer.prepareMedia(videoFile);
-
             setVisible(true);
+
             len = 0;
+            setSpeed(null);
         }
     }
 
@@ -294,7 +296,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             // initialize video on new route
             boolean found = false;
 			RouteReader routeData = (RouteReader) o;
-            if (routeData != null) {
+            if ((routeData != null) && (routeData.getVideoFile() != null)) {
                 String path = FileName.getPath(routeData.getVideoFile());
                 String name = FileName.getName(routeData.getVideoFile());
                 String ext = FileName.getExtension(name);

@@ -27,9 +27,9 @@ import javax.swing.JLabel;
  * @author Jarek
  */
 public abstract class ConfigFieldEnum implements ConfigFieldIntf {
-    private final EnumerationIntf enumeration;
-    private final UserPreferences property;
+    protected final UserPreferences property;
 
+    protected EnumerationIntf[] enums;
     private final JComboBox value;
 
     /*
@@ -37,38 +37,44 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
      * reflection (but.. it is possible I change it in close future..)
      */
     public ConfigFieldEnum(ConfigPanel panel, UserPreferences property,
-            String name, EnumerationIntf e) {
+            String name, EnumerationIntf[] enums) {
         this.property = property;
-        this.enumeration = e;
 
-        JLabel label = new JLabel();
-        label.setText(MsgBundle.getString(name));
-		panel.add(label);
+        if (name != null) {
+            JLabel label = new JLabel();
+            label.setText(MsgBundle.getString(name));
+            panel.add(label);
+        }
 
         value = new JComboBox();
-        rebuild();
-        value.setActionCommand(property.getName());
+        setEnums(enums);
+        value.setActionCommand(getName());
         value.addActionListener(panel);
 		panel.add(value, "span");
     }
 
-    public void rebuild() {
+    public final void setEnums(EnumerationIntf[] enums) {
         value.removeAllItems();
-        for (int i = 0; i < enumeration.getValues().length; i++) {
-            EnumerationIntf en = enumeration.getValues()[i];
-            if (MsgBundle.containsKey(en.getKey())) {
+        this.enums = enums;
+        for (EnumerationIntf en : enums) {
+            if (en.inBundle() && MsgBundle.containsKey(en.getKey())) {
                 value.addItem(MsgBundle.getString(en.getKey()));
             } else {
                 value.addItem(en.getKey());
             }
             if (!en.isValid()) {
-                // TODO block this option..
+                // TODO block this option.. or rather indicate it is wrong
             }
         }
     }
 
     @Override
-    public String getName() {
+    public void remove() {
+        assert false : "Field cannot be removed";
+    }
+
+    @Override
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }
@@ -76,7 +82,15 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
     @Override
     public void propertyChanged(UserPreferences prop, String changed) {
         if ((prop == property) || (prop == UserPreferences.INSTANCE)) {
-            value.setSelectedIndex(getProperty().ordinal());
+            int ord;
+            EnumerationIntf en = getProperty();
+            if (en != null) {
+                ord = en.ordinal();
+            } else {
+                // unselect, value does not exist
+                ord = -1;
+            }
+            value.setSelectedIndex(ord);
         }
     }
     public abstract EnumerationIntf getProperty();
@@ -91,7 +105,7 @@ public abstract class ConfigFieldEnum implements ConfigFieldIntf {
         if (value.getSelectedIndex() < 0) {
             return;
         }
-        EnumerationIntf e = enumeration.getValues()[value.getSelectedIndex()];
+        EnumerationIntf e = enums[value.getSelectedIndex()];
         if (!e.isValid()) {
             System.err.println("Value " + e + " is not valid");
         }

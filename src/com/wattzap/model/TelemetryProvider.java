@@ -16,7 +16,6 @@
  */
 package com.wattzap.model;
 
-import com.wattzap.MsgBundle;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -45,78 +44,36 @@ public enum TelemetryProvider implements MessageCallback
 
     // list of handlers for source data (read from subsystems, or computed on telemetry..)
     private final List<SourceDataHandlerIntf> handlers = new ArrayList<>();
-    private final Map<SourceDataEnum, SensorIntf> sensors = new HashMap<>();
+    private final Map<SourceDataEnum, SourceDataHandlerIntf> selectedHandlers = new HashMap<>();
 
     /* current "location" and training time, filled in telemetry to be reported */
+    private Telemetry t = null;
     private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
 
     private Thread runner = null;
+
+    @Override
+    public String toString() {
+        return "TelemetryProvider:: ss=" + subsystems + ", handlers=" + handlers;
+    }
 
     public TelemetryProvider initialize() {
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM, this);
         MessageBus.INSTANCE.register(Messages.SUBSYSTEM_REMOVED, this);
         MessageBus.INSTANCE.register(Messages.HANDLER, this);
         MessageBus.INSTANCE.register(Messages.HANDLER_REMOVED, this);
+        MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
         MessageBus.INSTANCE.register(Messages.STARTPOS, this);
         MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
         MessageBus.INSTANCE.register(Messages.CLOSE, this);
         MessageBus.INSTANCE.register(Messages.START, this);
         MessageBus.INSTANCE.register(Messages.STOP, this);
+        MessageBus.INSTANCE.register(Messages.ROUTE_MSG, this);
+
+        // set selected handlers
+        configChanged(UserPreferences.INSTANCE);
         return this;
-    }
-
-    private static final Map<Integer, String> pauseMsgKeys = new HashMap<>();
-    static {
-        pauseMsgKeys.put(-2, "stopped");
-        pauseMsgKeys.put(-1, "initialize");
-        // normal training condition
-        pauseMsgKeys.put(0, null);
-        pauseMsgKeys.put(1, "start_training");
-        // speed is zero during normal training
-        pauseMsgKeys.put(2, "no_movement");
-        // pause button was pressed
-        pauseMsgKeys.put(3, "manual_pause");
-
-        // race preparation, wheelSpeed must be detected
-        pauseMsgKeys.put(10, "race_prepare");
-        // countdown
-        pauseMsgKeys.put(20, "9");
-        pauseMsgKeys.put(21, "8");
-        pauseMsgKeys.put(22, "7");
-        pauseMsgKeys.put(23, "6");
-        pauseMsgKeys.put(24, "5");
-        pauseMsgKeys.put(25, "4");
-        pauseMsgKeys.put(26, "3");
-        pauseMsgKeys.put(27, "2");
-        pauseMsgKeys.put(28, "1");
-        pauseMsgKeys.put(29, "race_start");
-        // normal race condition, any pause is not allowed
-        pauseMsgKeys.put(30, null);
-
-        // end of training. Set by video handler, cannot be overriden
-        pauseMsgKeys.put(100, "end_of_training");
-
-        // hardware conditions
-        pauseMsgKeys.put(250, "no_power_sensor");
-        pauseMsgKeys.put(251, "no_speed_sensor");
-    }
-    public static String pauseMsg(int v, boolean nullIfUnknown) {
-        String key = pauseMsgKeys.get(v);
-        if (key == null) {
-            if (nullIfUnknown) {
-                return null;
-            } else {
-                return String.format("unknown[%d]", v);
-            }
-        }
-        if (MsgBundle.containsKey(key)) {
-            return MsgBundle.getString(key);
-        }
-        return key;
-    }
-    public static String pauseMsg(Telemetry t) {
-        return pauseMsg(t.getPaused(), true);
     }
 
     // subsystems to be handled
@@ -129,16 +86,84 @@ public enum TelemetryProvider implements MessageCallback
     }
 
     // selected data handlers
-    public SensorIntf getSensor(SourceDataEnum data) {
-        return sensors.get(data);
+    public SourceDataHandlerIntf getSelected(SourceDataEnum data) {
+        return selectedHandlers.get(data);
     }
-    public void setSensor(SourceDataEnum data, SourceDataHandlerIntf sensor) {
-        if (sensor == null) {
-            sensors.remove(data);
-        } else {
-            assert sensor instanceof SensorIntf :
-                    "Non-sensor handler " + sensor.getPrettyName();
-            sensors.put(data, (SensorIntf) sensor);
+
+    private class HandlerToReplace implements SourceDataHandlerIntf {
+        private final String name;
+
+        public HandlerToReplace(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public SourceDataHandlerIntf initialize() {
+            return this;
+        }
+
+        @Override
+        public void release() {
+        }
+
+        @Override
+        public String getPrettyName() {
+            return name;
+        }
+
+        @Override
+        public void setPrettyName(String name) {
+            assert false : "Not allowed";
+        }
+
+        @Override
+        public boolean provides(SourceDataEnum data) {
+            return false;
+        }
+
+        @Override
+        public double getValue(SourceDataEnum data) {
+            assert false : "Not allowed";
+            return 0.0;
+        }
+
+        @Override
+        public boolean checks(SourceDataEnum data) {
+            return false;
+        }
+
+        @Override
+        public long getModificationTime(SourceDataEnum data) {
+            return 0;
+        }
+
+        @Override
+        public long getLastMessageTime() {
+            return 0;
+        }
+    }
+
+    private void setSensor(SourceDataEnum data, UserPreferences pref) {
+        String name = pref.getString();
+        selectedHandlers.put(data, new HandlerToReplace(name));
+        for (SourceDataHandlerIntf handler : handlers) {
+            if (name.equals(handler.getPrettyName())) {
+                selectedHandlers.put(data, handler);
+            }
+        }
+        if (selectedHandlers.get(data) == null) {
+            selectedHandlers.put(data, new HandlerToReplace(pref.getString()));
+        }
+    }
+
+    private void configChanged(UserPreferences pref) {
+        if ((pref == UserPreferences.INSTANCE) ||
+                (pref == UserPreferences.POWER_SOURCE)) {
+            setSensor(SourceDataEnum.POWER, UserPreferences.POWER_SOURCE);
+        }
+        if ((pref == UserPreferences.INSTANCE) ||
+                (pref == UserPreferences.SPEED_SOURCE)) {
+            setSensor(SourceDataEnum.WHEEL_SPEED, UserPreferences.SPEED_SOURCE);
         }
     }
 
@@ -153,15 +178,25 @@ public enum TelemetryProvider implements MessageCallback
      * Next step.. set indicators
      */
     private void threadLoop() {
+        // initialize the number of handlers to be displayed. By default
+        // expected is one handler for the property, DISTANCE and TIME should
+        // not have any handlers.
         int[] lastHandlersNum = new int[SourceDataEnum.values().length];
         for (int i = 0; i < lastHandlersNum.length; i++) {
             lastHandlersNum[i] = -1;
         }
+        lastHandlersNum[SourceDataEnum.DISTANCE.ordinal()] = 0;
+        lastHandlersNum[SourceDataEnum.TIME.ordinal()] = 0;
+
         // send "dummy" telemetry, without any data except time and position.
         // it would be filled in a few seconds.
-        Telemetry t = new Telemetry(-1);
-        t.setDistance(distance);
-        t.setTime(runtime);
+        if (t == null) {
+            t = new Telemetry(PauseMsgEnum.INITIALIZE);
+            t.setDistance(distance);
+            t.setTime(runtime);
+        } else {
+            t.setPause(PauseMsgEnum.INITIALIZE);
+        }
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
         // Wait all handlers reinitialize to show what is wrong with configuration.
@@ -175,11 +210,11 @@ public enum TelemetryProvider implements MessageCallback
         // telemetry filled by sensors and handlers
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
+            int pause = 0;
 
             for (SourceDataEnum prop : SourceDataEnum.values()) {
                 TelemetryValidityEnum validity = TelemetryValidityEnum.NOT_PRESENT;
                 double value = prop.getDefault();
-                int handlersNum = 0;
 
                 switch (prop) {
                     case TIME:
@@ -190,72 +225,99 @@ public enum TelemetryProvider implements MessageCallback
                         validity = TelemetryValidityEnum.OK;
                         value = distance;
                         break;
+                    case PAUSE:
+                        continue;
                 }
 
-                // if sensor provides value.. and any message was received..
-                SensorIntf sensor = getSensor(prop);
-                if ((sensor != null) && (sensor.provides(prop)) &&
-                        (sensor.getLastMessageTime() != 0)) {
-                    if (sensor.getModificationTime(prop) >= start - 5000) {
-                        validity = TelemetryValidityEnum.OK;
-                        value = sensor.getValue(prop);
+                SourceDataHandlerIntf selected = null;
+                if (selectedHandlers.containsKey(prop)) {
+                    // get data from selected handler
+                    selected = getSelected(prop);
+                    // set pause if selected handler was removed or
+                    // is not created yet (and will not be created at all)
+                    if ((selected == null) || (!selected.provides(prop))) {
+                        if (selected == null) {
+                            logger.error("Selected " + prop + " already removed");
+                        } else {
+                            logger.error("Selected " + prop + "(" + selected.getPrettyName()
+                                    + ") not created yet");
+                        }
+                        if (pause < 300) {
+                            pause = 300;
+                        }
+                        continue;
+                    }
+                }
+                int handlersNum = 0;
+                for (SourceDataHandlerIntf handler :  handlers) {
+                    // if telemetryHandler is active and provides property
+                    if ((handler == selected) ||
+                            (selected == null) && handler.provides(prop))
+                    {
                         handlersNum++;
-                    } else {
-                        validity = TelemetryValidityEnum.NOT_AVAILABLE;
-                    }
-                }
-
-                // get all provided data
-                for (SourceDataHandlerIntf handler :  handlers) {
-                    // if telemetryHandler is active and provides property
-                    if (handler.getLastMessageTime() == -1) {
-                        if (handler.provides(prop)) {
+                        // data from sensor is not valid after 5 seconds
+                        if ((handler.getLastMessageTime() < 0) ||
+                            (handler.getModificationTime(prop) >= start - 5000))
+                        {
                             validity = TelemetryValidityEnum.OK;
-                            if (prop == SourceDataEnum.PAUSE) {
-                                // pause.. cannot be too_small or too_big :)
-                                if (value < handler.getValue(prop)) {
-                                    value = handler.getValue(prop);
-                                }
-                            } else {
-                                value = handler.getValue(prop);
+                            value = handler.getValue(prop);
+                        } else {
+                            validity = TelemetryValidityEnum.NOT_AVAILABLE;
+                        }
+                        if (handler.provides(SourceDataEnum.PAUSE)) {
+                            int p = (int) handler.getValue(SourceDataEnum.PAUSE);
+                            if (pause < p) {
+                                pause = p;
                             }
-                            handlersNum++;
+                        }
+                    }
+                    // handler checks property, only telemetries do that!
+                    // in sensors modificationTime is used to check time,
+                    // and telemetryHandler report here value condition.
+                    if (handler.checks(prop)) {
+                        TelemetryValidityEnum target;
+                        if (handler.getModificationTime(prop) < 0) {
+                            target = TelemetryValidityEnum.TOO_SMALL;
+                        } else if (handler.getModificationTime(prop) > 0) {
+                            target = TelemetryValidityEnum.TOO_BIG;
+                        } else {
+                            target = TelemetryValidityEnum.OK;
+                        }
+                        switch (validity) {
+                            case NOT_PRESENT:
+                            case NOT_AVAILABLE:
+                                break;
+                            case OK:
+                                validity = target;
+                                break;
+                            case TOO_BIG:
+                            case TOO_SMALL:
+                                if (validity != target) {
+                                    validity = TelemetryValidityEnum.WRONG;
+                                }
+                                break;
+                            case WRONG:
+                                // stays wrong..
+                                break;
                         }
                     }
                 }
 
-                // and check all existing
-                for (SourceDataHandlerIntf handler :  handlers) {
-                    // if telemetryHandler is active and provides property
-                    if (handler.getLastMessageTime() == -1) {
-                        if (handler.checks(prop)) {
-                            TelemetryValidityEnum target;
-                            if (handler.getModificationTime(prop) < 0) {
-                                target = TelemetryValidityEnum.TOO_SMALL;
-                            } else if (handler.getModificationTime(prop) > 0) {
-                                target = TelemetryValidityEnum.TOO_BIG;
-                            } else {
-                                target = TelemetryValidityEnum.OK;
-                            }
-                            switch (validity) {
-                                case NOT_PRESENT:
-                                case NOT_AVAILABLE:
-                                    break;
-                                case OK:
-                                    validity = target;
-                                    break;
-                                case TOO_BIG:
-                                case TOO_SMALL:
-                                    if (validity != target) {
-                                        validity = TelemetryValidityEnum.WRONG;
-                                    }
-                                    break;
-                                case WRONG:
-                                    // stays wrong..
-                                    break;
-                            }
+                // special cases.. some values if reported negative, they should
+                // be removed from ODO
+                switch (prop) {
+                    case WHEEL_SPEED:
+                    case SPEED:
+                        if (value < 0.0) {
+                            validity = TelemetryValidityEnum.NOT_PRESENT;
+                            value = 0.0;
                         }
-                    }
+                        break;
+                    case RESISTANCE:
+                        if (value < 1.0) {
+                            logger.error("Wrong resistance, set 1");
+                            value = 1.0;
+                        }
                 }
 
                 // set validity, time/distance might be checked as well ("promoted"
@@ -277,6 +339,7 @@ public enum TelemetryProvider implements MessageCallback
                     lastHandlersNum[prop.ordinal()] = handlersNum;
                 }
             }
+            t.setPause(PauseMsgEnum.get(pause));
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
             // sleep some time
@@ -293,7 +356,7 @@ public enum TelemetryProvider implements MessageCallback
             // Handle normal routes (with distance) and routes with
             // time [s] in distance if no speed is provided by any handler.
             // (this is.. in trainings with TRN files).
-            if (pauseMsg(t) == null) {
+            if (PauseMsgEnum.msg(t) == null) {
                 if (t.isAvailable(SourceDataEnum.SPEED)) {
                     distance += t.getSpeed() * (timePassed / 1000.0) / 3600.0;
                 } else {
@@ -303,14 +366,21 @@ public enum TelemetryProvider implements MessageCallback
             }
         }
         // stopped, show proper message with last values
-        t.setPaused(-2);
+        t.setPause(PauseMsgEnum.STOPPED);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
     }
 
     @Override
     public void callback(Messages m, Object o) {
+        SourceDataHandlerIntf handler;
         switch (m) {
+            case CONFIG_CHANGED:
+                configChanged((UserPreferences) o);
+                break;
             case START:
+                UserPreferences.RUNNING.setBool(true);
+                // disable pairing if running: but all subsystems are left enabled
+                UserPreferences.PAIRING.setBool(false);
                 if (runner == null) {
                     runner = new Thread() {
                         @Override
@@ -332,6 +402,7 @@ public enum TelemetryProvider implements MessageCallback
                 } else {
                     logger.error("TelemetryProvider not started");
                 }
+                UserPreferences.RUNNING.setBool(false);
                 break;
 
             case SUBSYSTEM:
@@ -349,6 +420,19 @@ public enum TelemetryProvider implements MessageCallback
                 break;
 
             case HANDLER:
+                handler = (SourceDataHandlerIntf) o;
+                // replace all fake-handlers with just reported
+                for (SourceDataEnum val : selectedHandlers.keySet()) {
+                    SourceDataHandlerIntf selected = selectedHandlers.get(val);
+                    // selected handler is marked as fake when doesn't provide
+                    // required data.
+                    if ((selected != null) &&
+                        (!selected.provides(val)) &&
+                        (selected.getPrettyName().equals(handler.getPrettyName())))
+                    {
+                        selectedHandlers.put(val, handler);
+                    }
+                }
                 // check if subsystem already added
                 for (SourceDataHandlerIntf existing : handlers) {
                     // compare references, not objects!
@@ -367,8 +451,20 @@ public enum TelemetryProvider implements MessageCallback
                 }
                 break;
             case HANDLER_REMOVED:
+                handler = (SourceDataHandlerIntf) o;
+                // remove selected handler
+                for (SourceDataEnum val : selectedHandlers.keySet()) {
+                    SourceDataHandlerIntf selected = selectedHandlers.get(val);
+                    if ((selected != null) &&
+                        (selected.getPrettyName().equals(handler.getPrettyName())))
+                    {
+                        selectedHandlers.put(val, null);
+                    }
+                }
                 // remove handler from the list
-                handlers.remove((SourceDataHandlerIntf) o);
+                handlers.remove(handler);
+                // and notify handler about subsystem removal, just for fun
+                // (if sensor doesn't unregister from subsystem on removal)
                 if (o instanceof MessageCallback) {
                     if (MessageBus.INSTANCE.isRegisterd(Messages.SUBSYSTEM_REMOVED, (MessageCallback) o)) {
                         for (SubsystemIntf subsystem: subsystems) {
@@ -378,6 +474,11 @@ public enum TelemetryProvider implements MessageCallback
                 }
                 break;
 
+
+            case ROUTE_MSG:
+                String msg = (String) o;
+                System.err.println("RouteMsg:: " + msg);
+                break;
 
             case STARTPOS:
                 distance = (Double) o;

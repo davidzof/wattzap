@@ -21,9 +21,12 @@ package com.wattzap.model;
  * @author Jarek
  */
 public interface EnumerationIntf {
-    EnumerationIntf[] getValues();
+    // get enumeration key
     String getKey();
     // ordinal() is defined in enum.. just interface method :)
     int ordinal();
+    // if value is valid
     boolean isValid();
+    // if label is translated
+    boolean inBundle();
 }

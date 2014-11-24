@@ -14,36 +14,43 @@
  * You should have received a copy of the GNU General Public License
  * along with Wattzap.  If not, see <http://www.gnu.org/licenses/>.
  */
-package com.wattzap.model;
+package com.wattzap.model.dto;
 
-import com.wattzap.model.dto.Telemetry;
+import com.wattzap.model.dto.AxisPoint;
 
 /**
- * Simple profile: constant power
+ *
  * @author Jarek
  */
-public class RobotPowerProfile extends VirtualPowerProfile {
-    private double power;
+public class AxisPointInterest extends AxisPoint {
+    private String message;
 
-    @Override
-    public String getPrettyName() {
-        return "robot";
+    public AxisPointInterest(double dist) {
+        super(dist);
+        this.message = null;
+    }
+
+    public AxisPointInterest(double dist, String message) {
+        super(dist);
+        this.message = message;
+    }
+
+    public void setMessage(String name) {
+        this.message = name;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public boolean isUsable() {
+        return (message != null) && (!message.isEmpty());
     }
 
     @Override
-    public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
-
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.ROBOT_POWER)) {
-            power = prefs.getRobotPower();
-        }
-    }
-
-    @Override
-    public void storeTelemetryData(Telemetry t) {
-        // We have a time value and rotation value, lets calculate the speed
-        setValue(SourceDataEnum.POWER, power);
-        // report speed..
-        computeSpeed(t);
+    public String toString() {
+        return "[Interest(" + getDistance() + ")" +
+                (isUsable() ? " name=" + message : "") +
+                "]";
     }
 }

@@ -72,7 +72,7 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
             return;
         }
         // last point must represent totalDist point
-        double ratio = get(size() - 1).getDistance() / totalDist;
+        double ratio = totalDist / get(size() - 1).getDistance();
         if ((ratio < 0.99) || (ratio > 1.01)) {
             System.err.println(get(0).getClass().getSimpleName() +
                     ":: normalization ratio " + ratio);

@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  *
- * @author JaroslawP
+ * @author Jarek
  */
 public class CmdFile {
 

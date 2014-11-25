@@ -84,11 +84,10 @@ public class RlvReader extends RouteReader {
 
     @Override
     public String load(File file) {
-        // parse track.xml file, put all points into local lists
-        AxisPointsList<AxisPointAlt> altPoints = new AxisPointsList<>();
-        AxisPointsList<AxisPointVideo> videoPoints = new AxisPointsList<>();
-        AxisPointsList<AxisPointSlope> slopePoints = new AxisPointsList<>();
-        AxisPointsList<AxisPointInterest> iPoints = new AxisPointsList<>();
+        AxisPointsList<AxisPointVideo> videoPoints = null;
+        AxisPointsList<AxisPointSlope> slopePoints = null;
+        AxisPointsList<AxisPointInterest> iPoints = null;
+        AxisPointsList<AxisPointAlt> altPoints = null;
 
         RlvFile rlv;
         PgmfFile pgmf;
@@ -124,75 +123,86 @@ public class RlvReader extends RouteReader {
         if (frameRate < 1.0) {
             return "Too small frame rate " + frameRate;
         }
-
-        System.out.println("Route length " + routeLen + ", frameRate=" + frameRate);
+        logger.debug("Route length " + routeLen + ", frameRate=" + frameRate +
+                ", type " + pgmf.getInfo().strWattSlopePulse() + "/" +
+                pgmf.getInfo().strTimeDist());
 
         int i;
+        int msg;
         double length;
+        RlvInfoBox message;
 
         // read all messages from cmd file
-        int msg = 0;
         CmdFile cmdFile = null;
-        RlvInfoBox message = rlv.getMessage(0);
-        if (message != null) {
+        iPoints = new AxisPointsList<>();
+        if (rlv.getMessage(0) != null) {
             cmdFile = new CmdFile(file.getAbsolutePath());
             for (msg = 0; (message = rlv.getMessage(msg)) != null; msg++) {
                 message.setMessage(cmdFile.getMessage(msg));
                 if (cmdFile.getMessage(msg) == null) {
-                    System.err.println("Command " + msg + " has no message");
+                    logger.error("Command " + msg + " has no message");
                 }
             }
         }
-        message = rlv.getMessage(msg = 0);
 
-        length = 0.0;
-        long previousFrame = 0;
-        double previousDist = 0.0;
-        for (i = 0; ; i++) {
-            RlvFrameDistance fd = rlv.getPoint(i);
-            if (fd == null) {
-                break;
-            }
-            videoPoints.add(new AxisPointVideo(
-                    length,
-                    previousFrame / frameRate,
-                    3.6 * fd.getDistancePerFrame() * frameRate));
+        if (slopeType) {
+            length = 0.0;
+            long previousFrame = 0;
+            double previousDist = 0.0;
+            message = rlv.getMessage(msg = 0);
+            videoPoints = new AxisPointsList<>();
+            for (i = 0; ; i++) {
+                RlvFrameDistance fd = rlv.getPoint(i);
+                if (fd == null) {
+                    break;
+                }
+                videoPoints.add(new AxisPointVideo(
+                        length,
+                        previousFrame / frameRate,
+                        3.6 * fd.getDistancePerFrame() * frameRate));
 
-            while ((message != null) &&
-                    (message.getFrame() >= previousFrame) &&
-                    (message.getFrame() < fd.getFrameNumber()))
-            {
-                iPoints.add(new AxisPointInterest(length +
-                        (message.getFrame() - previousFrame) * previousDist,
-                        message.getMessage()));
-                message = rlv.getMessage(++msg);
-            }
+                while ((message != null) &&
+                        (message.getFrame() >= previousFrame) &&
+                        (message.getFrame() < fd.getFrameNumber()))
+                {
+                    iPoints.add(new AxisPointInterest(length +
+                            (message.getFrame() - previousFrame) * previousDist,
+                            message.getMessage()));
+                    message = rlv.getMessage(++msg);
+                }
 
-            if (slopeType) {
                 length += previousDist * (fd.getFrameNumber() - previousFrame);
-            } else {
-                length = fd.getFrameNumber() / frameRate;
+                previousFrame = fd.getFrameNumber();
+                previousDist = fd.getDistancePerFrame();
             }
-            previousFrame = fd.getFrameNumber();
-            previousDist = fd.getDistancePerFrame();
-        }
-        if ((length < routeLen / 1.1) || (length > routeLen * 1.1)) {
-            return "Broken RLV file, ratio " + (length / routeLen);
-        }
+            logger.debug("Found " + i + " alt/slope points");
+            if ((length < routeLen / 1.1) || (length > routeLen * 1.1)) {
+                return "Broken RLV file, ratio " + (length / routeLen);
+            }
 
-        // normalize to routeLen
-        videoPoints.add(new AxisPointVideo(length, previousFrame / frameRate));
-        videoPoints.normalize(routeLen);
-        // dummy point at the end of the route.. just to proper normalization
-        iPoints.add(new AxisPointInterest(length));
-        iPoints.normalize(routeLen);
+            // normalize to routeLen
+            videoPoints.add(new AxisPointVideo(length, previousFrame / frameRate));
+            videoPoints.normalize(routeLen);
 
+            iPoints.add(new AxisPointInterest(length, null));
+            iPoints.normalize(routeLen);
+        } else {
+            for (msg = 0; (message = rlv.getMessage(msg)) != null; msg++) {
+                iPoints.add(new AxisPointInterest(
+                        message.getFrame() * frameRate,
+                        message.getMessage()));
+            }
+        }
 
         // store all altitudes
         double down = 0.0;
         double up = 0.0;
         double altitude = pgmf.getInfo().getAltitudeStart();
         length = 0.0;
+        slopePoints = new AxisPointsList<>();
+        if (slopeType) {
+            altPoints = new AxisPointsList<>();
+        }
         for (i = 0; ; i++) {
             ProgramData pd = pgmf.getProgramData(i);
             if (pd == null) {
@@ -225,7 +235,7 @@ public class RlvReader extends RouteReader {
 
             length += pd.getDurationDistance();
         }
-        if ((length < routeLen / 1.1) || (length > routeLen * 1.1)) {
+        if ((length < routeLen / 1.1) || (routeLen * 1.1 < length)) {
             return "Broken PGMF file, ratio " + (length / routeLen);
         }
 
@@ -242,14 +252,14 @@ public class RlvReader extends RouteReader {
             logger.debug("MinPower=" + minSlope + ", max=" + maxSlope);
         }
 
-        System.out.println("Found " + i + " alt/slope points");
+        logger.debug("Found " + i + " alt/slope points");
 
         // sort all lists and compute all necessary values
         String ret;
-        if ((ret = altPoints.checkData()) != null) {
+        if ((altPoints != null) && ((ret = altPoints.checkData()) != null)) {
             return "Incorrect altitudes: " + ret;
         }
-        if ((ret = videoPoints.checkData()) != null) {
+        if ((videoPoints != null) && ((ret = videoPoints.checkData()) != null)) {
             return "Incorrect video times: " + ret;
         }
         if ((ret = iPoints.checkData()) != null) {
@@ -344,16 +354,16 @@ public class RlvReader extends RouteReader {
     @Override
     public void storeTelemetryData(Telemetry t) {
         // route is not loaded, just ignore telemetry request
-        if (videoPoints == null) {
+        if (slopePoints == null) {
             return;
         }
 
         double dist;
         if (slopeType) {
-            // distance in the file is [m], while in telemetry is [km]
+            // slope: distance in RLV is [m], while in telemetry is [km]
             dist = 1000.0 * t.getDistance();
         } else {
-            // time is [s], both in telemetry and in arrays
+            // power: time is [s], both in telemetry and in arrays
             dist = t.getDistance();
         }
         // If end of route.. Just stop the training
@@ -361,8 +371,6 @@ public class RlvReader extends RouteReader {
             setPause(PauseMsgEnum.END_OF_ROUTE);
             return;
         }
-
-
 
         if (slopeType) {
             AxisPointAlt altPoint = altPoints.get(dist);

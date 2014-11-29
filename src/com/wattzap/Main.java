@@ -251,7 +251,7 @@ public class Main implements Runnable {
         // the video
 		VideoPlayer videoPlayer = new VideoPlayer(odo);
 		try {
-			videoPlayer.init();
+			videoPlayer.initialize();
 		} catch (Exception e) {
             popup.showWarning("Initialization", "Cannot build video window (" +
                     e.getLocalizedMessage() + ")");

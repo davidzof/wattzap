@@ -38,6 +38,7 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
+import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
@@ -73,7 +74,7 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
  *
  * @author Jarek
  */
-public class VideoPlayer extends JFrame implements MessageCallback {
+public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHandlerIntf {
 	private static Logger logger = LogManager.getLogger("Video Player");
 
 	private final JPanel odo;
@@ -98,7 +99,21 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		setIconImage(img.getImage());
 	}
 
-	public void init() {
+    @Override
+    public void release() {
+        // remove video if any
+        playVideo(null);
+
+        // unregister all messages
+        MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
+		MessageBus.INSTANCE.unregister(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.unregister(Messages.CLOSE, this);
+
+        // notify about handler removal
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+    }
+
+	public SourceDataHandlerIntf initialize() {
 		addWindowListener(new WindowAdapter() {
             public void windowClosing(WindowEvent e) {
                 playVideo(null);
@@ -120,10 +135,11 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
 		/* Messages we are interested in */
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
-		MessageBus.INSTANCE.register(Messages.STOP, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        return this;
     }
 
 	private void setSpeed(Telemetry t) {
@@ -188,7 +204,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             deltaTime = 0;
         }
 
-        double rate = 1.0;
+        double rate = -1.0;
         if ((t != null) && (t.isAvailable(SourceDataEnum.SPEED))) {
             // compute ratio for video
             bikeSpeed.add(t.getSpeed());
@@ -228,7 +244,7 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 
         // dont check rate if both last and current are very small..
         // it is only when no movements are detected..
-        if ((rate < 0.001) && (lastRate < 0.001)) {
+        if ((rate < 0.0) && (lastRate < 0.0)) {
             return;
         }
 
@@ -239,13 +255,23 @@ public class VideoPlayer extends JFrame implements MessageCallback {
         if (changedRate(rate, 0.2) ||
                 (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
                 (currentTime - lastTime > 10000) && changedRate(rate, 0.01)) {
-            logger.debug("Set rate " + rate + " after " + (currentTime - lastTime));
             lastTime = currentTime;
             lastRate = rate;
-            mPlayer.setRate((float) rate);
+            if (rate > 0.0) {
+                mPlayer.setRate((float) rate);
+            } else {
+                mPlayer.setRate(1);
+            }
         }
 	}
     private boolean changedRate(double rate, double change) {
+        if (rate < 0.0) {
+            if (lastRate < 0.0) {
+                return false;
+            } else {
+                return true;
+            }
+        }
         return ((rate < lastRate * (1.0 - change)) ||
                 (rate >= lastRate * (1.0 + change)));
     }
@@ -284,12 +310,6 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		switch (message) {
 		case TELEMETRY:
             setSpeed((Telemetry) o);
-			break;
-
-		case STOP:
-			if (len > 0) {
-                mPlayer.setPause(true);
-            }
 			break;
 
         case GPXLOAD:
@@ -338,4 +358,49 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 		// frame.invalidate();
 		frame.validate();
 	}
+
+    @Override
+    public String getPrettyName() {
+        return "videoPlayer";
+    }
+
+    @Override
+    public void setPrettyName(String name) {
+    }
+
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case VIDEO_RATE:
+                return (len > 0) && (lastRate >= 0.0);
+            default:
+                return false;
+        }
+    }
+
+    @Override
+    public double getValue(SourceDataEnum data) {
+        switch (data) {
+            case VIDEO_RATE:
+                return lastRate;
+            default:
+                assert false : "Video Player doesn't provide " + data;
+                return 0.0;
+        }
+    }
+
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return false;
+    }
+
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        return 0;
+    }
+
+    @Override
+    public long getLastMessageTime() {
+        return -1;
+    }
 }

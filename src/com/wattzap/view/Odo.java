@@ -159,22 +159,41 @@ public class Odo extends JPanel implements MessageCallback {
         columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
             @Override
             public boolean shown(Telemetry t) {
-                return t.isAvailable(SourceDataEnum.SPEED);
+                return fieldVisible(SourceDataEnum.SPEED);
             }
         });
         columns.add(new ValueCol(SourceDataEnum.ROUTE_TIME) {
             @Override
             public boolean shown(Telemetry t) {
-                return !t.isAvailable(SourceDataEnum.SPEED);
+                return !fieldVisible(SourceDataEnum.SPEED);
             }
         });
         columns.add(new ValueCol(SourceDataEnum.ALTITUDE));
         columns.add(new ValueCol(SourceDataEnum.SLOPE));
 
-        // sensors data
+
+        // sensors data and corresponding target fields
         columns.add(new ValueCol(SourceDataEnum.POWER));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_POWER) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.POWER);
+            }
+        });
         columns.add(new ValueCol(SourceDataEnum.HEART_RATE));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_HR) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.HEART_RATE);
+            }
+        });
         columns.add(new ValueCol(SourceDataEnum.CADENCE));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_CADENCE) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.CADENCE);
+            }
+        });
 
         // turbo trainer data
         columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED) {
@@ -190,6 +209,8 @@ public class Odo extends JPanel implements MessageCallback {
             }
         });
 
+        // chronometer
+        columns.add(new ValueCol(SourceDataEnum.VIDEO_RATE));
         // chronometer
         columns.add(new ValueCol(SourceDataEnum.TIME));
 

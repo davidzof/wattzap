@@ -41,10 +41,24 @@ public class Telemetry implements Serializable {
     }
     public Telemetry(PauseMsgEnum pause) {
         this();
-        // all fields are "visible", but without a data
         values[SourceDataEnum.PAUSE.ordinal()] = (double) pause.val();
         for (SourceDataEnum val : SourceDataEnum.values()) {
-            validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
+            switch (val) {
+                // all fields are "visible" in ODO, but with no data
+                case SPEED:
+                case DISTANCE:
+                case ALTITUDE:
+                case SLOPE:
+                case POWER:
+                case HEART_RATE:
+                case CADENCE:
+                case TIME:
+                    validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
+                    break;
+                default:
+                    validity[val.ordinal()] = TelemetryValidityEnum.NOT_PRESENT;
+                    break;
+            }
         }
     }
     // copy constructor.. used to collect telemetries in a collection
@@ -63,7 +77,7 @@ public class Telemetry implements Serializable {
         assert en != SourceDataEnum.PAUSE : "Cannot get validity of PAUSE";
         return validity[en.ordinal()];
     }
-    public void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
+    public final void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
         assert en != SourceDataEnum.PAUSE : "Cannot set validity of PAUSE";
         validity[en.ordinal()] = valid;
     }

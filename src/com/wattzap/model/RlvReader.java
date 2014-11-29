@@ -57,6 +57,7 @@ public class RlvReader extends RouteReader {
 
     private String nameTag = null;
     private boolean slopeType = false;
+    private int powerCheck = 0;
 
     @Override
     public String getExtension() {
@@ -328,6 +329,24 @@ public class RlvReader extends RouteReader {
     }
 
     @Override
+    public boolean checks(SourceDataEnum data) {
+        switch (data) {
+            case POWER:
+                return !slopeType;
+            default:
+                return false;
+        }
+    }
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        if ((data == SourceDataEnum.POWER) && (!slopeType)) {
+            return powerCheck;
+        }
+        assert false : "Does't check " + data + " value";
+        return 0;
+    }
+
+    @Override
     public boolean provides(SourceDataEnum data) {
         switch (data) {
             // always available
@@ -405,6 +424,13 @@ public class RlvReader extends RouteReader {
 
             double powerWatts = slopePoints.get(dist).getSlope();
             setValue(SourceDataEnum.TARGET_POWER, powerWatts);
+            if (powerWatts < t.getPower() - 10) {
+                powerCheck = 1;
+            } else if (powerWatts > t.getPower() + 10) {
+                powerCheck = -1;
+            } else {
+                powerCheck = 0;
+            }
         }
 
         setPause(PauseMsgEnum.RUNNING);

@@ -132,7 +132,7 @@ public class TrainingController implements ActionListener, MessageCallback {
 			loadJournal(popup);
 
         } else if (pause.equals(command)) {
-            System.err.println("Not handled yet");
+            UserPreferences.MANUAL_PAUSE.setPaused(!UserPreferences.INSTANCE.isPaused());
 
         } else if (view.equals(command)) {
 			if (workouts == null) {

@@ -73,7 +73,7 @@ public abstract class TelemetryHandler
                 }
                 break;
             case CONFIG_CHANGED:
-                configChanged(UserPreferences.INSTANCE);
+                configChanged((UserPreferences) o);
                 break;
         }
     }

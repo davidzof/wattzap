@@ -95,8 +95,9 @@ public enum UserPreferences {
     ODO_VISIBLE("odo_visible", false),
     MAP_VISIBLE("map_visible", false),
 
+    MANUAL_PAUSE("manual_pause", false),
 
-    // backward compability, cannot be get/set
+    // "backward" compability, cannot be get/set, general value for all settings
 	INSTANCE;
 
     // TODO via annotations
@@ -105,9 +106,11 @@ public enum UserPreferences {
         REGKEY.forAll = true;
         EVAL_TIME.forAll = true;
         EVAL_TIME.intCrypted = true;
+
         SENSORS.keptInDB = false;
         PAIRING.keptInDB = false;
         RUNNING.keptInDB = false;
+        MANUAL_PAUSE.keptInDB = false;
 
         // panels visibility
         TRAINING_VISIBLE.keptInDB = false;
@@ -303,6 +306,12 @@ public enum UserPreferences {
 		setInt(user, "videoY", r.y);
 	}
 
+    public boolean isPaused() {
+        return MANUAL_PAUSE.getBool();
+    }
+    public void setPaused(boolean p) {
+        MANUAL_PAUSE.setBool(p);
+    }
 
 
     public boolean isStarted() {

@@ -207,6 +207,9 @@ public enum TelemetryProvider implements MessageCallback
             Thread.currentThread().interrupt();
         }
 
+        // start imediatelly, previous "pause" must be ignored.
+        UserPreferences.MANUAL_PAUSE.setBool(false);
+
         // telemetry filled by sensors and handlers
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
@@ -242,8 +245,8 @@ public enum TelemetryProvider implements MessageCallback
                             logger.error("Selected " + prop + "(" + selected.getPrettyName()
                                     + ") not created yet");
                         }
-                        if (pause < 300) {
-                            pause = 300;
+                        if (pause < PauseMsgEnum.WRONG_SELECTED.val()) {
+                            pause = PauseMsgEnum.WRONG_SELECTED.val();
                         }
                         continue;
                     }
@@ -263,12 +266,6 @@ public enum TelemetryProvider implements MessageCallback
                             value = handler.getValue(prop);
                         } else {
                             validity = TelemetryValidityEnum.NOT_AVAILABLE;
-                        }
-                        if (handler.provides(SourceDataEnum.PAUSE)) {
-                            int p = (int) handler.getValue(SourceDataEnum.PAUSE);
-                            if (pause < p) {
-                                pause = p;
-                            }
                         }
                     }
                     // handler checks property, only telemetries do that!
@@ -337,6 +334,16 @@ public enum TelemetryProvider implements MessageCallback
                                 + "->" + handlersNum);
                     }
                     lastHandlersNum[prop.ordinal()] = handlersNum;
+                }
+            }
+
+            // check if any handler reports pause condition
+            for (SourceDataHandlerIntf handler :  handlers) {
+                if (handler.provides(SourceDataEnum.PAUSE)) {
+                    int p = (int) handler.getValue(SourceDataEnum.PAUSE);
+                    if (pause < p) {
+                        pause = p;
+                    }
                 }
             }
             t.setPause(PauseMsgEnum.get(pause));

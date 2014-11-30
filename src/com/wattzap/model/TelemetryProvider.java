@@ -173,6 +173,26 @@ public enum TelemetryProvider implements MessageCallback
         MessageBus.INSTANCE.send(Messages.STARTPOS, (Double) distance);
     }
 
+    private void reportPos() {
+        PauseMsgEnum pause = PauseMsgEnum.NOT_STARTED;
+        if (UserPreferences.INSTANCE.isStarted()) {
+            pause = PauseMsgEnum.INITIALIZE;
+        }
+
+        // send "dummy" telemetry, without any data except time and position.
+        // it would be filled in a few seconds.
+        if (t == null) {
+            t = new Telemetry(pause);
+        } else {
+            t.setPause(pause);
+        }
+        t.setDistance(distance);
+        t.setTime(runtime);
+        // in fact.. video is not promoted if not started. Nobody calculates
+        // routeTime
+        MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
+    }
+
     /* Main loop: get all data, process it and send current telemetry, then sleep some time.
      * Advance time and distance as well.
      * Next step.. set indicators
@@ -188,16 +208,8 @@ public enum TelemetryProvider implements MessageCallback
         lastHandlersNum[SourceDataEnum.DISTANCE.ordinal()] = 0;
         lastHandlersNum[SourceDataEnum.TIME.ordinal()] = 0;
 
-        // send "dummy" telemetry, without any data except time and position.
-        // it would be filled in a few seconds.
-        if (t == null) {
-            t = new Telemetry(PauseMsgEnum.INITIALIZE);
-            t.setDistance(distance);
-            t.setTime(runtime);
-        } else {
-            t.setPause(PauseMsgEnum.INITIALIZE);
-        }
-        MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
+        // report "initial" telemetry, to show pause msg
+        reportPos();
 
         // Wait all handlers reinitialize to show what is wrong with configuration.
         try {
@@ -266,6 +278,13 @@ public enum TelemetryProvider implements MessageCallback
                             value = handler.getValue(prop);
                         } else {
                             validity = TelemetryValidityEnum.NOT_AVAILABLE;
+                        }
+                        // if handler is selected it might pause of any reason
+                        if (handler.provides(SourceDataEnum.PAUSE)) {
+                            int p = (int) handler.getValue(SourceDataEnum.PAUSE);
+                            if (pause < p) {
+                                pause = p;
+                            }
                         }
                     }
                     // handler checks property, only telemetries do that!
@@ -337,15 +356,21 @@ public enum TelemetryProvider implements MessageCallback
                 }
             }
 
-            // check if any handler reports pause condition
-            for (SourceDataHandlerIntf handler :  handlers) {
-                if (handler.provides(SourceDataEnum.PAUSE)) {
+            // very special case: pause handler.. It doesn't provide any other
+            // data (thus cannot be selectable) but is quite important. General
+            // solution: if handler provides and checks pause it can always
+            // report a pause reason.
+            for (SourceDataHandlerIntf handler : handlers) {
+                if (handler.checks(SourceDataEnum.PAUSE) &&
+                    handler.provides(SourceDataEnum.PAUSE))
+                {
                     int p = (int) handler.getValue(SourceDataEnum.PAUSE);
                     if (pause < p) {
                         pause = p;
                     }
                 }
             }
+
             t.setPause(PauseMsgEnum.get(pause));
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
 
@@ -384,6 +409,7 @@ public enum TelemetryProvider implements MessageCallback
             case CONFIG_CHANGED:
                 configChanged((UserPreferences) o);
                 break;
+
             case START:
                 UserPreferences.RUNNING.setBool(true);
                 // disable pairing if running: but all subsystems are left enabled
@@ -489,12 +515,15 @@ public enum TelemetryProvider implements MessageCallback
 
             case STARTPOS:
                 distance = (Double) o;
+                reportPos();
                 break;
             case GPXLOAD:
                 distance = 0.0;
+                reportPos();
                 break;
             case CLOSE:
                 distance = 0.0;
+                reportPos();
                 break;
         }
     }

@@ -46,6 +46,8 @@ import com.wattzap.utils.Rolling;
 import java.awt.Dimension;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.ArrayList;
+import java.util.List;
 import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
 
 /**
@@ -74,7 +76,9 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
  *
  * @author Jarek
  */
-public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHandlerIntf {
+public class VideoPlayer extends JFrame
+        implements MessageCallback, SourceDataHandlerIntf
+{
 	private static Logger logger = LogManager.getLogger("Video Player");
 
 	private final JPanel odo;
@@ -86,10 +90,13 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
     private long len = -1;
     private long lastTime = 0;
 	private double lastRate = 0.0;
+    private Telemetry lastTelemetry = null;
     private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
     private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
 
-	public VideoPlayer(JPanel odo) {
+    private final List<String> pauseMsgs = new ArrayList<>();
+
+    public VideoPlayer(JPanel odo) {
 		super();
 
 		this.odo = odo;
@@ -154,7 +161,6 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
 
 			mPlayer.enableOverlay(true);
             mPlayer.start();
-            mPlayer.setRate((float) lastRate);
             // TODO don't mute video if POWER training and config is set..
             // Usefull for trainings with "sound guided" stuff (sufferfest,
             // spinnerwalls, etc)
@@ -172,24 +178,44 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
 			logger.debug("Video initialize: FPS=" + fps + " len=" + len);
 		}
 
-        // handle pause
+        // handle pause messages. It doesn't work very fine, from time to time
+        // VLC doesn't show marque, from time to time doesn't pause. It is
+        // an issue to VLC lib itself, not wattzap..
         String pauseMsg = PauseMsgEnum.msg(t);
-        if (pauseMsg != null) {
-            Dimension size = mPlayer.getVideoDimension();
-            if (size != null) {
-                mPlayer.setMarqueeSize(size.height / 8);
+        boolean changed = false;
+        synchronized (this) {
+            if (pauseMsgs.isEmpty()) {
+                pauseMsgs.add(pauseMsg);
+                changed = true;
             } else {
-                logger.debug("video has no size");
+                // compare references not objects!
+                if (pauseMsgs.get(0) != pauseMsg) {
+                    pauseMsgs.set(0, pauseMsg);
+                    changed = true;
+                }
             }
-            mPlayer.setMarqueeText(pauseMsg);
-            mPlayer.setMarqueeOpacity(255);
-            mPlayer.setMarqueeColour(Color.RED);
-            mPlayer.setMarqueePosition(libvlc_marquee_position_e.centre);
-            mPlayer.enableMarquee(true);
-            mPlayer.setPause(true);
-        } else {
-            mPlayer.enableMarquee(false);
-            mPlayer.setPause(false);
+        }
+        // show/hide message
+        if (changed) {
+            if (pauseMsg != null) {
+                Dimension size = mPlayer.getVideoDimension();
+                if (size == null) {
+                    logger.warn("video has no size, cannot show '" + pauseMsg + "'");
+                } else {
+                    logger.debug("Show pause '" + pauseMsg + "'");
+                    mPlayer.setMarqueeSize(size.height / 8);
+                    mPlayer.setMarqueeText(pauseMsg);
+                    mPlayer.setMarqueeOpacity(255);
+                    mPlayer.setMarqueeColour(Color.RED);
+                    mPlayer.setMarqueePosition(libvlc_marquee_position_e.centre);
+                    mPlayer.enableMarquee(true);
+                }
+                mPlayer.setPause(true);
+            } else {
+                logger.debug("Clear previous pause message");
+                mPlayer.setPause(false);
+                mPlayer.enableMarquee(false);
+            }
         }
 
 		// check position: time for video position and for gpx must be
@@ -242,37 +268,27 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
         }
 
 
-        // dont check rate if both last and current are very small..
-        // it is only when no movements are detected..
-        if ((rate < 0.0) && (lastRate < 0.0)) {
-            return;
-        }
 
         // and finally set new rate if changed much. 20% in change is ok?
         // when setRate is called some artefacts are shown on the screen (some
         // frames are lost or what? synchronization issue in vlc?)
         long currentTime = System.currentTimeMillis();
-        if (changedRate(rate, 0.2) ||
-                (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
-                (currentTime - lastTime > 10000) && changedRate(rate, 0.01)) {
+        if ((rate < 0.001) && (lastRate > 0.001) ||
+            changedRate(rate, 0.2) ||
+            (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
+            (currentTime - lastTime > 10000) && changedRate(rate, 0.01))
+        {
             lastTime = currentTime;
             lastRate = rate;
             if (rate > 0.0) {
                 mPlayer.setRate((float) rate);
             } else {
-                mPlayer.setRate(1);
+                mPlayer.setRate((float) 1.0);
             }
         }
 	}
     private boolean changedRate(double rate, double change) {
-        if (rate < 0.0) {
-            if (lastRate < 0.0) {
-                return false;
-            } else {
-                return true;
-            }
-        }
-        return ((rate < lastRate * (1.0 - change)) ||
+        return ((rate < lastRate / (1.0 + change)) ||
                 (rate >= lastRate * (1.0 + change)));
     }
 
@@ -301,7 +317,9 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
             setVisible(true);
 
             len = 0;
-            setSpeed(null);
+            // just show video.. in case telemetry handles training load prior
+            // to video
+            setSpeed(lastTelemetry);
         }
     }
 
@@ -309,7 +327,8 @@ public class VideoPlayer extends JFrame implements MessageCallback, SourceDataHa
 	public void callback(Messages message, Object o) {
 		switch (message) {
 		case TELEMETRY:
-            setSpeed((Telemetry) o);
+            lastTelemetry = (Telemetry) o;
+            setSpeed(lastTelemetry);
 			break;
 
         case GPXLOAD:

@@ -66,22 +66,22 @@ public class SimulSpeedPowerProfile extends TelemetryHandler {
     @Override
     public void storeTelemetryData(Telemetry t) {
         PauseMsgEnum pause;
-        double powerWatts = 0.0;
 
         // doesn't set pause.. if no slope or maxSlope is too small, just
         // report half FTP.
         if (ftp < 1.0) {
             pause = PauseMsgEnum.NO_FTP;
         } else if ((t.isAvailable(SourceDataEnum.SLOPE)) && (maxSlope > 0.1)) {
-            pause = PauseMsgEnum.RUNNING;
+            double powerWatts = 0.0;
             powerWatts = 0.5 * ftp + (1.0 + (t.getGradient() * 100.0) / maxSlope);
             if (powerWatts < 0) {
                 powerWatts = 0;
             }
+            setValue(SourceDataEnum.POWER, powerWatts);
+            pause = PauseMsgEnum.RUNNING;
         } else {
             pause = PauseMsgEnum.WRONG_TRAINING;
         }
         setPause(pause);
-        setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

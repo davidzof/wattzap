@@ -160,7 +160,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
 		chart.revalidate();
 
         if ((data != null) && (!data.isEmpty())) {
-            System.err.println("Update data, any received");
+            logger.debug("Update " + data.size() + " points in training chart.");
             // In "normal" telemetry time starts from 0, while in ones read from
             // journal it start from startTime
             long startTime = data.get(0).getTime();
@@ -168,7 +168,7 @@ public class TrainingDisplay extends JPanel implements MessageCallback {
                 update(t, startTime);
             }
         } else {
-            System.err.println("No data, show 0:0 time");
+            logger.debug("No data, show 0:0 time in training chart");
             long[] values = new long[addedItems.size()];
             for (int i = 0; i < addedItems.size(); i++) {
                 values[i] = 0;

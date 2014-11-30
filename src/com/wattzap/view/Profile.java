@@ -121,7 +121,6 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 		// setPreferredSize(d);
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.PROFILE, this);
@@ -161,12 +160,6 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 			distance = t.getDistance();
-            if (valCorrections.containsKey(xKey)) {
-                distance /= valCorrections.get(xKey);
-            }
-			break;
-		case STARTPOS:
-			distance = (Double) o;
             if (valCorrections.containsKey(xKey)) {
                 distance /= valCorrections.get(xKey);
             }

@@ -48,6 +48,13 @@ public class ManualPauseHandler extends TelemetryHandler {
         return (data == SourceDataEnum.PAUSE);
     }
 
+    // "special" case condition: to report pause in spite of not being
+    // selected one..
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return (data == SourceDataEnum.PAUSE);
+    }
+
     @Override
     public void storeTelemetryData(Telemetry t) {
         // when paused and speed changes from not_available to something else

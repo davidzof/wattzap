@@ -166,9 +166,15 @@ public class RlvReader extends RouteReader {
                         (message.getFrame() >= previousFrame) &&
                         (message.getFrame() < fd.getFrameNumber()))
                 {
-                    iPoints.add(new AxisPointInterest(length +
-                            (message.getFrame() - previousFrame) * previousDist,
-                            message.getMessage()));
+                    AxisPointInterest iPoint = new AxisPointInterest(length +
+                            (message.getFrame() - previousFrame) * previousDist);
+                    String pointMsg = message.getMessage();
+                    if (pointMsg.indexOf('<') >= 0) {
+                        iPoint.setHtml(pointMsg);
+                    } else {
+                        iPoint.setMessage(pointMsg);
+                    }
+                    iPoints.add(iPoint);
                     message = rlv.getMessage(++msg);
                 }
 

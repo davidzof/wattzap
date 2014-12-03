@@ -132,6 +132,7 @@ public class CycleOpsReader extends RouteReader {
                             firstTag = false;
                         }
                         if ((ln.equals("Name")) && (iPoint == null)) {
+                            // TODO get whole string! Both characters and entities!
                             xsr.next();
                             if (xsr.isCharacters()) {
                                 nameTag = xsr.getText();
@@ -239,6 +240,16 @@ public class CycleOpsReader extends RouteReader {
                             xsr.next();
                             if (xsr.isCharacters()) {
                                 iPoint.setMessage(xsr.getText());
+                            }
+                        } else if ((ln.equals("Description")) && (iPoint != null)) {
+                            xsr.next();
+                            if (xsr.isCharacters()) {
+                                iPoint.setDescription(xsr.getText());
+                            }
+                        } else if ((ln.equals("Image")) && (iPoint != null)) {
+                            xsr.next();
+                            if (xsr.isCharacters()) {
+                                iPoint.setImage(xsr.getText());
                             }
                         }
                         break;

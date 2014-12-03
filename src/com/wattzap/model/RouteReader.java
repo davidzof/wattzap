@@ -20,6 +20,7 @@ import org.jfree.data.xy.XYSeries;
 import com.gpxcreator.gpxpanel.GPXFile;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.AxisPointInterest;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
 import java.io.File;
@@ -82,6 +83,7 @@ public abstract class RouteReader extends SourceDataHandler {
         if (!currentFile.exists()) {
             return "File doesn't exist";
         }
+        AxisPointInterest.path = currentFile.getParent();
         String err = load(currentFile);
         if (err != null) {
             return err;

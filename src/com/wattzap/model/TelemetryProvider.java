@@ -188,6 +188,9 @@ public enum TelemetryProvider implements MessageCallback
         }
         t.setDistance(distance);
         t.setTime(runtime);
+        // distance is set, but routeTime is not! Video player will not
+        // update videoTime: routeTime is unknown here!
+        t.setValidity(SourceDataEnum.ROUTE_TIME, TelemetryValidityEnum.NOT_AVAILABLE);
         // in fact.. video is not promoted if not started. Nobody calculates
         // routeTime
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
@@ -373,6 +376,9 @@ public enum TelemetryProvider implements MessageCallback
 
             t.setPause(PauseMsgEnum.get(pause));
             MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
+            if (Thread.currentThread().isInterrupted()) {
+                break;
+            }
 
             // sleep some time
             try {

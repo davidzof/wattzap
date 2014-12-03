@@ -67,9 +67,11 @@ public enum PauseMsgEnum {
 
     private final int val;
     private final String key;
+    private String msg;
     private PauseMsgEnum(int val, String key) {
         this.val = val;
         this.key = key;
+        this.msg = null;
     }
 
     public int val() {
@@ -91,28 +93,29 @@ public enum PauseMsgEnum {
         return pauseMsgKeys.get(val);
     }
 
-    public static String msg(PauseMsgEnum v, boolean nullIfUnknown) {
+    public static String msg(PauseMsgEnum v) {
         if (v == null) {
-            if (nullIfUnknown) {
-                return null;
-            } else {
-                return "unknown_pause_msg";
-            }
+            return null;
         }
+
         String key = v.key();
         if (key == null) {
             return null;
         }
-        if (MsgBundle.containsKey(key)) {
-            return MsgBundle.getString(key);
+        if (v.msg == null) {
+            if (MsgBundle.containsKey(key)) {
+                v.msg = MsgBundle.getString(key);
+            } else {
+                v.msg = key;
+            }
         }
-        return key;
+        return v.msg;
     }
 
     public static String msg(Telemetry t) {
         if (t == null) {
-            return msg(NOT_STARTED, true);
+            return msg(NOT_STARTED);
         }
-        return msg(t.getPause(), true);
+        return msg(t.getPause());
     }
 }

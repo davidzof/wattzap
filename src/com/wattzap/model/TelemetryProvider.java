@@ -50,6 +50,7 @@ public enum TelemetryProvider implements MessageCallback
     private Telemetry t = null;
     private double distance = 0.0; // [km]
     private long runtime = 0; // [ms]
+    private long sessTime = 0; // [ms]
 
     private Thread runner = null;
 
@@ -65,11 +66,8 @@ public enum TelemetryProvider implements MessageCallback
         MessageBus.INSTANCE.register(Messages.HANDLER_REMOVED, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
         MessageBus.INSTANCE.register(Messages.STARTPOS, this);
-        MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
-        MessageBus.INSTANCE.register(Messages.CLOSE, this);
         MessageBus.INSTANCE.register(Messages.START, this);
         MessageBus.INSTANCE.register(Messages.STOP, this);
-        MessageBus.INSTANCE.register(Messages.ROUTE_MSG, this);
 
         // set selected handlers
         configChanged(UserPreferences.INSTANCE);
@@ -174,9 +172,15 @@ public enum TelemetryProvider implements MessageCallback
     }
 
     private void reportPos() {
-        PauseMsgEnum pause = PauseMsgEnum.NOT_STARTED;
-        if (UserPreferences.INSTANCE.isStarted()) {
+        PauseMsgEnum pause;
+        if ((!UserPreferences.INSTANCE.isRegistered()) &&
+            (UserPreferences.EVAL_TIME.getEvalTime() <= 0))
+        {
+            pause = PauseMsgEnum.TRIAL_EXPIRED;
+        } else if (UserPreferences.INSTANCE.isStarted()) {
             pause = PauseMsgEnum.INITIALIZE;
+        } else {
+            pause = PauseMsgEnum.NOT_STARTED;
         }
 
         // send "dummy" telemetry, without any data except time and position.
@@ -211,21 +215,27 @@ public enum TelemetryProvider implements MessageCallback
         lastHandlersNum[SourceDataEnum.DISTANCE.ordinal()] = 0;
         lastHandlersNum[SourceDataEnum.TIME.ordinal()] = 0;
 
-        // report "initial" telemetry, to show pause msg
-        reportPos();
-
         // Wait all handlers reinitialize to show what is wrong with configuration.
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            // if start discarded.. just break telemetry processing
-            Thread.currentThread().interrupt();
-        }
+        do {
+            // report "initial" telemetry, pause msg is shown
+            reportPos();
+
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                // if start discarded.. just break telemetry processing
+                Thread.currentThread().interrupt();
+                break;
+            }
+        // If expired.. then wait until licence entered or stopped
+        } while (t.getPause() == PauseMsgEnum.TRIAL_EXPIRED);
 
         // start imediatelly, previous "pause" must be ignored.
         UserPreferences.MANUAL_PAUSE.setBool(false);
+        sessTime = 0;
 
         // telemetry filled by sensors and handlers
+        boolean speedTraining = t.isAvailable(SourceDataEnum.SPEED);
         while (!Thread.currentThread().isInterrupted()) {
             long start = System.currentTimeMillis();
             int pause = 0;
@@ -394,15 +404,33 @@ public enum TelemetryProvider implements MessageCallback
             // Handle normal routes (with distance) and routes with
             // time [s] in distance if no speed is provided by any handler.
             // (this is.. in trainings with TRN files).
+            // TODO if training type was changed.. then distance shall be 0.
+            // The problem is that.. even if same type is loaded, "nothing"
+            // training is given (which doesn't have speed). More useful is
+            // loading same training after window closing (and starting from 0
+            // is not welcomed then)
             if (PauseMsgEnum.msg(t) == null) {
                 if (t.isAvailable(SourceDataEnum.SPEED)) {
-                    distance += t.getSpeed() * (timePassed / 1000.0) / 3600.0;
+                    distance += (t.getSpeed() / 3.6) * (timePassed / 1000.0) / 1000.0;
                 } else {
                     distance += timePassed / 1000.0;
                 }
                 runtime += timePassed;
+                sessTime += timePassed;
             }
         }
+
+        if (!UserPreferences.INSTANCE.isRegistered()) {
+            int timeLeft = UserPreferences.EVAL_TIME.getEvalTime();
+            timeLeft -= (sessTime / 1000) / 60;
+            sessTime = 0;
+            if (timeLeft < 0) {
+                logger.error("Trial expired");
+                timeLeft = 0;
+            }
+            UserPreferences.EVAL_TIME.setEvalTime(timeLeft);
+        }
+
         // stopped, show proper message with last values
         t.setPause(PauseMsgEnum.STOPPED);
         MessageBus.INSTANCE.send(Messages.TELEMETRY, t);
@@ -513,22 +541,8 @@ public enum TelemetryProvider implements MessageCallback
                 }
                 break;
 
-
-            case ROUTE_MSG:
-                String msg = (String) o;
-                System.err.println("RouteMsg:: " + msg);
-                break;
-
             case STARTPOS:
                 distance = (Double) o;
-                reportPos();
-                break;
-            case GPXLOAD:
-                distance = 0.0;
-                reportPos();
-                break;
-            case CLOSE:
-                distance = 0.0;
                 reportPos();
                 break;
         }

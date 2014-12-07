@@ -22,7 +22,6 @@ import java.io.File;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -44,16 +43,13 @@ import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
 import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JLayeredPane;
-import javax.swing.SwingConstants;
-import javax.swing.border.BevelBorder;
-import javax.swing.border.Border;
 
 /**
  * (c) 2013-2014 David George / TrainingLoops.com
@@ -86,36 +82,58 @@ public class VideoPlayer extends JFrame
 {
 	private static Logger logger = LogManager.getLogger("Video Player");
 
-    private static final int style = Font.BOLD;
-    private static final Font pauseFont = new Font("Arial", style, 30);
-    private static final Font descrFont = new Font("Arial", style, 20);
-	private static final Color skyBlue = new Color(0, 154, 237);
-    private static final Border bevelWithSpace = BorderFactory.createCompoundBorder(
-            BorderFactory.createBevelBorder(BevelBorder.RAISED),
-            BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
     private long len = -1;
     private long lastTime = 0;
 	private double lastRate = 0.0;
-    private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
-    private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final JLayeredPane lpane;
 
-    private final JPanel odo;
+    private final Component odo;
     private EmbeddedMediaPlayer mPlayer;
 
-    private JLabel pausePanel;
+    private final JLabel pausePanel;
     private String lastPause;
 
-    private JLabel descrPanel;
-    private long hideTime;
+    private final JLabel infoPanel;
+    private long hideTime = -1;
     private Telemetry lastTelemetry = null;
 
-    public VideoPlayer(JPanel odo) {
+    public VideoPlayer(Component odo, JLabel infoPanel, JLabel pausePanel) {
 		super();
 
 		this.odo = odo;
+        this.pausePanel = pausePanel;
+        this.infoPanel = infoPanel;
 
-		setTitle("Video - www.WattzAp.com");
+		setBounds(UserPreferences.INSTANCE.getVideoBounds());
+
+        Container contentPane = getContentPane();
+		contentPane.setBackground(Color.black);
+		contentPane.setLayout(new BorderLayout());
+
+        // setLayout(new BorderLayout());
+		setVisible(false);
+
+
+        // super-duper JLayer consumes too much processor, cannot be used..
+        lpane = new JLayeredPane();
+        lpane.setLayout(new PercentLayout());
+        lpane.setPreferredSize(new Dimension(640, 480));
+        lpane.setMaximumSize(new Dimension(1920, 1200));
+        lpane.setBackground(Color.red);
+        // video is put on layer #0, default layer
+        lpane.setLayer(infoPanel, 1);
+        lpane.setLayer(pausePanel, 2);
+        contentPane.add(lpane, BorderLayout.CENTER);
+
+		addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                playVideo(null);
+            }
+		});
+
+        setTitle("Video - www.WattzAp.com");
 		ImageIcon img = new ImageIcon("icons/video.jpg");
 		setIconImage(img.getImage());
 	}
@@ -138,61 +156,14 @@ public class VideoPlayer extends JFrame
         MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
     }
 
+    @Override
 	public SourceDataHandlerIntf initialize() {
-		addWindowListener(new WindowAdapter() {
-            public void windowClosing(WindowEvent e) {
-                playVideo(null);
-            }
-		});
-
-        setLayout(new BorderLayout());
-		setBounds(UserPreferences.INSTANCE.getVideoBounds());
-		setVisible(false);
-
-        // super-duper JLayer consumes too much processor, cannot be used..
-        JLayeredPane lpane = new JLayeredPane();
-        lpane.setLayout(new PercentLayout());
-        add(lpane, BorderLayout.CENTER);
-
         // canvas with video on layer #0
     	Canvas canvas = new Canvas();
 		canvas.setBackground(Color.BLACK);
-        canvas.setBounds(0, 0, 90, 60);
+        canvas.setBounds(0, 0, 100, 200);
         lpane.setLayer(canvas, 0);
 		lpane.add(canvas);
-
-        // messages (with pictures, etc) on layer #1
-        descrPanel = new JLabel();
-        descrPanel.setVisible(false);
-        descrPanel.setBackground(skyBlue);
-        descrPanel.setFont(descrFont);
-        descrPanel.setOpaque(true);
-        descrPanel.setHorizontalAlignment(SwingConstants.CENTER);
-        descrPanel.setVerticalAlignment(SwingConstants.CENTER);
-        descrPanel.setBorder(bevelWithSpace);
-        lpane.setLayer(descrPanel, 1);
-        // size is taken from preffered, set by setText(). If doesn't fit
-        // min/max sizes it "refit", but with no respect to min/max.
-        descrPanel.setMinimumSize(new Dimension(250, 100));
-        descrPanel.setMaximumSize(new Dimension(800, 600));
-        lpane.add(descrPanel, "east+1/north+2");
-
-        // errors, pause msgs on layer #2
-        lastPause = null;
-        pausePanel = new JLabel();
-        pausePanel.setVisible(false);
-        pausePanel.setHorizontalAlignment(SwingConstants.CENTER);
-        pausePanel.setVerticalAlignment(SwingConstants.CENTER);
-        pausePanel.setFont(pauseFont);
-        pausePanel.setOpaque(true);
-        pausePanel.setBackground(new Color(120, 0, 0));
-        pausePanel.setForeground(Color.WHITE);
-        pausePanel.setBorder(bevelWithSpace);
-        lpane.setLayer(pausePanel, 2);
-        // size is always % of video.. in the middle of the screen
-        pausePanel.setMinimumSize(new Dimension(40, 30));
-        pausePanel.setMaximumSize(new Dimension(800, 600));
-        lpane.add(pausePanel, "35-65/40-60");
 
         // build media player
         MediaPlayerFactory mediaPlayerFactory;
@@ -213,37 +184,47 @@ public class VideoPlayer extends JFrame
         return this;
     }
 
-    private void playVideo(String videoFile) {
-        // disable video if enabled
+    private synchronized void playVideo(String videoFile) {
+        // hide video if was loaded
         if (len > 0) {
             mPlayer.stop();
             mPlayer.enableOverlay(false);
+            setVisible(false);
 
+            // store current window size
             Rectangle r = getBounds();
 			UserPreferences.INSTANCE.setVideoBounds(r);
-            // remove odo from the window
-            odo.setVisible(false);
+
+            // move ODO to mainWindow
             remove(odo);
-            // and show it in main window back
             UserPreferences.ODO_VISIBLE.setBool(true);
-            setVisible(false);
+
+            // move description to mainWindow, hide if was not shown
+            lpane.remove(infoPanel);
+            UserPreferences.INFO_VISIBLE.setBool(true);
+            if (hideTime < 0) {
+                infoPanel.setVisible(false);
+            }
+
+            // move pause to mainWindow. Show with warning "closed". On next
+            // telemetry it would be updated with proper message (or hidden)
+            lpane.remove(pausePanel);
+            UserPreferences.PAUSE_VISIBLE.setBool(true);
+            lastPause = "Closing..";
+
+            // and hide window itself, no video is shown
             len = -1;
         }
 
-        // enable new file
+        // show window with new file
         if (videoFile != null) {
-            // no pause message shown..
-            lastPause = null;
-            pausePanel.setVisible(false);
+            // 1:1 video rate is assumed
+            lastRate = -1.0;
+            routeSpeed.clear();
+            bikeSpeed.clear();
 
-            // show window with odo
-            UserPreferences.ODO_VISIBLE.setBool(false);
-            add(odo, BorderLayout.SOUTH);
-            odo.setVisible(true);
+            // The video surface component must be displayable
             setVisible(true);
-            // what for?
-            validate();
-
             mPlayer.enableOverlay(true);
             mPlayer.prepareMedia(videoFile);
             mPlayer.start();
@@ -253,37 +234,77 @@ public class VideoPlayer extends JFrame
             // hide window if empty video
             if (len <= 0) {
                 logger.error("Empty video, cannot start it");
-                // to hide the video.. len must be greater than 0.. otherwise
-                // it is "no video visible" indicator
-                len = 1;
-                playVideo(null);
+                mPlayer.stop();
+                mPlayer.enableOverlay(false);
+                setVisible(false);
                 return;
             }
 
             double fps = mPlayer.getFps();
             logger.debug("Video initialize: FPS=" + fps + " len=" + len);
 
-
             // TODO don't mute video if POWER training and config is set..
             // Usefull for trainings with "sound guided" stuff (sufferfest,
             // spinnerwalls, etc)
             mPlayer.mute(true);
 
-            lastRate = -1.0;
-            setSpeed(lastTelemetry);
+            // messages (with pictures, etc) on layer #1
+            UserPreferences.INFO_VISIBLE.setBool(false);
+            lpane.add(infoPanel, "east+2/north+1");
+            // show info if was previously shown (in mainForm)
+            if (hideTime >= 0) {
+                infoPanel.setVisible(true);
+            }
+
+            // errors, pause msgs on layer #2, no message is shown
+            UserPreferences.PAUSE_VISIBLE.setBool(false);
+            lpane.add(pausePanel, "35-65/40-60");
+            lastPause = null;
+
+            UserPreferences.ODO_VISIBLE.setBool(false);
+            add(odo, BorderLayout.SOUTH);
+            odo.setVisible(true);
+
+            // revalidate all componenets in the window
+            validate();
         }
+        setSpeed(lastTelemetry);
     }
 
-	private void setSpeed(Telemetry t) {
+	private synchronized void setSpeed(Telemetry t) {
+        // handle description, show panel for 10s
+        if ((t != null) && (hideTime == 0)) {
+            hideTime = t.getTime() + 10000;
+        }
+        // hide description panel
+        if ((t != null) && (hideTime > 0) && (t.getTime() > hideTime)) {
+            setDescription(null);
+        }
+
+        boolean changePause = false;
+        String pauseMsg = PauseMsgEnum.msg(t);
+        // compare references, not objects!
+        if (lastPause != pauseMsg) {
+            changePause = true;
+            lastPause = pauseMsg;
+        }
+
+        // it handles pauseMessages on panel.. no matter where it is shown..
+        if (changePause) {
+            if (pauseMsg != null) {
+                pausePanel.setText(pauseMsg);
+                pausePanel.setVisible(true);
+            } else {
+                pausePanel.setVisible(false);
+            }
+        }
+
         // there is no video loaded
         if (len < 0) {
             return;
         }
 
-        String pauseMsg = PauseMsgEnum.msg(t);
-
-        // compare references, not objects!
-        if (lastPause != pauseMsg) {
+        if (changePause) {
             // pause video if necessary. Sometimes it doesn't pause at once..
             // so operation must be checked several times
             while (mPlayer.isPlaying() == (pauseMsg != null)) {
@@ -294,24 +315,6 @@ public class VideoPlayer extends JFrame
                     Thread.interrupted();
                 }
             }
-
-            // and show pause message
-            if (pauseMsg != null) {
-                pausePanel.setText(pauseMsg);
-                pausePanel.setVisible(true);
-            } else {
-                pausePanel.setVisible(false);
-            }
-            lastPause = pauseMsg;
-        }
-
-        // show panel for 10s
-        if ((t != null) && (hideTime == 0)) {
-            hideTime = t.getTime() + 10000;
-        }
-        // hide description panel
-        if ((t != null) && (hideTime > 0) && (t.getTime() > hideTime)) {
-            descrPanel.setVisible(false);
         }
 
 		// check position: time for video position and for gpx must be
@@ -395,20 +398,17 @@ public class VideoPlayer extends JFrame
                 (rate >= lastRate * (1.0 + change)));
     }
 
-    private void setDescription(String msg) {
-        if (len < 0) {
-            return;
-        }
+    private synchronized void setDescription(String msg) {
         if ((msg == null) || (msg.isEmpty())) {
-            if (hideTime > 0) {
+            if (hideTime >= 0) {
                 hideTime = -1;
-                descrPanel.setVisible(false);
+                infoPanel.setVisible(false);
             }
-            return;
+        } else {
+            infoPanel.setText(msg);
+            infoPanel.setVisible(true);
+            hideTime = 0;
         }
-        descrPanel.setText(msg);
-        descrPanel.setVisible(true);
-        hideTime = 0;
     }
 
 	@Override
@@ -457,7 +457,7 @@ public class VideoPlayer extends JFrame
 			break;
 
         case CLOSE:
-            lastTelemetry = null;
+            setDescription(null);
             playVideo(null);
 			break;
 

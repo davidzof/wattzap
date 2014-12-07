@@ -31,14 +31,14 @@ import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
+import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Container;
 import java.util.HashMap;
 import java.util.Map;
-import javax.swing.JPanel;
-import javax.swing.SwingUtilities;
+import javax.swing.JLayeredPane;
 import javax.swing.WindowConstants;
-import net.miginfocom.swing.MigLayout;
 
 /**
  * Main Window, displays telemetry data and responds to close events
@@ -50,33 +50,42 @@ import net.miginfocom.swing.MigLayout;
  * used.
  * @author: Jarek
  */
-public class MainFrame extends JFrame implements ActionListener,  MessageCallback, Runnable {
+public class MainFrame extends JFrame
+        implements ActionListener, MessageCallback
+{
 	private static final String appName = "WattzAp";
 	private static final Logger logger = LogManager.getLogger("Main Frame");
 
     // shortcuts for XXX_VISIBLE preferences
-    private static UserPreferences train = UserPreferences.TRAINING_VISIBLE;
-    private static UserPreferences map = UserPreferences.MAP_VISIBLE;
-    private static UserPreferences prof = UserPreferences.PROFILE_VISIBLE;
-    private static UserPreferences odo = UserPreferences.ODO_VISIBLE;
+    private static final UserPreferences train = UserPreferences.TRAINING_VISIBLE;
+    private static final UserPreferences map = UserPreferences.MAP_VISIBLE;
+    private static final UserPreferences prof = UserPreferences.PROFILE_VISIBLE;
+    private static final UserPreferences odo = UserPreferences.ODO_VISIBLE;
+    private static final UserPreferences pause = UserPreferences.PAUSE_VISIBLE;
+    private static final UserPreferences info = UserPreferences.INFO_VISIBLE;
 
-    private final Map<UserPreferences, JPanel> panels = new HashMap<>();
-    private boolean requested = false;
+    private final JLayeredPane lpane;
+    private final Map<UserPreferences, Component> panels = new HashMap<>();
+    private final Map<UserPreferences, String> constraints = new HashMap<>();
 
 	public MainFrame() {
 		super();
 
-		setBounds(UserPreferences.INSTANCE.getMainBounds());
-
-        // build main window layout
-        MigLayout layout = new MigLayout("center", "[fill, grow 100]10px[fill, grow 50]", "");
-        Container contentPane = getContentPane();
-		contentPane.setBackground(Color.black);
-		contentPane.setLayout(layout);
-
         setTitle(appName);
 		ImageIcon img = new ImageIcon("icons/turbo.jpg");
 		setIconImage(img.getImage());
+
+        Container contentPane = getContentPane();
+		contentPane.setBackground(Color.black);
+		contentPane.setLayout(new BorderLayout());
+
+        // set size of the window
+		setBounds(UserPreferences.INSTANCE.getMainBounds());
+
+        // panel to show all "scalable" components and overlaping description..
+        lpane = new JLayeredPane();
+        lpane.setLayout(new PercentLayout());
+        add(lpane, BorderLayout.CENTER);
 
 		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
@@ -107,54 +116,76 @@ public class MainFrame extends JFrame implements ActionListener,  MessageCallbac
 		System.exit(0);
     }
 
-    public void add(UserPreferences pref, JPanel panel) {
+    public void add(UserPreferences pref, Component panel) {
         assert !panels.containsKey(pref) : "Panel for " + pref + " already added";
 
         panels.put(pref, panel);
+        if (pref.getInt() >= 0) {
+            lpane.setLayer(panel, pref.getInt());
+        }
+
         callback(Messages.CONFIG_CHANGED, pref);
     }
 
-    public void rebuildForm() {
-        // Remove all panels, if panel was not added, request is ignored
-        for (JPanel panel : panels.values()) {
-            remove(panel);
+    private synchronized void place(UserPreferences pref, Container cont, String constr) {
+        // if component not added yet
+        if (!panels.containsKey(pref)) {
+            return;
         }
-
-        // show all fields.. any kind of "smart" code is to be build..
-        if (map.getBool()) {
-            if (train.getBool()) {
-                add(panels.get(train));
-                add(panels.get(map), "wrap");
-            } else {
-                add(panels.get(map), "span 2, wrap");
+        if (pref.getBool()) {
+            if (constraints.containsKey(pref)) {
+                if (constr ==  null) {
+                    if (constraints.get(pref) == null) {
+                        return;
+                    }
+                } else {
+                    if (constr.equals(constraints.get(pref))) {
+                        return;
+                    }
+                }
+                cont.remove(panels.get(pref));
             }
+            constraints.put(pref, constr);
+
+            cont.add(panels.get(pref), constr);
+            panels.get(pref).invalidate();
+            panels.get(pref).validate();
         } else {
-            add(panels.get(train), "span 2, wrap");
-        }
-        if (prof.getBool()) {
-            add(panels.get(prof), "span 2, wrap");
-        }
-        if (odo.getBool()) {
-            add(panels.get(odo), "span 2, wrap");
-        }
+            if (constraints.containsKey(pref)) {
+                constraints.remove(pref);
 
-        for (UserPreferences pref : panels.keySet()) {
-            if (pref.getBool()) {
-                panels.get(pref).invalidate();
-                panels.get(pref).validate();
+                cont.remove(panels.get(pref));
             }
         }
-        //revalidate();
-        setVisible(true);
-        invalidate();
-        validate();
     }
 
-    public void run() {
-        synchronized(this) {
-            requested = false;
+    public void rebuildForm() {
+        String whole = "1-99.5";
+        String upperY = whole;
+        String lowerY = whole;
+        if ((train.getBool() || map.getBool()) && (prof.getBool())) {
+            upperY = "1-60.5";
+            lowerY = "61-99.5";
         }
-        rebuildForm();
+        String leftX = whole;
+        String rightX = whole;
+        if (train.getBool() && map.getBool()) {
+            leftX = "0.5-60.5";
+            rightX = "61-99.5";
+        }
+
+        //setVisible(true);
+        //revalidate();
+        invalidate();
+        validate();
+
+        place(train, lpane, leftX + "/" + upperY);
+        place(map, lpane, rightX + "/" + upperY);
+        place(prof, lpane, whole + "/" + lowerY);
+        place(info, lpane, "west+0.5/north+1");
+        place(pause, lpane, "30-70/40-60");
+        // ODO is under main pane, not on layeredPane
+        place(odo, this, BorderLayout.SOUTH);
     }
 
 	@Override
@@ -164,12 +195,7 @@ public class MainFrame extends JFrame implements ActionListener,  MessageCallbac
                 UserPreferences pref = (UserPreferences) o;
                 if (panels.containsKey(pref)) {
                     panels.get(pref).setVisible(pref.getBool());
-                    synchronized(this) {
-                        if (!requested) {
-                            requested = true;
-                            SwingUtilities.invokeLater(this);
-                        }
-                    }
+                    rebuildForm();
                 }
                 break;
 

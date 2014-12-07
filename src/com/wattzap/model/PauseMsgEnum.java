@@ -63,7 +63,10 @@ public enum PauseMsgEnum {
     NO_FTHR(301, "no_fthr"),
     NO_FTP(302, "no_ftp"),
     // training delivers wrong data (eg. no slope, no video)
-    WRONG_TRAINING(303, "wrong_training");
+    WRONG_TRAINING(303, "wrong_training"),
+
+    // trial expired.. it is not possible to run next trainings..
+    TRIAL_EXPIRED(999, "trial_expired");
 
     private final int val;
     private final String key;

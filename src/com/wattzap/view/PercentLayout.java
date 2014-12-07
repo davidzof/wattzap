@@ -28,6 +28,7 @@ public class PercentLayout implements LayoutManager2, Serializable {
     private class PercentConstraints {
 
         private final Component comp;
+        private final Component parent;
 
         private float left = 0.0f;
         private boolean west = false;
@@ -40,6 +41,7 @@ public class PercentLayout implements LayoutManager2, Serializable {
 
         public PercentConstraints(Component comp, Object o) {
             this.comp = comp;
+            this.parent = comp.getParent();
 
             if (o == null) {
                 // nothing..
@@ -90,6 +92,9 @@ public class PercentLayout implements LayoutManager2, Serializable {
 
         public Component getComp() {
             return comp;
+        }
+        public Component getParent() {
+            return parent;
         }
 
         // get bounds for component when main form is width x height
@@ -230,17 +235,14 @@ public class PercentLayout implements LayoutManager2, Serializable {
 
     @Override
     public void addLayoutComponent(Component comp, Object constraints) {
-        if (components.keySet().contains(comp)) {
-            throw new AWTError("Component already added: " + comp);
-        }
+        assert !components.keySet().contains(comp) : "Component added twice:: " + comp;
         components.put(comp, new PercentConstraints(comp, constraints));
     }
 
     @Override
     public void removeLayoutComponent(Component comp) {
-        if (components.remove(comp) == null) {
-            throw new AWTError("Component not added: " + comp);
-        }
+        assert components.containsKey(comp) : "Component not added:: " + comp;
+        components.remove(comp);
     }
 
     @Override
@@ -250,10 +252,11 @@ public class PercentLayout implements LayoutManager2, Serializable {
     @Override
     public void layoutContainer(Container parent) {
         Dimension target = parent.getSize();
-        int i = 0;
         for (PercentConstraints c : components.values()) {
-            Rectangle r = c.getBounds(target.width, target.height);
-            c.getComp().setBounds(r);
+            if (c.getParent() == parent) {
+                Rectangle r = c.getBounds(target.width, target.height);
+                c.getComp().setBounds(r);
+            }
         }
     }
 }

@@ -238,6 +238,9 @@ public class Telemetry implements Serializable {
         buf.append("Telemetry [");
         String sep = "";
         for (SourceDataEnum val : SourceDataEnum.values()) {
+            if (val == SourceDataEnum.PAUSE) {
+                continue;
+            }
             if ((val.getName() != null) && (getValidity(val) != TelemetryValidityEnum.NOT_PRESENT)) {
                 String str = val.format(getDouble(val), true); // metric
                 if (str != null) {

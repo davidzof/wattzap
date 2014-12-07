@@ -90,10 +90,12 @@ public enum UserPreferences {
     SENSOR_TYPE("sensor_type", "ant_hr"),
 
     // panels in main form
-    TRAINING_VISIBLE("training_visible", false),
-    PROFILE_VISIBLE("profile_visible", false),
-    ODO_VISIBLE("odo_visible", false),
-    MAP_VISIBLE("map_visible", false),
+    TRAINING_VISIBLE("training_visible", false, 0),
+    MAP_VISIBLE("map_visible", false, 0),
+    PROFILE_VISIBLE("profile_visible", false, 0),
+    PAUSE_VISIBLE("pause_visible", true, 2),
+    INFO_VISIBLE("info_visible", true, 1),
+    ODO_VISIBLE("odo_visible", false, -1),
 
     MANUAL_PAUSE("manual_pause", false),
 
@@ -111,12 +113,6 @@ public enum UserPreferences {
         PAIRING.keptInDB = false;
         RUNNING.keptInDB = false;
         MANUAL_PAUSE.keptInDB = false;
-
-        // panels visibility
-        TRAINING_VISIBLE.keptInDB = false;
-        PROFILE_VISIBLE.keptInDB = false;
-        ODO_VISIBLE.keptInDB = false;
-        MAP_VISIBLE.keptInDB = false;
     }
 
 	// why it must be always specified?? Are there system settings
@@ -159,6 +155,12 @@ public enum UserPreferences {
     private UserPreferences(String name, boolean val) {
         this.name = name;
         boolVal = val;
+    }
+    private UserPreferences(String name, boolean val, int layer) {
+        this.name = name;
+        boolVal = val;
+        intVal = layer;
+        keptInDB = false;
     }
 
 

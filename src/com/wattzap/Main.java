@@ -55,6 +55,14 @@ import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
 import com.wattzap.view.prefs.Preferences;
 import com.wattzap.view.training.TrainingDisplay;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+import javax.swing.SwingConstants;
+import javax.swing.border.BevelBorder;
+import javax.swing.border.Border;
 
 /**
  * Main entry point
@@ -68,7 +76,15 @@ public class Main implements Runnable {
 	private static Logger logger = LogManager.getLogger("Main");
 	private final static UserPreferences userPrefs = UserPreferences.INSTANCE;
 
-	public static void main(String[] args) {
+    private static final int style = Font.BOLD;
+    private static final Font pauseFont = new Font("Arial", style, 30);
+    private static final Font descrFont = new Font("Arial", style, 20);
+	private static final Color skyBlue = new Color(0, 154, 237);
+    private static final Border bevelWithSpace = BorderFactory.createCompoundBorder(
+            BorderFactory.createBevelBorder(BevelBorder.RAISED),
+            BorderFactory.createEmptyBorder(5, 5, 5, 5));
+
+    public static void main(String[] args) {
 		// Debug
 		Level level = setLogLevel();
 		NativeLibrary.addSearchPath("libvlc", "C:/usr/vlc-2.0.6/");
@@ -146,6 +162,37 @@ public class Main implements Runnable {
 
         // show route profile (either altitude.. or power, or anything else)
         frame.add(UserPreferences.PROFILE_VISIBLE, new Profile());
+
+        // messages (with pictures, etc) on layer #1
+        JLabel infoPanel = new JLabel();
+        infoPanel.setVisible(false);
+        infoPanel.setBackground(skyBlue);
+        infoPanel.setFont(descrFont);
+        infoPanel.setOpaque(true);
+        infoPanel.setHorizontalAlignment(SwingConstants.CENTER);
+        infoPanel.setVerticalAlignment(SwingConstants.CENTER);
+        infoPanel.setBorder(bevelWithSpace);
+        // size is taken from preffered, set by setText(). If doesn't fit
+        // min/max sizes it "refit", but with no respect to min/max.
+        infoPanel.setMinimumSize(new Dimension(250, 100));
+        infoPanel.setMaximumSize(new Dimension(800, 600));
+        frame.add(UserPreferences.INFO_VISIBLE, infoPanel);
+
+        // errors, pause msgs on layer #2
+        JLabel pausePanel = new JLabel();
+        pausePanel.setVisible(false);
+        pausePanel.setHorizontalAlignment(SwingConstants.CENTER);
+        pausePanel.setVerticalAlignment(SwingConstants.CENTER);
+        pausePanel.setFont(pauseFont);
+        pausePanel.setOpaque(true);
+        pausePanel.setBackground(new Color(120, 0, 0));
+        pausePanel.setForeground(Color.WHITE);
+        pausePanel.setBorder(bevelWithSpace);
+        // size is always % of video.. in the middle of the screen
+        pausePanel.setMinimumSize(new Dimension(40, 30));
+        pausePanel.setMaximumSize(new Dimension(800, 600));
+        frame.add(UserPreferences.PAUSE_VISIBLE, pausePanel);
+
 
         // reusable panel for showing the telemetric data (either in main window
         // or in video window when video found for current training)
@@ -249,7 +296,7 @@ public class Main implements Runnable {
 
 		// video player window: hidden odo (in main panel) is shown next to
         // the video
-		VideoPlayer videoPlayer = new VideoPlayer(odo);
+		VideoPlayer videoPlayer = new VideoPlayer(odo, infoPanel, pausePanel);
 		try {
 			videoPlayer.initialize();
 		} catch (Exception e) {
@@ -271,7 +318,9 @@ public class Main implements Runnable {
             trainingController.loadJournal(null);
             MessageBus.INSTANCE.send(Messages.START, null);
         }
-	}
+
+        frame.setVisible(true);
+    }
 
 	private static Level setLogLevel() {
 		final String LOGGER_PREFIX = "log4j.logger.";

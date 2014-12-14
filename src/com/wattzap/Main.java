@@ -165,7 +165,6 @@ public class Main implements Runnable {
 
         // messages (with pictures, etc) on layer #1
         JLabel infoPanel = new JLabel();
-        infoPanel.setVisible(false);
         infoPanel.setBackground(skyBlue);
         infoPanel.setFont(descrFont);
         infoPanel.setOpaque(true);
@@ -177,10 +176,10 @@ public class Main implements Runnable {
         infoPanel.setMinimumSize(new Dimension(250, 100));
         infoPanel.setMaximumSize(new Dimension(800, 600));
         frame.add(UserPreferences.INFO_VISIBLE, infoPanel);
+        infoPanel.setVisible(false);
 
         // errors, pause msgs on layer #2
         JLabel pausePanel = new JLabel();
-        pausePanel.setVisible(false);
         pausePanel.setHorizontalAlignment(SwingConstants.CENTER);
         pausePanel.setVerticalAlignment(SwingConstants.CENTER);
         pausePanel.setFont(pauseFont);
@@ -192,14 +191,13 @@ public class Main implements Runnable {
         pausePanel.setMinimumSize(new Dimension(40, 30));
         pausePanel.setMaximumSize(new Dimension(800, 600));
         frame.add(UserPreferences.PAUSE_VISIBLE, pausePanel);
-
+        pausePanel.setVisible(false);
 
         // reusable panel for showing the telemetric data (either in main window
         // or in video window when video found for current training)
         JPanel odo = new Odo();
         frame.add(UserPreferences.ODO_VISIBLE, odo);
         UserPreferences.ODO_VISIBLE.setBool(true);
-
 
         // Menu Bar
 		JMenuBar menuBar = new JMenuBar();

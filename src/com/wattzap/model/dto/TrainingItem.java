@@ -22,355 +22,301 @@ package com.wattzap.model.dto;
  * @date 19 August 2013
  */
 public class TrainingItem extends AxisPoint {
+
+    // build functions with levels: expression parser (x, >x, <x, x-y), general
+    // parser (find proper method to parse value) and value parsers (parse only
+    // single value to check if valid).
+    // first level return exact(x), more_than(x), less_than(x), range(x, y).
+    // second level is a list of functions to parse value
+    // third level are functions to parse value, either with prefix/postfix or
+    // plain without value (eg. "7" is training level)
+
     private static int maxHr = 200;
-    private static int maxPower = 250;
+    private static int ftp = 250;
 
     public static void setMaxHr(int hr) {
         maxHr = hr;
     }
-    public static void setMaxPower(int power) {
-        maxPower = power;
+    public static void setFtp(int power) {
+        ftp = power;
     }
 
-	int heartRate = 0; // [BPM]
-	int hrLow = 0;
-	int hrHigh = 0;
-
-	int power = 0; // [W]
-    int powerLow = 0;
-	int powerHigh = 0;
-
-	int cadence = 0; // [RPM]
-    int cadenceLow = 0;
-	int cadenceHigh = 0;
-
-    String description;
+    private String description = null;
+    private int interval = -1;
+	private ItemValue hrItem = null;
+    private ItemValue powerItem = null;
+    private ItemValue cadItem = null;
 
     public TrainingItem(double time) {
         super(time);
     }
 
-    public int getHr() {
-		return heartRate;
+    @Override
+	public String toString() {
+		return "[time=" + getDistance() +
+                getPowerMsg() + getHRMsg() + getCadenceMsg() + getIntervalMsg() +
+                "]:: " + description;
 	}
 
-	public String getHRMsg() {
-		String msg = "";
-		if (hrLow != 0) {
-			if (hrHigh != 0) {
-				msg = " HR " + hrLow + "-" + hrHigh + "bpm";
-			} else {
-				msg = " HR >" + hrLow + "bpm";
-			}
-		} else if (hrHigh != 0) {
-			msg = " HR <" + hrHigh + "bpm";
-		}
-		return msg;
-	}
-
-	/**
-	 * Says if Heart Rate is within range
-	 *
-	 * @param hr
-	 * @return
-	 */
-	public int isHRInRange(int hr) {
-		if (hr >= hrLow) {
-			if (hr <= hrHigh || hrHigh == 0) {
-				return 0;
-			} else {
-				return 1;
-			}
-		}
-		return -1;
-	}
-
-	/**
-	 * Set Heart Rate target based on Coggan/Friel heart rate levels
-	 * In training file HR is presented a % of maxHR
-	 * @param String representing heart rate level
-	 */
-	public void setHr(String v) {
-		v = v.trim();
-		if (v.charAt(0) == '<') {
-			// less than
-			heartRate = (Integer.parseInt(v.substring(1)) * maxHr) / 100;
-			hrHigh = heartRate;
-			hrLow = 0;
-		} else if (v.charAt(0) == '>') {
-			// greater than
-			heartRate = (Integer.parseInt(v.substring(1)) * maxHr) / 100;
-			hrHigh = 0;
-			hrLow = heartRate;
-		} else if (v.indexOf('-') != -1) {
-			int i = v.indexOf('-');
-			hrLow = (Integer.parseInt(v.substring(0, i).trim()) * maxHr) / 100;
-			hrHigh = (Integer.parseInt(v.substring(i + 1).trim()) * maxHr) / 100;
-			heartRate = (hrLow + hrHigh) / 2;
-		} else {
-			heartRate = Integer.parseInt(v.trim());
-			if (heartRate <= 5) {
-				// training level
-				switch (heartRate) {
-				case 1:
-					// active recovery < 68%
-					hrHigh = (int) ((double) maxHr * 0.68);
-					hrLow = 0;
-					heartRate = hrHigh;
-					break;
-				case 2:
-					// Endurance 69 - 83%
-					hrHigh = (int) ((double) maxHr * 0.75);
-					hrLow = (int) ((double) maxHr * 0.69);
-					heartRate = (hrLow + hrHigh) / 2;
-					break;
-				case 3:
-					// Tempo 84 - 94%
-					hrHigh = (int) ((double) maxHr * 0.95);
-					hrLow = (int) ((double) maxHr * 0.84);
-					heartRate = (hrLow + hrHigh) / 2;
-					break;
-				case 4:
-					// Lactate Threshold 95-105%
-					hrHigh = (int) ((double) maxHr * 1.05);
-					hrLow = (int) ((double) maxHr * 0.96);
-					heartRate = (hrLow + hrHigh) / 2;
-					break;
-				case 5:
-					// VO2Max
-					hrHigh = 0;
-					hrLow = (int) ((double) maxHr * 1.06);
-					heartRate = hrLow;
-					break;
-				}
-			} else {
-				// percentage of max heartrate
-				heartRate = (heartRate * maxHr) / 100;
-				hrHigh = (int) ((double) heartRate * 1.02);
-				hrLow = (int) ((double) heartRate * 0.98);
-			}
-		}
-	}
-
-	public int getPower() {
-		return power;
-	}
-
-	public String getPowerMsg() {
-		String msg = "";
-		if (powerLow != 0) {
-			if (powerHigh != 0) {
-				msg = " Power " + powerLow + "-" + powerHigh + "W";
-			} else {
-				msg = " Power >" + powerLow + "W";
-			}
-		} else if (powerHigh != 0) {
-			msg = " Power <" + powerHigh + "W";
-		}
-		return msg;
-	}
-
-	/**
-	 * Says if power is within range
-	 *
-	 * @param power
-	 * @return
-	 */
-	public int isPowerInRange(int power) {
-		if (power >= powerLow) {
-			if (power <= powerHigh || powerHigh == 0) {
-				return 0;
-			} else {
-				return 1;
-			}
-		}
-		return -1;
-	}
-
-	public void setPower(double power) {
-		// absolute power in watts
-		this.power = (int) power;
-		powerHigh = (int) (power * 1.025);
-		powerLow = (int) (power * 0.975);
-	}
-
-	/**
-	 * Set power based on Coggan/Friel power levels
-	 *
-	 * @param v String representing level from 1-7
-	 */
-	public void setPower(String v) {
-		v = v.trim();
-		if (v.charAt(0) == '<') {
-			// less than
-			power = (Integer.parseInt(v.substring(1)) * maxPower) / 100;
-			powerHigh = power;
-			powerLow = 0;
-		} else if (v.charAt(0) == '>') {
-			// greater than
-			power = (Integer.parseInt(v.substring(1)) * maxPower) / 100;
-			powerHigh = 0;
-			powerLow = power;
-		} else if (v.indexOf('-') != -1) {
-			int i = v.indexOf('-');
-			powerLow = (Integer.parseInt(v.substring(0, i).trim()) * maxPower) / 100;
-			powerHigh = (Integer.parseInt(v.substring(i + 1).trim()) * maxPower) / 100;
-			power = (powerLow + powerHigh) / 2;
-		} else if (v.indexOf('w') != -1) {
-			// absolute power in watts
-			power = Integer.parseInt(v.substring(0, v.indexOf('w')).trim());
-			powerHigh = (int) ((double) power * 1.025);
-			powerLow = (int) ((double) power * 0.975);
-		} else {
-			power = Integer.parseInt(v.trim());
-			if (power <= 7) {
-				// training level
-				switch (power) {
-				case 1:
-					// active recovery < 55%
-					powerHigh = (int) ((double) maxPower * 0.55);
-					powerLow = 0;
-					power = powerHigh;
-					break;
-				case 2:
-					// Endurance 56 - 75%
-					powerHigh = (int) ((double) maxPower * 0.75);
-					powerLow = (int) ((double) maxPower * 0.56);
-					power = (powerLow + powerHigh) / 2;
-					break;
-				case 3:
-					// Tempo 76 - 90%
-					powerHigh = (int) ((double) maxPower * 0.9);
-					powerLow = (int) ((maxPower) * 0.66);
-					power = (powerLow + powerHigh) / 2;
-					break;
-				case 4:
-					// Lactate Threshold 91-105%
-					powerHigh = (int) ((double) maxPower * 1.05);
-					powerLow = (int) ((double) maxPower * 0.91);
-					power = (powerLow + powerHigh) / 2;
-					break;
-				case 5:
-					// VO2Max 106-120
-					powerHigh = (int) ((double) maxPower * 1.2);
-					powerLow = (int) ((double) maxPower * 1.06);
-					power = (powerLow + powerHigh) / 2;
-					break;
-				case 6:
-					// Anaerobic Capacity
-					powerHigh = (int) ((double) maxPower * 1.50);
-					powerLow = (int) ((double) maxPower * 1.21);
-					power = (powerLow + powerHigh) / 2;
-					break;
-				case 7:
-					// Neuromuscular
-					powerHigh = 0;
-					powerLow = (int) ((double) maxPower * 1.50);
-					power = powerLow;
-					break;
-				}
-			} else {
-				// percentage of max power
-				power = (power * maxPower) / 100;
-				powerHigh = (int) ((double) power * 1.025);
-				powerLow = (int) ((double) power * 0.975);
-			}
-		}
-	}
-
-	public int getCadence() {
-		return cadence;
-	}
-
-	public String getCadenceMsg() {
-		String msg = "";
-		if (cadenceLow != 0) {
-			if (cadenceHigh != 0) {
-				msg = " Cadence " + cadenceLow + "-" + cadenceHigh + "rpm";
-			} else {
-				msg = " Cadence >" + cadenceLow + "rpm";
-			}
-		} else if (cadenceHigh != 0) {
-			msg = " Cadence <" + cadenceHigh + "rpm";
-		}
-		return msg;
-	}
-
-	/**
-	 * Says if Heart Rate is within range
-	 *
-	 * @param hr
-	 * @return
-	 */
-	public int isCadenceInRange(int c) {
-		if (c >= cadenceLow) {
-			if (c <= cadenceHigh || cadenceHigh == 0) {
-				return 0;
-			} else {
-				return 1;
-			}
-		}
-		return -1;
-	}
-
-	public void setCadence(String c) {
-		if (c == null) {
-			return;
-		}
-		c = c.trim();
-		if (c.charAt(0) == '<') {
-			// less than
-			cadence = Integer.parseInt(c.substring(1));
-			cadenceHigh = cadence;
-			cadenceLow = 0;
-		} else if (c.charAt(0) == '>') {
-			// greater than
-			cadence = Integer.parseInt(c.substring(1));
-			cadenceHigh = 0;
-			cadenceLow = cadence;
-		} else if (c.indexOf('-') != -1) {
-			int i = c.indexOf('-');
-			cadenceLow = Integer.parseInt(c.substring(0, i).trim());
-			cadenceHigh = Integer.parseInt(c.substring(i + 1).trim());
-			cadence = (cadenceLow + cadenceHigh) / 2;
-		} else {
-            // absolute value
-			cadence = Integer.parseInt(c.trim());
-			cadenceHigh = (int) ((double) cadence * 1.025);
-			cadenceLow = (int) ((double) cadence * 0.975);
-		}
-	}
 
 	public String getDescription() {
-		return description;
-	}
+        StringBuilder b = new StringBuilder();
+        if (description != null) {
+            b.append("<html><center>");
+            b.append(description);
+        }
 
+        String p = getPowerMsg();
+        String h = getHRMsg();
+        String c = getCadenceMsg();
+        String i = getIntervalMsg();
+
+        if ((!p.isEmpty()) || (!h.isEmpty()) || (!c.isEmpty())) {
+            if (description == null) {
+                b.append("<html><center>");
+            } else {
+                b.append("<br /><br />");
+            }
+            b.append("<font size=\"4\" color=\"darkgray\">");
+            boolean f = true;
+            if (!p.isEmpty()) {
+                if (f) {
+                    f = false;
+                } else {
+                    b.append(", ");
+                }
+                b.append(p);
+            }
+            if (!h.isEmpty()) {
+                if (f) {
+                    f = false;
+                } else {
+                    b.append(", ");
+                }
+                b.append(h);
+            }
+            if (!c.isEmpty()) {
+                if (f) {
+                    f = false;
+                } else {
+                    b.append(", ");
+                }
+                b.append(c);
+            }
+            if (!f) {
+                b.append(", ");
+            }
+            b.append(i);
+            b.append("</font>");
+        }
+        if (b.length() != 0) {
+            b.append("</center></html>");
+        }
+        return b.toString();
+	}
 	public void setDescription(String description) {
 		this.description = description;
 	}
 
-	@Override
-	public String toString() {
-		return "[time=" + getDistance() +
-                getPowerMsg() + getHRMsg() + getCadenceMsg() +
-                "]:: " + description;
+
+
+    public String getIntervalMsg() {
+        if (interval < 1) {
+            return "";
+        } else if (interval > 300) {
+            return "[" + (interval / 60) + "min]";
+        } else if (interval < 90) {
+            return "[" + interval + "s]";
+        } else {
+            String s = "" + (interval % 60);
+            if (s.length() < 2) {
+                s = "0" + s;
+            }
+            return "[" + (interval / 60) + ":" + s + "]";
+        }
+    }
+    @Override
+    public String checkData(AxisPoint next) {
+        interval = (int) (next.getDistance() - getDistance());
+        if (interval < 1) {
+            return "Segment too short";
+        }
+        return super.checkData(next);
+    }
+
+
+
+    public int getHr() {
+        if (hrItem != null) {
+            return (int) hrItem.getAvg();
+        } else {
+            return 0;
+        }
+	}
+	public String getHRMsg() {
+        if (hrItem != null) {
+            return hrItem.getDescr();
+        } else {
+            return "";
+        }
+	}
+	public int isHRInRange(int hr) {
+        if (hrItem != null) {
+            if ((hrItem.getMin() > 0) && (hr < hrItem.getMin())) {
+                return -1;
+            }
+            if ((hrItem.getMax() > 0) && (hr > hrItem.getMax())) {
+                return 1;
+            }
+        }
+        return 0;
+	}
+    private class HrItemValue extends ItemValue {
+        @Override
+        public boolean parseValue(String str, double val, String unit) {
+            return
+                    parseBpm(str, val, unit) || // 123bpm
+                    parsePercent(str, val, unit) || // 73%
+                    parseHrZoneS(str, val, unit) || // endurance
+                    parseHrZone(str, val, unit) || // zone3
+                    parseHrZoneD(str, val, unit) || // 3
+                    parsePercentD(str, val, unit); // 73
+        }
+    }
+	public boolean setHr(String v) {
+        if (hrItem != null) {
+            System.err.println("HR item already exist (" + hrItem.getDescr() + "), overwrite with new one!");
+        }
+        hrItem = new HrItemValue();
+        return hrItem.parse(v, maxHr, "bpm");
+	}
+
+
+    public int getPower() {
+        if (powerItem != null) {
+            return (int) powerItem.getAvg();
+        } else {
+            return 0;
+        }
+	}
+	public String getPowerMsg() {
+        if (powerItem != null) {
+            return powerItem.getDescr();
+        } else {
+            return "";
+        }
+	}
+	public int isPowerInRange(int power) {
+        if (powerItem != null) {
+            if ((powerItem.getMin() > 0) && (power < powerItem.getMin())) {
+                return -1;
+            }
+            if ((powerItem.getMax() > 0) && (power > powerItem.getMax())) {
+                return 1;
+            }
+        }
+        return 0;
+	}
+    private class PowerItemValue extends ItemValue {
+        @Override
+        public boolean parseValue(String str, double val, String unit) {
+            return
+                    parsePowerZone(str, val, unit) || // zone3
+                    parsePowerZoneS(str, val, unit) || // endurance
+                    parseRpe(str, val, unit) || // rpe3
+                    parseRpeS(str, val, unit) || // *
+                    parseWatts(str, unit) || // 123W
+                    parsePercent(str, val, unit) || // 99%
+                    parsePowerZoneD(str, val, unit) || // 3
+                    parsePercentD(str, val, unit); // 99
+        }
+    }
+	public boolean setPower(String v) {
+        if (powerItem != null) {
+            System.err.println("Power item already exist (" + powerItem.getDescr() + "), overwrite with new one!");
+        }
+        powerItem = new PowerItemValue();
+        return powerItem.parse(v, ftp, "W");
+	}
+    private class RpeItemValue extends ItemValue {
+        @Override
+        public boolean parseValue(String str, double val, String unit) {
+            return
+                    parsePowerZone(str, val, unit) || // zone3
+                    parsePowerZoneS(str, val, unit) || // endurance
+                    parseRpe(str, val, unit) || // rpe3
+                    parseRpeS(str, val, unit) || // *
+                    parseWatts(str, unit) || // 123W
+                    parsePercent(str, val, unit) || // 99%
+                    parseRpeD(str, val, unit) || // 8
+                    parsePowerZoneD(str, val, unit) || // 3
+                    parsePercentD(str, val, unit); // 99
+        }
+    }
+	public boolean setRpe(String v) {
+        if (powerItem != null) {
+            System.err.println("Power item already exist (" + powerItem.getDescr() + "), overwrite with new one!");
+        }
+        powerItem = new RpeItemValue();
+        return powerItem.parse(v, ftp, "W");
+	}
+
+
+    public int getCadence() {
+        if (cadItem != null) {
+            return (int) cadItem.getAvg();
+        } else {
+            return 0;
+        }
+	}
+	public String getCadenceMsg() {
+        if (cadItem != null) {
+            return cadItem.getDescr();
+        } else {
+            return "";
+        }
+	}
+	public int isCadenceInRange(int cad) {
+        if (cadItem != null) {
+            if ((cadItem.getMin() > 0) && (cad < cadItem.getMin())) {
+                return -1;
+            }
+            if ((cadItem.getMax() > 0) && (cad > cadItem.getMax())) {
+                return 1;
+            }
+        }
+        return 0;
+	}
+    private class CadItemValue extends ItemValue {
+        @Override
+        public boolean parseValue(String str, double val, String unit) {
+            return
+                    parseCadence(str, unit);
+        }
+    }
+	public boolean setCadence(String v) {
+        if (cadItem != null) {
+            System.err.println("Cadnce item already exist (" + cadItem.getDescr() + "), overwrite with new one!");
+        }
+        cadItem = new CadItemValue();
+        return cadItem.parse(v, 1.0, "rpm");
 	}
 
 
 
     public static int getTrainingLevel(int power) {
 		// active recovery < 55%
-		int level1 = (int) ((double) maxPower * 0.55);
+		int level1 = (int) ((double) ftp * 0.55);
 		// Endurance 56 - 75%
-		int level2 = (int) ((double) maxPower * 0.75);
+		int level2 = (int) ((double) ftp * 0.75);
 		// Tempo 76 - 90%
-		int level3 = (int) ((double) maxPower * 0.9);
+		int level3 = (int) ((double) ftp * 0.9);
 		// Lactate Threshold 91-105%
-		int level4 = (int) ((double) maxPower * 1.05);
+		int level4 = (int) ((double) ftp * 1.05);
 		// VO2Max 106-120
-		int level5 = (int) ((double) maxPower * 1.2);
+		int level5 = (int) ((double) ftp * 1.2);
 		// Anaerobic Capacity
-		int level6 = (int) ((double) maxPower * 1.50);
+		int level6 = (int) ((double) ftp * 1.50);
 		// Neuromuscular
 
 		if (power >= 0 && power <= level1) {

@@ -182,8 +182,8 @@ public class MainFrame extends JFrame
         place(train, lpane, leftX + "/" + upperY);
         place(map, lpane, rightX + "/" + upperY);
         place(prof, lpane, whole + "/" + lowerY);
-        place(info, lpane, "west+0.5/north+1");
-        place(pause, lpane, "30-70/40-60");
+        place(info, lpane, "west+2/north+2");
+        place(pause, lpane, "30-70/25-45");
         // ODO is under main pane, not on layeredPane
         place(odo, this, BorderLayout.SOUTH);
     }

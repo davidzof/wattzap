@@ -25,7 +25,10 @@ import com.wattzap.model.dto.TrainingItem;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.jfree.data.xy.XYSeries;
 
@@ -41,7 +44,6 @@ public class TRNReader extends RouteReader {
     private boolean providesPower;
     private boolean providesHr;
     private Map<SourceDataEnum, Integer> checks;
-    private int lastItem;
 
     @Override
     public String getExtension() {
@@ -53,69 +55,166 @@ public class TRNReader extends RouteReader {
         AxisPointsList<TrainingItem> training = new AxisPointsList<>();
         this.training = null;
         routeLen = 0.0;
-        lastItem = -1;
 
         CSVReader reader = null;
+        // The default format is: Time, Comment, Heart Rate, Power, Cadence
+        List<String> columns = Arrays.asList(new String[] {
+            "interval", "comment" ,"hr", "power", "cadence"});
+        int line = 0;
+        int col = -1;
         try {
-            // The format is: Time, Comment, Heart Rate, Power, Cadence
-            // TODO extend format to be used with header (to ommit some fields,
-            // put them in different order, etc)
             reader = new CSVReader(new FileReader(file));
-
             String[] nextLine;
+            TrainingItem item = null;
 
             while ((nextLine = reader.readNext()) != null) {
-                // nextLine[] is an array of values from the line
-                String f1 = nextLine[0];
+                boolean definition = false;
+                item = null;
+                line++;
 
-                if (f1.trim().isEmpty() || f1.trim().startsWith("#")) {
-                    continue;
-                }
-                TrainingItem item = new TrainingItem(routeLen);
+                for (col = 0; col < nextLine.length; col++) {
+                    // nextLine[] is an array of values from the line
+                    String f = nextLine[col].trim();
+                    if ((col == 0) && (f.startsWith("#"))) {
+                        break;
+                    }
+                    if ((col == 0) && (f.startsWith("!"))) {
+                        columns = new ArrayList<>();
+                        definition = true;
+                        f = f.substring(1).trim();
+                    }
 
-                if (f1.indexOf(':') != -1) {
-                    // minutes seconds
-                    int minutes = Integer.parseInt(f1.substring(0,
-                            f1.indexOf(':')));
-                    int seconds = Integer.parseInt(f1.substring(f1
-                            .indexOf(':') + 1));
-                    routeLen += (minutes * 60.0) + seconds;
-                } else {
-                    routeLen += Double.parseDouble(f1) * 60;
+                    if (definition) {
+                        columns.add(f.toLowerCase());
+                    } else if (!f.isEmpty()) {
+                        if (col >= columns.size()) {
+                            return "Column #" + col + " not defined, line " + line;
+                        }
+                        boolean ok = false;
+                        double t;
+                        switch (columns.get(col)) {
+                            case "interval":
+                            case "i":
+                            case "int":
+                                t = parseTime(f);
+                                item = new TrainingItem(routeLen);
+                                if (t > 0.0) {
+                                    routeLen += t;
+                                    ok = true;
+                                }
+                                break;
+                            case "time":
+                            case "t":
+                                t = parseTime(f);
+                                item = new TrainingItem(t);
+                                if (t > routeLen) {
+                                    routeLen = t;
+                                    ok = true;
+                                }
+                                break;
+                            case "hr":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesHr = true;
+                                ok = item.setHr(f);
+                                break;
+                            case "rpe":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesPower = true;
+                                ok = item.setRpe(f);
+                                break;
+                            case "power":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesPower = true;
+                                ok = item.setPower(f);
+                                break;
+                            case "cadence":
+                            case "cad":
+                            case "rpm":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesCad = true;
+                                ok = item.setCadence(f);
+                                break;
+                            case "comment":
+                            case "msg":
+                            case "info":
+                                if (item == null) {
+                                    break;
+                                }
+                                // add all fields till end, no trim() is applied
+                                if (col == columns.size() - 1) {
+                                    for (col++; col < nextLine.length; col++) {
+                                        f += "," + nextLine[col];
+                                    }
+                                }
+                                item.setDescription(f);
+                                ok = true;
+                                break;
+                            default:
+                                return "Unknown column \"" + columns.get(col) + "\"";
+                        }
+                        if (!ok) {
+                            if (item == null) {
+                                return "Line " + line + " doesn't have timestamp";
+                            }
+                            return "Incorrect data" +
+                                    "; line " + line + ", column " + columns.get(col);
+                        }
+                    }
                 }
-
-                item.setDescription(nextLine[1]);
-                if (!nextLine[2].isEmpty()) {
-                    providesHr = true;
-                    item.setHr(nextLine[2].trim());
+                if (item != null) {
+                    training.add(item);
                 }
-                if (!nextLine[3].isEmpty()) {
-                    providesPower = true;
-                    item.setPower(nextLine[3]);
-                }
-                if (!nextLine[4].isEmpty()) {
-                    providesCad = true;
-                    item.setCadence(nextLine[4]);
-                }
-
-                training.add(item);
+            }
+            // if "ivterval" mode, add last point without data, just to show
+            // segment time.
+            if ((item != null) && (item.getDistance() < routeLen)) {
+                training.add(new TrainingItem(routeLen));
             }
         } catch (Exception ex) {
-            return ex.getMessage();
+            return ex.getMessage() + "; line " + line + ", column " + columns.get(col);
         } finally {
             try {
                 if (reader != null) {
                     reader.close();
                 }
             } catch (IOException e1) {
-                // TODO Auto-generated catch block
                 e1.printStackTrace();
             }
+        }
+
+        String ret;
+        if ((ret = training.checkData()) != null) {
+            return ret;
         }
 
         checks = new HashMap<>();
         this.training = training;
         return null;
+    }
+
+    private double parseTime(String f) {
+        String[] fields = f.split(":");
+        try {
+            if (fields.length == 1) {
+                return Double.parseDouble(f) * 60.0;
+            } else {
+                double time = 0.0;
+                for (int i = 0; i < fields.length; i++) {
+                    time = 60.0 * time + Integer.parseInt(fields[i]);
+                }
+                return time;
+            }
+        } catch (NumberFormatException nfe) {
+            return -1.0;
+        }
     }
 
     @Override
@@ -182,12 +281,12 @@ public class TRNReader extends RouteReader {
         }
 
         // handle telemetry for the time
-        TrainingItem item = training.get(t.getDistance());
-        if (item == null) {
+        if (t.getDistance() > routeLen) {
             setPause(PauseMsgEnum.END_OF_ROUTE);
             return;
         }
 
+        TrainingItem item = training.get(t.getDistance());
         // if point was passed.. show message
         if (training.isChanged() && (item.getDescription() != null)) {
             MessageBus.INSTANCE.send(Messages.ROUTE_MSG, item.getDescription());
@@ -232,7 +331,7 @@ public class TRNReader extends RouteReader {
             }
         }
         if ((pref == UserPreferences.MAX_POWER) || (pref == UserPreferences.INSTANCE)) {
-            TrainingItem.setMaxPower(pref.getMaxPower());
+            TrainingItem.setFtp(pref.getMaxPower());
             if (providesPower) {
                 reload = true;
             }

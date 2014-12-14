@@ -15,6 +15,7 @@
 */
 package com.wattzap.model.dto;
 
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.SourceDataEnum;
 import java.io.Serializable;
 
@@ -29,6 +30,7 @@ import java.io.Serializable;
 public class Telemetry implements Serializable {
     private final double[] values;
     private final TelemetryValidityEnum[] validity;
+    private PauseMsgEnum pause;
 
     public Telemetry() {
         values = new double[SourceDataEnum.values().length];
@@ -37,13 +39,28 @@ public class Telemetry implements Serializable {
             values[val.ordinal()] = val.getDefault();
             validity[val.ordinal()] = TelemetryValidityEnum.NOT_PRESENT;
         }
+		pause = null;
     }
-    public Telemetry(int pause) {
+    public Telemetry(PauseMsgEnum pause) {
         this();
-        // all fields are "visible", but without a data
-        values[SourceDataEnum.PAUSE.ordinal()] = (double) pause;
+        this.pause = pause;
         for (SourceDataEnum val : SourceDataEnum.values()) {
-            validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
+            switch (val) {
+                // all fields are "visible" in ODO, but with no data
+                case SPEED:
+                case DISTANCE:
+                case ALTITUDE:
+                case SLOPE:
+                case POWER:
+                case HEART_RATE:
+                case CADENCE:
+                case TIME:
+                    validity[val.ordinal()] = TelemetryValidityEnum.NOT_AVAILABLE;
+                    break;
+                default:
+                    validity[val.ordinal()] = TelemetryValidityEnum.NOT_PRESENT;
+                    break;
+            }
         }
     }
     // copy constructor.. used to collect telemetries in a collection
@@ -56,12 +73,15 @@ public class Telemetry implements Serializable {
             values[i] = t.values[i];
             validity[i] = t.validity[i];
         }
+        pause = t.pause;
     }
 
     public TelemetryValidityEnum getValidity(SourceDataEnum en) {
+        assert en != SourceDataEnum.PAUSE : "Cannot get validity of PAUSE";
         return validity[en.ordinal()];
     }
-    public void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
+    public final void setValidity(SourceDataEnum en, TelemetryValidityEnum valid) {
+        assert en != SourceDataEnum.PAUSE : "Cannot set validity of PAUSE";
         validity[en.ordinal()] = valid;
     }
     public boolean isAvailable(SourceDataEnum en) {
@@ -75,9 +95,11 @@ public class Telemetry implements Serializable {
     }
 
     public double getDouble(SourceDataEnum en) {
+        assert en != SourceDataEnum.PAUSE : "Cannot get PAUSE";
         return values[en.ordinal()];
     }
     public void setDouble(SourceDataEnum en, double v, TelemetryValidityEnum valid) {
+        assert en != SourceDataEnum.PAUSE : "Cannot set PAUSE";
         values[en.ordinal()] = v;
         validity[en.ordinal()] = valid;
     }
@@ -86,9 +108,11 @@ public class Telemetry implements Serializable {
     }
 
     public int getInt(SourceDataEnum en) {
+        assert en != SourceDataEnum.PAUSE : "Cannot get PAUSE";
         return (int) values[en.ordinal()];
     }
     public void setInt(SourceDataEnum en, int v, TelemetryValidityEnum valid) {
+        assert en != SourceDataEnum.PAUSE : "Cannot set PAUSE";
         values[en.ordinal()] = (double) v;
         validity[en.ordinal()] = valid;
     }
@@ -97,9 +121,11 @@ public class Telemetry implements Serializable {
     }
 
     public long getLong(SourceDataEnum en) {
+        assert en != SourceDataEnum.PAUSE : "Cannot get PAUSE";
         return (long) values[en.ordinal()];
     }
     public void setLong(SourceDataEnum en, long v, TelemetryValidityEnum valid) {
+        assert en != SourceDataEnum.PAUSE : "Cannot set PAUSE";
         values[en.ordinal()] = (double) v;
         validity[en.ordinal()] = valid;
     }
@@ -170,10 +196,6 @@ public class Telemetry implements Serializable {
 	public void setWheelSpeed(double wspeed) {
 		setDouble(SourceDataEnum.WHEEL_SPEED, wspeed);
 	}
-    @Deprecated
-    public void setVirtualSpeed(double vspeed) {
-        setWheelSpeed(vspeed);
-    }
 
 	public double getRouteSpeed() {
         return getDouble(SourceDataEnum.ROUTE_SPEED);
@@ -203,11 +225,11 @@ public class Telemetry implements Serializable {
 		setInt(SourceDataEnum.RESISTANCE, resistance);
 	}
 
-    public int getPaused() {
-        return getInt(SourceDataEnum.PAUSE);
+    public PauseMsgEnum getPause() {
+        return pause;
     }
-    public void setPaused(int reason) {
-		setInt(SourceDataEnum.PAUSE, reason);
+    public void setPause(PauseMsgEnum reason) {
+		pause = reason;
     }
 
 	@Override
@@ -216,6 +238,9 @@ public class Telemetry implements Serializable {
         buf.append("Telemetry [");
         String sep = "";
         for (SourceDataEnum val : SourceDataEnum.values()) {
+            if (val == SourceDataEnum.PAUSE) {
+                continue;
+            }
             if ((val.getName() != null) && (getValidity(val) != TelemetryValidityEnum.NOT_PRESENT)) {
                 String str = val.format(getDouble(val), true); // metric
                 if (str != null) {
@@ -241,6 +266,9 @@ public class Telemetry implements Serializable {
                 }
             }
         }
+        buf.append(sep);
+        buf.append("PAUSE=");
+        buf.append(pause);
         buf.append("]");
         return buf.toString();
 	}

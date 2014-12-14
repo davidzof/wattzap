@@ -15,8 +15,10 @@
  */
 package com.wattzap.controller;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -56,7 +58,7 @@ public enum MessageBus {
 	 *            - Callback implementation - classes implement MessageCallback
 	 *            interface.
 	 */
-	public void register(Messages m, MessageCallback o) {
+	public synchronized void register(Messages m, MessageCallback o) {
 		HashSet<MessageCallback> listeners;
 		if (objects.containsKey(m)) {
 			listeners = objects.get(m);
@@ -68,19 +70,19 @@ public enum MessageBus {
 	}
 
 
-	public void unregister(MessageCallback o) {
+	public synchronized void unregister(MessageCallback o) {
         for (HashSet<MessageCallback> listeners : objects.values()) {
             listeners.remove(o);
         }
     }
-    public void unregister(Messages m, MessageCallback o) {
+    public synchronized void unregister(Messages m, MessageCallback o) {
 		if (objects.containsKey(m)) {
     		HashSet<MessageCallback> listeners = objects.get(m);
         	listeners.remove(o);
         }
     }
 
-    public boolean isRegisterd(Messages m, MessageCallback o) {
+    public synchronized boolean isRegisterd(Messages m, MessageCallback o) {
 		if (!objects.containsKey(m)) {
             return false;
 		}
@@ -89,15 +91,19 @@ public enum MessageBus {
     }
 
 	public void send(Messages m, Object o) {
-		HashSet<MessageCallback> listeners = objects.get(m);
-		if (listeners != null) {
-			for (MessageCallback callback : listeners) {
-                try {
-    				callback.callback(m, o);
-                } catch (Exception e) {
-                    logger.fatal("Exception " + e, e);
-                }
-			}
-		}
+        List<MessageCallback> listeners;
+        synchronized(this) {
+            if (!objects.containsKey(m)) {
+                return;
+            }
+    		listeners = new ArrayList<>(objects.get(m));
+        }
+        for (MessageCallback callback : listeners) {
+            try {
+                callback.callback(m, o);
+            } catch (Exception e) {
+                logger.fatal("Exception " + e, e);
+            }
+        }
 	}
 }

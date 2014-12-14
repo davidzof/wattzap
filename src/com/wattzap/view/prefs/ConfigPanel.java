@@ -51,12 +51,21 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
     }
 
     public void add(ConfigFieldIntf field) {
+        assert field.getName() != null :
+            "Field doesn't have a name";
         assert !fields.containsKey(field.getName()) :
             "Field " + field.getName() + " already in the panel";
 
         fields.put(field.getName(), field);
         // initialize values and labels, only in this field
         field.propertyChanged(UserPreferences.INSTANCE, null);
+    }
+    public void remove(ConfigFieldIntf field) {
+        assert fields.containsKey(field.getName()) :
+            "Field " + field.getName() + " not in the panel";
+        assert field == fields.remove(field.getName()) :
+                "Another field removed from the interface";
+        field.remove();
     }
 
     public List<ConfigFieldSensor> getSensorFields() {
@@ -69,7 +78,7 @@ public class ConfigPanel extends JPanel implements ActionListener, DocumentListe
         return list;
     }
 
-    private void fieldChanged(String name) {
+    protected void fieldChanged(String name) {
         // if listener was called with no property or unknown one..
         if ((name == null) || (!fields.containsKey(name))) {
             return;

@@ -17,16 +17,16 @@
 package com.wattzap.model;
 
 import au.com.bytecode.opencsv.CSVReader;
-import com.gpxcreator.gpxpanel.GPXFile;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.AxisPointsList;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
-import com.wattzap.utils.FileName;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,17 +38,12 @@ import org.jfree.data.xy.XYSeries;
  */
 @RouteAnnotation
 public class TRNReader extends RouteReader {
-    private File currentFile = null;
-
     // data to show in profile chart
-	private List<TrainingItem> training = null;
-    private XYSeries series = null;
+	private AxisPointsList<TrainingItem> training = null;
     private boolean providesCad;
     private boolean providesPower;
     private boolean providesHr;
-    private double runningTime;
     private Map<SourceDataEnum, Integer> checks;
-    private int lastItem;
 
     @Override
     public String getExtension() {
@@ -56,151 +51,202 @@ public class TRNReader extends RouteReader {
     }
 
     @Override
-    public String getPath() {
-		return currentFile.getParent();
-    }
-
-    @Override
-    public String getVideoFile() {
-        // to be used with sufferfest?
-		return FileName.stripExtension(currentFile.getName()) + ".avi";
-    }
-
-    @Override
-    public String getName() {
-        return FileName.stripExtension(currentFile.getName());
-    }
-
-    @Override
-    public GPXFile getGpxFile() {
-        return null;
-    }
-
-    @Override
-    public XYSeries getSeries() {
-        return series;
-    }
-
-    @Override
-    public String getXKey() {
-        return "time";
-    }
-    @Override
-    public String getYKey() {
-        return "power";
-    }
-
-    @Override
-    public String load(String filename) {
-        currentFile = new File(filename);
-        if (!currentFile.exists()) {
-            return "File doesn't exist";
-        }
+    public String load(File file) {
+        AxisPointsList<TrainingItem> training = new AxisPointsList<>();
+        this.training = null;
+        routeLen = 0.0;
 
         CSVReader reader = null;
-        training = new ArrayList<>();
-        runningTime = 0.0;
-        lastItem = -1;
-
+        // The default format is: Time, Comment, Heart Rate, Power, Cadence
+        List<String> columns = Arrays.asList(new String[] {
+            "interval", "comment" ,"hr", "power", "cadence"});
+        int line = 0;
+        int col = -1;
         try {
-            // The format is: Time, Comment, Heart Rate, Power, Cadence
-            // TODO extend format to be used with header (to ommit some fields,
-            // put them in different order, etc)
-            reader = new CSVReader(new FileReader(filename));
-
+            reader = new CSVReader(new FileReader(file));
             String[] nextLine;
+            TrainingItem item = null;
 
             while ((nextLine = reader.readNext()) != null) {
-                // nextLine[] is an array of values from the line
-                String f1 = nextLine[0];
+                boolean definition = false;
+                item = null;
+                line++;
 
-                if (f1.trim().isEmpty() || f1.trim().startsWith("#")) {
-                    continue;
-                }
-                TrainingItem item = new TrainingItem();
-                item.setTime(runningTime);
+                for (col = 0; col < nextLine.length; col++) {
+                    // nextLine[] is an array of values from the line
+                    String f = nextLine[col].trim();
+                    if ((col == 0) && (f.startsWith("#"))) {
+                        break;
+                    }
+                    if ((col == 0) && (f.startsWith("!"))) {
+                        columns = new ArrayList<>();
+                        definition = true;
+                        f = f.substring(1).trim();
+                    }
 
-                if (f1.indexOf(':') != -1) {
-                    // minutes seconds
-                    int minutes = Integer.parseInt(f1.substring(0,
-                            f1.indexOf(':')));
-                    int seconds = Integer.parseInt(f1.substring(f1
-                            .indexOf(':') + 1));
-                    runningTime += (minutes * 60.0) + seconds;
-                } else {
-                    runningTime += Double.parseDouble(f1) * 60;
+                    if (definition) {
+                        columns.add(f.toLowerCase());
+                    } else if (!f.isEmpty()) {
+                        if (col >= columns.size()) {
+                            return "Column #" + col + " not defined, line " + line;
+                        }
+                        boolean ok = false;
+                        double t;
+                        switch (columns.get(col)) {
+                            case "interval":
+                            case "i":
+                            case "int":
+                                t = parseTime(f);
+                                item = new TrainingItem(routeLen);
+                                if (t > 0.0) {
+                                    routeLen += t;
+                                    ok = true;
+                                }
+                                break;
+                            case "time":
+                            case "t":
+                                t = parseTime(f);
+                                item = new TrainingItem(t);
+                                if (t > routeLen) {
+                                    routeLen = t;
+                                    ok = true;
+                                }
+                                break;
+                            case "hr":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesHr = true;
+                                ok = item.setHr(f);
+                                break;
+                            case "rpe":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesPower = true;
+                                ok = item.setRpe(f);
+                                break;
+                            case "power":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesPower = true;
+                                ok = item.setPower(f);
+                                break;
+                            case "cadence":
+                            case "cad":
+                            case "rpm":
+                                if (item == null) {
+                                    break;
+                                }
+                                providesCad = true;
+                                ok = item.setCadence(f);
+                                break;
+                            case "comment":
+                            case "msg":
+                            case "info":
+                                if (item == null) {
+                                    break;
+                                }
+                                // add all fields till end, no trim() is applied
+                                if (col == columns.size() - 1) {
+                                    for (col++; col < nextLine.length; col++) {
+                                        f += "," + nextLine[col];
+                                    }
+                                }
+                                item.setDescription(f);
+                                ok = true;
+                                break;
+                            default:
+                                return "Unknown column \"" + columns.get(col) + "\"";
+                        }
+                        if (!ok) {
+                            if (item == null) {
+                                return "Line " + line + " doesn't have timestamp";
+                            }
+                            return "Incorrect data" +
+                                    "; line " + line + ", column " + columns.get(col);
+                        }
+                    }
                 }
-
-                item.setDescription(nextLine[1]);
-                if (!nextLine[2].isEmpty()) {
-                    providesHr = true;
-                    item.setHr(nextLine[2].trim());
+                if (item != null) {
+                    training.add(item);
                 }
-                if (!nextLine[3].isEmpty()) {
-                    providesPower = true;
-                    item.setPower(nextLine[3]);
-                }
-                if (!nextLine[4].isEmpty()) {
-                    providesCad = true;
-                    item.setCadence(nextLine[4]);
-                }
-
-                training.add(item);
+            }
+            // if "ivterval" mode, add last point without data, just to show
+            // segment time.
+            if ((item != null) && (item.getDistance() < routeLen)) {
+                training.add(new TrainingItem(routeLen));
             }
         } catch (Exception ex) {
-            return ex.getMessage();
+            return ex.getMessage() + "; line " + line + ", column " + columns.get(col);
         } finally {
             try {
                 if (reader != null) {
                     reader.close();
                 }
             } catch (IOException e1) {
-                // TODO Auto-generated catch block
                 e1.printStackTrace();
             }
         }
 
-        // prepare series to be displayed in profile panel, nice bars are nice!
-        // only power is shown?
-        series = new XYSeries("");
-        for (int i = 0; i < training.size(); i++) {
-            TrainingItem item = training.get(i);
-            series.add(item.getTime(), item.getPower());
-            if (i == training.size() - 1) {
-                series.add(runningTime, item.getPower());
-                // add zero to see "general" effort, not only spikes
-                series.add(runningTime, 0);
-            } else {
-                series.add(training.get(i + 1).getTime(), item.getPower());
-            }
+        String ret;
+        if ((ret = training.checkData()) != null) {
+            return ret;
         }
 
         checks = new HashMap<>();
+        this.training = training;
         return null;
+    }
+
+    private double parseTime(String f) {
+        String[] fields = f.split(":");
+        try {
+            if (fields.length == 1) {
+                return Double.parseDouble(f) * 60.0;
+            } else {
+                double time = 0.0;
+                for (int i = 0; i < fields.length; i++) {
+                    time = 60.0 * time + Integer.parseInt(fields[i]);
+                }
+                return time;
+            }
+        } catch (NumberFormatException nfe) {
+            return -1.0;
+        }
+    }
+
+    @Override
+    public XYSeries createProfile() {
+        // training without power.. nothing to be shown
+        if (!providesPower) {
+            return null;
+        }
+
+        // prepare series to be displayed in profile panel, nice bars are nice!
+        XYSeries series = new XYSeries("time_min,power");
+        for (int i = 0; i < training.size(); i++) {
+            TrainingItem item = training.get(i);
+            series.add(item.getDistance() / 60.0, item.getPower());
+            if (i == training.size() - 1) {
+                series.add(routeLen / 60.0, item.getPower());
+            } else {
+                series.add(training.get(i + 1).getDistance() / 60.0,
+                        item.getPower());
+            }
+        }
+        return series;
     }
 
     @Override
     public void close() {
-        runningTime = 0;
         providesPower = false;
         providesCad = false;
         providesHr = false;
-        currentFile = null;
         training = null;
-        series = null;
         checks = null;
     }
-
-    @Override
-    public double getMaxSlope() {
-        throw new UnsupportedOperationException("Not supported");
-    }
-
-    @Override
-    public double getMinSlope() {
-        throw new UnsupportedOperationException("Not supported");
-    }
-
 
     /**
      * Reader calculates only TARGET values (power, cadence and HR). These are
@@ -227,40 +273,29 @@ public class TRNReader extends RouteReader {
         return checks.containsKey(data);
     }
 
-    private TrainingItem getItem(double time) {
-        // collection is rather small, iterating is the fastes way.
-        if (time < runningTime) {
-            for (int i = training.size(); (i--) > 0; ) {
-                TrainingItem item = training.get(i);
-                if (item.getTime() <= time) {
-                    if (i != lastItem) {
-                        System.err.println("Start stage #" + i + ":: " + item);
-                        String msg = item.getDescription();
-                        if (msg != null) {
-                            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, msg);
-                        }
-                        lastItem = i;
-                    }
-                    return item;
-                }
-            }
-        }
-        return null;
-    }
-
     @Override
     public void storeTelemetryData(Telemetry t) {
-        // handle telemetry for the time
-        TrainingItem item = getItem(t.getDistance());
-        if (item == null) {
-            setValue(SourceDataEnum.PAUSE, 100.0);
+        // training file is rebuilding, probably changed on config
+        if (training == null) {
             return;
+        }
+
+        // handle telemetry for the time
+        if (t.getDistance() > routeLen) {
+            setPause(PauseMsgEnum.END_OF_ROUTE);
+            return;
+        }
+
+        TrainingItem item = training.get(t.getDistance());
+        // if point was passed.. show message
+        if (training.isChanged() && (item.getDescription() != null)) {
+            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, item.getDescription());
         }
 
         // distance equals the time [s], route time in [ms]
         setValue(SourceDataEnum.ROUTE_TIME, t.getDistance() * 1000.0);
         // no pause
-        setValue(SourceDataEnum.PAUSE, 0.0);
+        setPause(PauseMsgEnum.RUNNING);
         checks.clear();
         if (providesPower) {
             setValue(SourceDataEnum.TARGET_POWER, item.getPower());
@@ -288,7 +323,21 @@ public class TRNReader extends RouteReader {
 
     @Override
     public void configChanged(UserPreferences pref) {
-        // the data related to functionalHR and FTP shall be rebuilt on property change?
-        // Now just ignore it.
+        boolean reload = false;
+        if ((pref == UserPreferences.HR_MAX) || (pref == UserPreferences.INSTANCE)) {
+            TrainingItem.setMaxHr(pref.getMaxHR());
+            if (providesHr) {
+                reload = true;
+            }
+        }
+        if ((pref == UserPreferences.MAX_POWER) || (pref == UserPreferences.INSTANCE)) {
+            TrainingItem.setFtp(pref.getMaxPower());
+            if (providesPower) {
+                reload = true;
+            }
+        }
+        if (reload) {
+            reloadTraining();
+        }
     }
 }

@@ -39,6 +39,6 @@ public class AntSensorIdQuery extends Thread {
 
     @Override
     public void run() {
-        sensor.handleChannelId(channel, subsystem.getChannelId(channel));
+        sensor.handleChannelId(channel, subsystem.getChannelId(channel, sensor));
     }
 }

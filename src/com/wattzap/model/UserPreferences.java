@@ -25,6 +25,7 @@ import java.util.UUID;
 import com.wattzap.model.dto.WorkoutData;
 import com.wattzap.model.power.Power;
 import com.wattzap.model.power.PowerProfiles;
+import java.util.ArrayList;
 
 /**
  * Singleton helper to read/write user preferences to a backing store
@@ -33,12 +34,23 @@ import com.wattzap.model.power.PowerProfiles;
  * @author Jarek
  */
 public enum UserPreferences {
+    TURBO_TRAINER("profile", "Tacx Satori / Blue Motion"),
     RESISTANCE("resistance", 1),
-    VIRTUAL_POWER("virtualPower", 0),
+    RESISTANCE_COMP("resistance_comp", "same_speed"),
+
+    SPEED_SOURCE("speed_source", "speed2power"),
+    CADENCE_SOURCE("cadence_source", "sandc"),
+    HR_SOURCE("hr_source", "hrm"),
+    POWER_SOURCE("power_source", "sandc"),
+
     DEBUG("debug", false),
     MAX_POWER("maxpower", 250),
     HR_MAX("maxhr", 180),
-    ROBOT_POWER("robot", 210),
+
+    // robot power/speed.
+    ROBOT_POWER("robot_power", 210),
+    ROBOT_SPEED("robot_speed", 30.0, 0.1),
+    WHEEL_SPEED_VISIBLE("speed_visible", false),
 
     // 2133 is 700Cx23
     WHEEL_SIZE("wheelsize", 2133),
@@ -54,38 +66,53 @@ public enum UserPreferences {
     TRAININGS_DIR("trainingLocation", getWD() + "/Trainings"),
     VIDEO_DIR("videoLocation", getWD() + "/Routes"),
 
+    // special property, not handled by the database, allow devices checking
+    PAIRING("pairing", false),
     RUNNING("running", false),
-    AUTO_START("autostart", false),
+
     LAST_FILENAME("last_filename", ""),
     LOAD_LAST("load_last", false),
+    AUTO_START("autostart", false),
+    AUTO_SAVE("autosave", false),
 
 
     ANT_ENABLED("ant_enabled", true),
     ANT_USBM("antusbm", false),
 
     METRIC("units", true),
-	TURBO_TRAINER("profile", "Tacx Satori / Blue Motion"),
 
     DB_VERSION("dbVersion", "1.2"),
 
     // special property for sensors, used for notification about sensorId change
     // for specified sensorName.
     SENSORS("sensors"),
-    // special property, not handled by the database
-    PAIRING("pairing", false),
+    // special property for selected sensor type. Not in DB.
+    SENSOR_TYPE("sensor_type", "ant_hr"),
 
-    @Deprecated
-    SIMUL_SPEED("simulSpeed", false),
+    // panels in main form
+    TRAINING_VISIBLE("training_visible", false, 0),
+    MAP_VISIBLE("map_visible", false, 0),
+    PROFILE_VISIBLE("profile_visible", false, 0),
+    PAUSE_VISIBLE("pause_visible", true, 2),
+    INFO_VISIBLE("info_visible", true, 1),
+    ODO_VISIBLE("odo_visible", false, -1),
 
-    // backward compability, cannot be get/set
+    MANUAL_PAUSE("manual_pause", false),
+
+    // "backward" compability, cannot be get/set, general value for all settings
 	INSTANCE;
 
+    // TODO via annotations
     static {
         SERIAL.forAll = true;
         REGKEY.forAll = true;
         EVAL_TIME.forAll = true;
         EVAL_TIME.intCrypted = true;
+
+        SENSORS.keptInDB = false;
         PAIRING.keptInDB = false;
+        RUNNING.keptInDB = false;
+        MANUAL_PAUSE.keptInDB = false;
     }
 
 	// why it must be always specified?? Are there system settings
@@ -93,6 +120,7 @@ public enum UserPreferences {
     private static String user = System.getProperty("user.name");
 
     // property values
+    // TODO all constnt fields final
     private final String name;
     private boolean forAll = false;
     private boolean initialized = false;
@@ -110,7 +138,6 @@ public enum UserPreferences {
     private UserPreferences(String name) {
         this.name = name;
         this.initialized = true;
-        this.keptInDB = false;
     }
     private UserPreferences(String name, String val) {
         this.name = name;
@@ -129,12 +156,19 @@ public enum UserPreferences {
         this.name = name;
         boolVal = val;
     }
+    private UserPreferences(String name, boolean val, int layer) {
+        this.name = name;
+        boolVal = val;
+        intVal = layer;
+        keptInDB = false;
+    }
 
 
     public String getName() {
         return name;
     }
     public String getString() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (strVal != null) : name + " is not a string";
             if (!initialized) {
@@ -158,6 +192,7 @@ public enum UserPreferences {
         }
     }
     public int getInt() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (intVal != null) : name + " is not an integer";
             if (!initialized) {
@@ -189,6 +224,7 @@ public enum UserPreferences {
         }
     }
     public double getDouble() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (doubleVal != null) : name + " is not a double";
             if (!initialized) {
@@ -213,6 +249,7 @@ public enum UserPreferences {
         }
     }
     public boolean getBool() {
+        assert name != null : toString() + " is not a value";
         synchronized(this) {
             assert (boolVal != null) : name + " is not a bool";
             if (!initialized) {
@@ -271,6 +308,12 @@ public enum UserPreferences {
 		setInt(user, "videoY", r.y);
 	}
 
+    public boolean isPaused() {
+        return MANUAL_PAUSE.getBool();
+    }
+    public void setPaused(boolean p) {
+        MANUAL_PAUSE.setBool(p);
+    }
 
 
     public boolean isStarted() {
@@ -278,6 +321,13 @@ public enum UserPreferences {
     }
     public void setStarted(boolean started) {
         RUNNING.setBool(started);
+    }
+
+    public boolean isPairingEnabled() {
+        return PAIRING.getBool();
+    }
+    public void setPairing(boolean enabled) {
+        PAIRING.setBool(enabled);
     }
 
     public boolean isAntEnabled() {
@@ -366,18 +416,25 @@ public enum UserPreferences {
         DEBUG.setBool(value);
 	}
 
-	public VirtualPowerEnum getVirtualPower() {
-		return VirtualPowerEnum.values()[VIRTUAL_POWER.getInt()];
-	}
-	public void setVirtualPower(VirtualPowerEnum value) {
-        VIRTUAL_POWER.setInt(value.ordinal());
-	}
-
     public int getRobotPower() {
         return ROBOT_POWER.getInt();
     }
     public void setRobotPower(int power) {
         ROBOT_POWER.setInt(power);
+    }
+
+    public double getRobotSpeed() {
+        return ROBOT_SPEED.getDouble();
+    }
+    public void setRobotSpeed(double speed) {
+        ROBOT_SPEED.setDouble(speed);
+    }
+
+    public boolean isWheelSpeedVisible() {
+        return WHEEL_SPEED_VISIBLE.getBool();
+    }
+    public void setWheelSpeedVisible(boolean visible) {
+        WHEEL_SPEED_VISIBLE.setBool(visible);
     }
 
     public Power getTurboTrainerProfile() {
@@ -397,6 +454,13 @@ public enum UserPreferences {
         RESISTANCE.setInt(r);
 	}
 
+	public String getResistanceComp() {
+        return RESISTANCE_COMP.getString();
+	}
+	public void setResistanceComp(String comp) {
+        RESISTANCE_COMP.setString(comp);
+	}
+
 	public String getRouteDir() {
         return VIDEO_DIR.getString();
 	}
@@ -411,10 +475,10 @@ public enum UserPreferences {
         TRAININGS_DIR.setString(s);
 	}
 
+    public boolean getLoadLastTrainig() {
+        return LOAD_LAST.getBool();
+    }
     public String getDefaultFilename() {
-        if ((!LOAD_LAST.getBool()) || (LAST_FILENAME.getString().isEmpty())) {
-            return null;
-        }
         return LAST_FILENAME.getString();
     }
 
@@ -423,6 +487,9 @@ public enum UserPreferences {
     }
 
 
+    public boolean autosave() {
+        return AUTO_SAVE.getBool();
+    }
 
     // Registration Stuff
 	public String getSerial() {
@@ -453,51 +520,26 @@ public enum UserPreferences {
 	}
 
 
-    @Deprecated
-    public boolean isVirtualPower() {
-        return SIMUL_SPEED.getBool();
+    public List<String> getSensors() {
+        List<String> sensors = new ArrayList<>();
+        List<String> properties = getDS().getProperties(user);
+        for (String prop : properties) {
+            if (prop.charAt(0) == '*') {
+                sensors.add(prop.substring(1));
+            }
+        }
+        return sensors;
     }
-    @Deprecated
-    public void setVirtualPower(boolean ss) {
-        SIMUL_SPEED.setBool(ss);
-    }
-
-    // sensors handling
-	@Deprecated
-    public int getSCId() {
-		return getInt(user, "sandcId", 0);
-	}
-
-	@Deprecated
-	public void setSCId(int i) {
-		setInt(user, "sandcId", i);
-	}
-
-	@Deprecated
-	public int getHRMId() {
-		return getInt(user, "hrmid", 0);
-	}
-
-	@Deprecated
-	public void setHRMId(int i) {
-		setInt(user, "hrmid", i);
-	}
-
-    public boolean isPairingEnabled() {
-        return PAIRING.getBool();
-    }
-    public void setPairing(boolean enabled) {
-        PAIRING.setBool(enabled);
-    }
-
-    public void setSensorId(String sensorName, int sensorId) {
+    public void setSensor(String sensorName, SensorTypeEnum sensorType, int sensorId) {
         // sensor id might be changed from multiple threads at once:
         // the most "dangerous" one is SensorID query thread: multiple
         // sensors might report id more or less same time
         // This notification must be synchronized, or assertions are raised.
+        assert sensorType != null : "Sensor " + sensorName + " has type NULL";
+        String sensorStr = sensorType.getKey() + ":" + sensorId;
         synchronized(SENSORS) {
-            if (getInt(user, "*" + sensorName, 0)  != sensorId) {
-                setInt(user, "*" + sensorName, sensorId);
+            if (!sensorStr.equals(get(user, "*" + sensorName, ""))) {
+                set(user, "*" + sensorName, sensorStr);
                 SENSORS.strVal = sensorName;
                 SENSORS.intVal = sensorId;
                 MessageBus.INSTANCE.send(Messages.CONFIG_CHANGED, SENSORS);
@@ -506,9 +548,30 @@ public enum UserPreferences {
             }
         }
     }
+    public void setSensorId(String sensorName, int sensorId) {
+        synchronized(SENSORS) {
+            setSensor(sensorName, getSensorType(sensorName), sensorId);
+        }
+    }
+    public String getSensor(String sensorName) {
+        return get(user, "*" + sensorName, "undefined");
+	}
     public int getSensorId(String sensorName) {
         synchronized(SENSORS) {
-            return getInt(user, "*" + sensorName, 0);
+            String sensorStr = get(user, "*" + sensorName, "0");
+            // if not found.. index is -1, so substring is string itself
+            int index = sensorStr.indexOf(':');
+            return Integer.parseInt(sensorStr.substring(index + 1));
+        }
+	}
+    public SensorTypeEnum getSensorType(String sensorName) {
+        synchronized(SENSORS) {
+            String sensorStr = get(user, "*" + sensorName, "0");
+            int index = sensorStr.indexOf(':');
+            if (index > 0) {
+                return SensorTypeEnum.byType(sensorStr.substring(0, index));
+            }
+            return null;
         }
 	}
     public void removeSensor(String sensorName) {
@@ -517,7 +580,12 @@ public enum UserPreferences {
         }
     }
 
-
+	public SensorTypeEnum getSensorType() {
+        return SensorTypeEnum.byType(SENSOR_TYPE.getString());
+	}
+	public void setSensorType(SensorTypeEnum type) {
+		SENSOR_TYPE.setString(type.getKey());
+	}
 
 
     public void addWorkout(WorkoutData data) {

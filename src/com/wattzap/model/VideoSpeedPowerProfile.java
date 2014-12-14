@@ -26,7 +26,8 @@ import com.wattzap.utils.Rolling;
  * target power.. all the time.
  * @author Jarek
  */
-public class VideoSpeedPowerProfile extends VirtualPowerProfile {
+@SelectableDataSourceAnnotation
+public class VideoSpeedPowerProfile extends TelemetryHandler {
     private double weight = 85.0;
     private Rolling speedRoll = new Rolling(24);
 
@@ -37,47 +38,62 @@ public class VideoSpeedPowerProfile extends VirtualPowerProfile {
 
     @Override
     public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
-
         // when started.. speed might be very small, and route
         // doesn't progress "fast enough".
-        if (prefs == UserPreferences.VIRTUAL_POWER) {
+        if (prefs == UserPreferences.POWER_SOURCE) {
             speedRoll.clear();
             speedRoll.add(30);
         }
 
         if ((prefs == UserPreferences.INSTANCE) ||
-                (prefs == UserPreferences.WEIGHT) ||
-                (prefs == UserPreferences.BIKE_WEIGHT)) {
+            (prefs == UserPreferences.WEIGHT) ||
+            (prefs == UserPreferences.BIKE_WEIGHT))
+        {
             weight = prefs.getTotalWeight();
         }
     }
 
     @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case POWER:
+            case PAUSE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    @Override
     public void storeTelemetryData(Telemetry t) {
-        if (t.isAvailable(SourceDataEnum.SPEED)) {
-            if (!t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
-                setValue(SourceDataEnum.POWER, 0.0);
-                return;
-            }
+        boolean pause = true;
+        double powerWatts = 0.0;
 
-            double avg;
+        if (t.isAvailable(SourceDataEnum.ROUTE_SPEED)) {
+            // for trainings with video speed. These are only video trainigs with
+            // slope (or even with positions)
+            pause = false;
+            // smooth route speed a bit, in GPX speed is calculated on distance
+            // and might be very jumpy.
+            double routeSpeed;
             if (t.getRouteSpeed() >= 1.0) {
-                avg = speedRoll.add(t.getRouteSpeed());
+                routeSpeed = speedRoll.add(t.getRouteSpeed());
             } else {
-                avg = speedRoll.getAverage();
+                routeSpeed = speedRoll.getAverage();
             }
-
-            int powerWatts = Power.getPower(weight, t.getGradient() / 100.0, avg);
-            if (powerWatts < 0) {
-                powerWatts = 0;
-            }
-            setValue(SourceDataEnum.POWER, powerWatts);
+            powerWatts = Power.getPower(weight, t.getGradient() / 100.0, routeSpeed);
+        } else if (t.isAvailable(SourceDataEnum.TARGET_POWER)) {
+            // in TRN mode.. current power equals target power, and speed is
+            // calculated on power
+            pause = false;
+            powerWatts = t.getDouble(SourceDataEnum.TARGET_POWER);
         } else {
-            // in TRN mode.. current power equals target power
-            setValue(SourceDataEnum.POWER, t.getDouble(SourceDataEnum.TARGET_POWER));
+            // route without video or free run.. Another profile must be taken.
+            // In fact if power is taken from sensor, speed doesn't have to be
+            // valid and training is paused without a reason..
         }
 
-        computeSpeed(t);
+        setPause(pause ? PauseMsgEnum.NO_MOVEMENT : PauseMsgEnum.RUNNING);
+        setValue(SourceDataEnum.POWER, powerWatts);
     }
 }

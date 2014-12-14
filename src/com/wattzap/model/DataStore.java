@@ -346,6 +346,39 @@ public class DataStore {
 		return workouts;
 	}
 
+    public List<String> getProperties(String user) {
+        List<String> list = new ArrayList<>();
+		PreparedStatement s = null;
+		ResultSet rs = null;
+
+		try {
+			s = conn.prepareStatement("SELECT k FROM props WHERE username = ?");
+			s.setString(1, user);
+			rs = s.executeQuery();
+
+			while (rs.next()) {
+        		String k = rs.getString(1);
+                list.add(k);
+			}
+		} catch (SQLException e) {
+			logger.error(e.getLocalizedMessage());
+		} finally {
+			try {
+				if (s != null) {
+					s.close();
+				}
+				if (rs != null) {
+					rs.close();
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+
+        return list;
+    }
+
 	/**
 	 * Encrypts values before writing to database using DES. If there is an
 	 * exception nothing is written.

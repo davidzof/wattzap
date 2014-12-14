@@ -19,11 +19,14 @@ package com.wattzap.model;
 import com.wattzap.model.dto.Telemetry;
 
 /**
- * Simple profile: constant power
+ * Simple profile: constant power and/or constant speed. Module is selectable
+ * in sensorPanel for wheelSpeed and for power
  * @author Jarek
  */
-public class RobotPowerProfile extends VirtualPowerProfile {
-    private double power;
+@SelectableDataSourceAnnotation
+public class RobotProfile extends TelemetryHandler {
+    private double power = 250.0;
+    private double wheelSpeed = 30.0;
 
     @Override
     public String getPrettyName() {
@@ -31,19 +34,34 @@ public class RobotPowerProfile extends VirtualPowerProfile {
     }
 
     @Override
-    public void configChanged(UserPreferences prefs) {
-        super.configChanged(prefs);
+    public void configChanged(UserPreferences pref) {
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.ROBOT_POWER))
+        {
+            power = pref.getRobotPower();
+        }
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.ROBOT_SPEED))
+        {
+            wheelSpeed = pref.ROBOT_SPEED.getDouble();
+        }
+    }
 
-        if ((prefs == UserPreferences.INSTANCE) || (prefs == UserPreferences.ROBOT_POWER)) {
-            power = prefs.getRobotPower();
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        switch (data) {
+            case WHEEL_SPEED:
+            case POWER:
+                return true;
+            default:
+                return false;
         }
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        // We have a time value and rotation value, lets calculate the speed
+        // just report values set in the config
         setValue(SourceDataEnum.POWER, power);
-        // report speed..
-        computeSpeed(t);
+        setValue(SourceDataEnum.WHEEL_SPEED, wheelSpeed);
     }
 }

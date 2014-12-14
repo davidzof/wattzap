@@ -42,6 +42,11 @@ public abstract class Sensor extends SourceDataHandler
     }
 
     @Override
+    public String toString() {
+        return getClass().getSimpleName() + "[" + getPrettyName() + "]";
+    }
+
+    @Override
     protected void setValue(SourceDataEnum data, double value) {
         long current = System.currentTimeMillis();
         super.setValue(data, value);
@@ -151,5 +156,4 @@ public abstract class Sensor extends SourceDataHandler
         }
     }
     public abstract void subsystemState(boolean enabled);
-
 }

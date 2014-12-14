@@ -31,20 +31,37 @@ public class ConfigFieldInt implements ConfigFieldIntf {
 
     private final JTextField value;
 
-    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
+    public ConfigFieldInt(ConfigPanel panel, UserPreferences property,
+            String name, String val) {
         this.property = property;
 
         JLabel label = new JLabel();
         label.setText(MsgBundle.getString(name));
 		panel.add(label);
-		value = new JTextField(20);
-        value.getDocument().putProperty("name", property.getName());
+		value = new JTextField(10);
+        value.getDocument().putProperty("name", getName());
         value.getDocument().addDocumentListener(panel);
-		panel.add(value, "span");
+        if ((val == null) || (val.isEmpty())) {
+    		panel.add(value, "span");
+        } else {
+            panel.add(value);
+            JLabel vLabel = new JLabel();
+            vLabel.setText(val);
+            panel.add(vLabel, "span");
+        }
+    }
+
+    public ConfigFieldInt(ConfigPanel panel, UserPreferences property, String name) {
+        this(panel, property, name, null);
     }
 
     @Override
-    public String getName() {
+    public void remove() {
+        assert false : "Field cannot be removed";
+    }
+
+    @Override
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }

@@ -22,7 +22,6 @@ import java.io.File;
 
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
-import javax.swing.JPanel;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -35,15 +34,22 @@ import uk.co.caprica.vlcj.player.embedded.FullScreenStrategy;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
+import com.wattzap.model.SourceDataHandlerIntf;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.utils.FileName;
 import com.wattzap.utils.Rolling;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
-import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import javax.swing.JLabel;
+import javax.swing.JLayeredPane;
 
 /**
  * (c) 2013-2014 David George / TrainingLoops.com
@@ -71,119 +77,263 @@ import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
  *
  * @author Jarek
  */
-public class VideoPlayer extends JFrame implements MessageCallback {
+public class VideoPlayer extends JFrame
+        implements MessageCallback, SourceDataHandlerIntf
+{
 	private static Logger logger = LogManager.getLogger("Video Player");
-
-	private final JFrame mainFrame;
-	private final JPanel odo;
-
-    private EmbeddedMediaPlayer mPlayer;
-	private MediaPlayerFactory mediaPlayerFactory;
-	private Canvas canvas;
 
     private long len = -1;
     private long lastTime = 0;
 	private double lastRate = 0.0;
-    private Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
-    private Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final Rolling routeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final Rolling bikeSpeed = new Rolling(12); // smooth within 3 seconds
+    private final JLayeredPane lpane;
 
-	public VideoPlayer(JFrame main, JPanel odo) {
+    private final Component odo;
+    private EmbeddedMediaPlayer mPlayer;
+
+    private final JLabel pausePanel;
+    private String lastPause;
+
+    private final JLabel infoPanel;
+    private long hideTime = -1;
+    private Telemetry lastTelemetry = null;
+
+    public VideoPlayer(Component odo, JLabel infoPanel, JLabel pausePanel) {
 		super();
 
 		this.odo = odo;
-		this.mainFrame = main;
+        this.pausePanel = pausePanel;
+        this.infoPanel = infoPanel;
 
-		setTitle("Video - www.WattzAp.com");
+		setBounds(UserPreferences.INSTANCE.getVideoBounds());
+
+        Container contentPane = getContentPane();
+		contentPane.setBackground(Color.black);
+		contentPane.setLayout(new BorderLayout());
+
+        // setLayout(new BorderLayout());
+		setVisible(false);
+
+
+        // super-duper JLayer consumes too much processor, cannot be used..
+        lpane = new JLayeredPane();
+        lpane.setLayout(new PercentLayout());
+        lpane.setPreferredSize(new Dimension(640, 480));
+        lpane.setMaximumSize(new Dimension(1920, 1200));
+        lpane.setBackground(Color.red);
+        // video is put on layer #0, default layer
+        lpane.setLayer(infoPanel, 1);
+        lpane.setLayer(pausePanel, 2);
+        contentPane.add(lpane, BorderLayout.CENTER);
+
+		addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                playVideo(null);
+            }
+		});
+
+        setTitle("Video - www.WattzAp.com");
 		ImageIcon img = new ImageIcon("icons/video.jpg");
 		setIconImage(img.getImage());
 	}
 
-	public void init() {
-		mediaPlayerFactory = new MediaPlayerFactory();
-		canvas = new java.awt.Canvas();
+    @Override
+    public void release() {
+        // don't deal with freeing canvas/labels/layouts..
+        // video player is destroyed at exit, so it is not necessary..
+
+        // remove video if any
+        playVideo(null);
+
+        // unregister all messages
+        MessageBus.INSTANCE.unregister(Messages.TELEMETRY, this);
+		MessageBus.INSTANCE.unregister(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.unregister(Messages.CLOSE, this);
+		MessageBus.INSTANCE.unregister(Messages.ROUTE_MSG, this);
+
+        // notify about handler removal
+        MessageBus.INSTANCE.send(Messages.HANDLER_REMOVED, this);
+    }
+
+    @Override
+	public SourceDataHandlerIntf initialize() {
+        // canvas with video on layer #0
+    	Canvas canvas = new Canvas();
 		canvas.setBackground(Color.BLACK);
-		this.add(canvas, java.awt.BorderLayout.CENTER);
+        canvas.setBounds(0, 0, 100, 200);
+        lpane.setLayer(canvas, 0);
+		lpane.add(canvas);
+
+        // build media player
+        MediaPlayerFactory mediaPlayerFactory;
+        mediaPlayerFactory = new MediaPlayerFactory();
 		mediaPlayerFactory.newVideoSurface(canvas);
 
 		FullScreenStrategy fullScreenStrategy = new DefaultFullScreenStrategy(this);
 		mPlayer = mediaPlayerFactory.newEmbeddedMediaPlayer(fullScreenStrategy);
 		mPlayer.setVideoSurface(mediaPlayerFactory.newVideoSurface(canvas));
 
-		setBounds(UserPreferences.INSTANCE.getVideoBounds());
-		setVisible(false);
-
 		/* Messages we are interested in */
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
-		MessageBus.INSTANCE.register(Messages.STOP, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.register(Messages.ROUTE_MSG, this);
+
+        MessageBus.INSTANCE.send(Messages.HANDLER, this);
+        return this;
     }
 
-	private void setSpeed(Telemetry t) {
+    private synchronized void playVideo(String videoFile) {
+        // hide video if was loaded
+        if (len > 0) {
+            mPlayer.stop();
+            mPlayer.enableOverlay(false);
+            setVisible(false);
+
+            // store current window size
+            Rectangle r = getBounds();
+			UserPreferences.INSTANCE.setVideoBounds(r);
+
+            // move ODO to mainWindow
+            remove(odo);
+            UserPreferences.ODO_VISIBLE.setBool(true);
+
+            // move description to mainWindow, hide if was not shown
+            lpane.remove(infoPanel);
+            UserPreferences.INFO_VISIBLE.setBool(true);
+            if (hideTime < 0) {
+                infoPanel.setVisible(false);
+            }
+
+            // move pause to mainWindow. Show with warning "closed". On next
+            // telemetry it would be updated with proper message (or hidden)
+            lpane.remove(pausePanel);
+            UserPreferences.PAUSE_VISIBLE.setBool(true);
+            lastPause = "Closing..";
+
+            // and hide window itself, no video is shown
+            len = -1;
+        }
+
+        // show window with new file
+        if (videoFile != null) {
+            // 1:1 video rate is assumed
+            lastRate = -1.0;
+            routeSpeed.clear();
+            bikeSpeed.clear();
+
+            // The video surface component must be displayable
+            setVisible(true);
+            mPlayer.enableOverlay(true);
+            mPlayer.prepareMedia(videoFile);
+            mPlayer.start();
+
+            // check the input file and put everything in window
+            len = mPlayer.getLength(); // [ms]
+            // hide window if empty video
+            if (len <= 0) {
+                logger.error("Empty video, cannot start it");
+                mPlayer.stop();
+                mPlayer.enableOverlay(false);
+                setVisible(false);
+                return;
+            }
+
+            double fps = mPlayer.getFps();
+            logger.debug("Video initialize: FPS=" + fps + " len=" + len);
+
+            // TODO don't mute video if POWER training and config is set..
+            // Usefull for trainings with "sound guided" stuff (sufferfest,
+            // spinnerwalls, etc)
+            mPlayer.mute(true);
+
+            // messages (with pictures, etc) on layer #1
+            UserPreferences.INFO_VISIBLE.setBool(false);
+            lpane.add(infoPanel, "east+2/north+1");
+            // show info if was previously shown (in mainForm)
+            if (hideTime >= 0) {
+                infoPanel.setVisible(true);
+            }
+
+            // errors, pause msgs on layer #2, no message is shown
+            UserPreferences.PAUSE_VISIBLE.setBool(false);
+            lpane.add(pausePanel, "35-65/40-60");
+            lastPause = null;
+
+            UserPreferences.ODO_VISIBLE.setBool(false);
+            add(odo, BorderLayout.SOUTH);
+            odo.setVisible(true);
+
+            // revalidate all componenets in the window
+            validate();
+        }
+        setSpeed(lastTelemetry);
+    }
+
+	private synchronized void setSpeed(Telemetry t) {
+        // handle description, show panel for 10s
+        if ((t != null) && (hideTime == 0)) {
+            hideTime = t.getTime() + 10000;
+        }
+        // hide description panel
+        if ((t != null) && (hideTime > 0) && (t.getTime() > hideTime)) {
+            setDescription(null);
+        }
+
+        boolean changePause = false;
+        String pauseMsg = PauseMsgEnum.msg(t);
+        // compare references, not objects!
+        if (lastPause != pauseMsg) {
+            changePause = true;
+            lastPause = pauseMsg;
+        }
+
+        // it handles pauseMessages on panel.. no matter where it is shown..
+        if (changePause) {
+            if (pauseMsg != null) {
+                pausePanel.setText(pauseMsg);
+                pausePanel.setVisible(true);
+            } else {
+                pausePanel.setVisible(false);
+            }
+        }
+
         // there is no video loaded
         if (len < 0) {
             return;
         }
 
-        // initialize on first telemetry
-        if (len == 0) {
-            lastRate = 1.0;
-
-			mPlayer.enableOverlay(true);
-            mPlayer.start();
-            mPlayer.setRate((float) lastRate);
-            // TODO don't mute video if POWER training and config is set..
-            // Usefull for trainings with "sound guided" stuff (sufferfest,
-            // spinnerwalls, etc)
-			mPlayer.mute();
-
-			len = mPlayer.getLength(); // [ms]
-            // if empty video, don't start it again
-            if (len == 0) {
-                logger.error("Empty video, don't start it");
-                len = -1;
-                return;
+        if (changePause) {
+            // pause video if necessary. Sometimes it doesn't pause at once..
+            // so operation must be checked several times
+            while (mPlayer.isPlaying() == (pauseMsg != null)) {
+                mPlayer.setPause(pauseMsg != null);
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.interrupted();
+                }
             }
-
-            double fps = mPlayer.getFps();
-			logger.debug("Video initialize: FPS=" + fps + " len=" + len);
-		}
-
-        // handle pause
-        String pauseMsg = TelemetryProvider.INSTANCE.pauseMsg(t);
-        if (pauseMsg != null) {
-            Dimension size = mPlayer.getVideoDimension();
-            if (size != null) {
-                mPlayer.setMarqueeSize(size.height / 8);
-            } else {
-                logger.debug("video has no size");
-            }
-            mPlayer.setMarqueeText(pauseMsg);
-            mPlayer.setMarqueeOpacity(255);
-            mPlayer.setMarqueeColour(Color.RED);
-            mPlayer.setMarqueePosition(libvlc_marquee_position_e.centre);
-            mPlayer.enableMarquee(true);
-            mPlayer.setPause(true);
-        } else {
-            mPlayer.enableMarquee(false);
-            mPlayer.setPause(false);
         }
 
 		// check position: time for video position and for gpx must be
         // more or less same. Otherwise resync.
-        long videoTime  = (long) (len * mPlayer.getPosition());
-        long routeTime = t.getRouteTime();
-        long deltaTime = videoTime - routeTime;
-        if ((deltaTime < -10000) || (10000 < deltaTime)) {
-            logger.warn("Setting expected position " + routeTime +
-                    ", while current is " + videoTime);
-            mPlayer.setPosition((float) routeTime / (float) len);
-            deltaTime = 0;
+        long deltaTime = 0;
+        if ((t != null) && (t.isAvailable(SourceDataEnum.ROUTE_TIME))) {
+            long videoTime  = (long) (len * mPlayer.getPosition());
+            long routeTime = t.getRouteTime();
+            deltaTime = videoTime - routeTime;
+            if ((deltaTime < -10000) || (10000 < deltaTime)) {
+                logger.warn("Setting expected position " + routeTime +
+                        ", while current is " + videoTime);
+                mPlayer.setPosition((float) routeTime / (float) len);
+                deltaTime = 0;
+            }
         }
 
-        double rate = 1.0;
-        if (t.isAvailable(SourceDataEnum.SPEED)) {
+        double rate = -1.0;
+        if ((t != null) && (t.isAvailable(SourceDataEnum.SPEED))) {
             // compute ratio for video
             bikeSpeed.add(t.getSpeed());
             // "advertisments" are ignored, usually they are skipped by
@@ -197,8 +347,10 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             rate *= (1.0 - deltaTime / 30000.0);
         }
 
-        if (logger.isDebugEnabled()) {
+        /*
+        if ((t != null) && (logger.isDebugEnabled())) {
             StringBuilder str = new StringBuilder(200);
+            str.append("VideoPlayer");
             str.append(" dist=");
             str.append(SourceDataEnum.DISTANCE.format(t.getDistance(), true));
             str.append(" speed=");
@@ -215,65 +367,47 @@ public class VideoPlayer extends JFrame implements MessageCallback {
             str.append(SourceDataEnum.DISTANCE.format(rate, true));
             str.append(" lastRate=");
             str.append(SourceDataEnum.DISTANCE.format(lastRate, true));
+            if (pauseMsg != null) {
+                str.append(" pause=");
+                str.append(t.getPause());
+            }
             logger.debug(str);
         }
-
-
-        // dont check rate if both last and current are very small..
-        // it is only when no movements are detected..
-        if ((rate < 0.001) && (lastRate < 0.001)) {
-            return;
-        }
+        */
 
         // and finally set new rate if changed much. 20% in change is ok?
         // when setRate is called some artefacts are shown on the screen (some
         // frames are lost or what? synchronization issue in vlc?)
         long currentTime = System.currentTimeMillis();
-        if (changedRate(rate, 0.2) ||
-                (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
-                (currentTime - lastTime > 10000) && changedRate(rate, 0.01)) {
-            logger.debug("Set rate " + rate + " after " + (currentTime - lastTime));
+        if ((rate < 0.001) && (lastRate > 0.001) ||
+            changedRate(rate, 0.2) ||
+            (currentTime - lastTime > 3000) && changedRate(rate, 0.1) ||
+            (currentTime - lastTime > 10000) && changedRate(rate, 0.01))
+        {
             lastTime = currentTime;
             lastRate = rate;
-            mPlayer.setRate((float) rate);
+            if (rate > 0.0) {
+                mPlayer.setRate((float) rate);
+            } else {
+                mPlayer.setRate((float) 1.0);
+            }
         }
 	}
     private boolean changedRate(double rate, double change) {
-        return ((rate < lastRate * (1.0 - change)) ||
+        return ((rate < lastRate / (1.0 + change)) ||
                 (rate >= lastRate * (1.0 + change)));
     }
 
-    private void playVideo(String videoFile) {
-        // if any video is running..
-        if ((len > 0) && (videoFile != null)) {
-            playVideo(null);
-        }
-
-        // disable video
-        if (videoFile == null) {
-			Rectangle r = getBounds();
-			UserPreferences.INSTANCE.setVideoBounds(r);
-
-            setVisible(false);
-
-            remove(odo);
-			revalidate(this);
-			mainFrame.add(odo, "cell 0 2, grow");
-			revalidate(mainFrame);
-            len = -1;
+    private synchronized void setDescription(String msg) {
+        if ((msg == null) || (msg.isEmpty())) {
+            if (hideTime >= 0) {
+                hideTime = -1;
+                infoPanel.setVisible(false);
+            }
         } else {
-            mainFrame.remove(odo);
-            mainFrame.repaint();
-
-            add(odo, java.awt.BorderLayout.SOUTH);
-            revalidate(this);
-
-            // wait for first telemetry
-            mPlayer.enableOverlay(false);
-            mPlayer.prepareMedia(videoFile);
-
-            setVisible(true);
-            len = 0;
+            infoPanel.setText(msg);
+            infoPanel.setVisible(true);
+            hideTime = 0;
         }
     }
 
@@ -281,20 +415,15 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 	public void callback(Messages message, Object o) {
 		switch (message) {
 		case TELEMETRY:
-            setSpeed((Telemetry) o);
-			break;
-
-		case STOP:
-			if (len > 0) {
-                mPlayer.setPause(true);
-            }
+            lastTelemetry = (Telemetry) o;
+            setSpeed(lastTelemetry);
 			break;
 
         case GPXLOAD:
             // initialize video on new route
             boolean found = false;
 			RouteReader routeData = (RouteReader) o;
-            if (routeData != null) {
+            if ((routeData != null) && (routeData.getVideoFile() != null)) {
                 String path = FileName.getPath(routeData.getVideoFile());
                 String name = FileName.getName(routeData.getVideoFile());
                 String ext = FileName.getExtension(name);
@@ -308,15 +437,16 @@ public class VideoPlayer extends JFrame implements MessageCallback {
                 }
                 String[] extArr = new String[] {ext, "avi", "mp4", "flv"};
                 for (String p : pathArr) {
+                    if (found) {
+                        break;
+                    }
                     for (String e : extArr) {
-                        if (found) {
-                            break;
-                        }
                         File f = new File(routeData.getPath() + "/" +
                                 p + "/" + name + "." + e);
                         if (f.exists()) {
                             playVideo(f.getAbsolutePath());
                             found = true;
+                            break;
                         }
                     }
                 }
@@ -327,13 +457,52 @@ public class VideoPlayer extends JFrame implements MessageCallback {
 			break;
 
         case CLOSE:
+            setDescription(null);
             playVideo(null);
 			break;
+
+        case ROUTE_MSG:
+            setDescription((String) o);
+            break;
         }
 	}
 
-	private void revalidate(JFrame frame) {
-		// frame.invalidate();
-		frame.validate();
-	}
+    // telemetryHandler to get videoSpeed rate
+    @Override
+    public String getPrettyName() {
+        return "videoPlayer";
+    }
+
+    @Override
+    public void setPrettyName(String name) {
+    }
+
+    @Override
+    public boolean provides(SourceDataEnum data) {
+        return (data == SourceDataEnum.VIDEO_RATE) && (len > 0) && (lastRate >= 0.0);
+    }
+
+    @Override
+    public double getValue(SourceDataEnum data) {
+        if (data == SourceDataEnum.VIDEO_RATE) {
+            return lastRate;
+        }
+        assert false : "Video Player doesn't provide " + data;
+        return 0.0;
+    }
+
+    @Override
+    public boolean checks(SourceDataEnum data) {
+        return false;
+    }
+
+    @Override
+    public long getModificationTime(SourceDataEnum data) {
+        return 0;
+    }
+
+    @Override
+    public long getLastMessageTime() {
+        return -1;
+    }
 }

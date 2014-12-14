@@ -33,13 +33,18 @@ public class ConfigFieldCheck implements ConfigFieldIntf {
         this.property = property;
 
         value = new JCheckBox(MsgBundle.getString(name));
-        value.setActionCommand(property.getName());
+        value.setActionCommand(getName());
         value.addActionListener(panel);
 		panel.add(value, "span");
     }
 
     @Override
-    public String getName() {
+    public void remove() {
+        assert false : "Field cannot be removed";
+    }
+
+    @Override
+    public final String getName() {
         // must be same as during registration in value field..
         return property.getName();
     }

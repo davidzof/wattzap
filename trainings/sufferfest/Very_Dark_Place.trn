@@ -1,0 +1,47 @@
+!time,rpe,msg
+00:00:00,0.00,A Very Dark Place
+00:01:15,3.00,Start
+00:03:45,5.00,Warm Up
+00:05:54,5.50,More Pressure
+00:06:52,6.00,More Pressure
+00:07:53,6.50,Harder
+00:09:30,10.00,Jump
+00:10:01,6.00,Recover
+00:11:45,10.00,Jump
+00:12:17,6.00,Recover
+00:13:54,8.00,Interval 1
+00:17:54,3.00,Recover
+00:21:43,8.00,Interval 2
+00:22:21,8.25,Small Climb
+00:23:58,8.50,Climb
+00:24:16,8.75,Steeper
+00:25:02,9.00,Stand
+00:25:42,3.00,Recover
+00:29:24,9.00,Interval 3 
+00:29:44,8.25,Steady Climb 
+00:31:29,9.00,Sprint
+00:31:47,8.50,Steady Climb 
+00:32:29,8.75,Bigger Gear
+00:33:12,10.00,Sprint
+00:33:27,3.00,Recover
+00:37:02,8.00,Interval 4
+00:37:25,9.00,Attack
+00:37:44,8.00,Slightly Easier
+00:37:59,8.50,Increase Pace
+00:38:18,8.00,Slightly Easier
+00:38:30,9.00,Increase Pace
+00:38:52,8.00,Slightly Easier
+00:39:04,9.00,Increase Pace
+00:39:31,8.00,Slightly Easier
+00:39:44,9.00,Increase Pace
+00:39:59,7.00,Break
+00:40:14,9.00,Increase Pace
+00:41:07,3.00,Recover
+00:44:47,8.00,Interval 5
+00:45:05,8.50,More Resistance
+00:46:59,8.75,Attack
+00:47:34,9.00,Heavy Resistance
+00:47:54,8.75,Seated Climb
+00:48:29,10.00,Sprint
+00:48:49,3.00,Cool Down
+00:53:24,0.00,Finish

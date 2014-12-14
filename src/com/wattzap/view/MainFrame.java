@@ -29,62 +29,187 @@ import org.apache.log4j.Logger;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.util.HashMap;
+import java.util.Map;
+import javax.swing.JLayeredPane;
+import javax.swing.WindowConstants;
 
 /**
  * Main Window, displays telemetry data and responds to close events
- * 
+ *
  * @author David George
  * @date 31 July 2013
+ *
+ * Main frame controlls all panels. Config attributes (not stored in DB) are
+ * used.
+ * @author: Jarek
  */
-public class MainFrame extends JFrame implements ActionListener,
-		MessageCallback {
-	private static final long serialVersionUID = -4597500546349817204L;
+public class MainFrame extends JFrame
+        implements ActionListener, MessageCallback
+{
 	private static final String appName = "WattzAp";
+	private static final Logger logger = LogManager.getLogger("Main Frame");
 
-	private Logger logger = LogManager.getLogger("Main Frame");
+    // shortcuts for XXX_VISIBLE preferences
+    private static final UserPreferences train = UserPreferences.TRAINING_VISIBLE;
+    private static final UserPreferences map = UserPreferences.MAP_VISIBLE;
+    private static final UserPreferences prof = UserPreferences.PROFILE_VISIBLE;
+    private static final UserPreferences odo = UserPreferences.ODO_VISIBLE;
+    private static final UserPreferences pause = UserPreferences.PAUSE_VISIBLE;
+    private static final UserPreferences info = UserPreferences.INFO_VISIBLE;
+
+    private final JLayeredPane lpane;
+    private final Map<UserPreferences, Component> panels = new HashMap<>();
+    private final Map<UserPreferences, String> constraints = new HashMap<>();
 
 	public MainFrame() {
 		super();
 
-		setTitle(appName);
+        setTitle(appName);
 		ImageIcon img = new ImageIcon("icons/turbo.jpg");
 		setIconImage(img.getImage());
 
-		addWindowListener(new java.awt.event.WindowAdapter() {
+        Container contentPane = getContentPane();
+		contentPane.setBackground(Color.black);
+		contentPane.setLayout(new BorderLayout());
+
+        // set size of the window
+		setBounds(UserPreferences.INSTANCE.getMainBounds());
+
+        // panel to show all "scalable" components and overlaping description..
+        lpane = new JLayeredPane();
+        lpane.setLayout(new PercentLayout());
+        add(lpane, BorderLayout.CENTER);
+
+		MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
+		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.register(Messages.CLOSE, this);
+
+        // show main frame on the screen, hide SplashScreen (where it is?)
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
-				// remember position and size
-				MessageBus.INSTANCE.send(Messages.CLOSE, null);
-				UserPreferences.INSTANCE.shutDown();
-				System.exit(0);
+				closeApp();
 			}
 		});
-
-		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 	}
 
 	public void actionPerformed(ActionEvent e) {
-		String command = e.getActionCommand();
-		logger.info(command);
-		MessageBus.INSTANCE.send(Messages.CLOSE, null);
-		UserPreferences.INSTANCE.shutDown();
-		System.exit(0);
+        closeApp();
 	}
+
+    public void closeApp() {
+        MessageBus.INSTANCE.send(Messages.EXIT_APP, null);
+
+        // remember position and size
+        Rectangle r = getBounds();
+        UserPreferences.INSTANCE.setMainBounds(r);
+
+        // shutdown database
+        UserPreferences.INSTANCE.shutDown();
+		System.exit(0);
+    }
+
+    public void add(UserPreferences pref, Component panel) {
+        assert !panels.containsKey(pref) : "Panel for " + pref + " already added";
+
+        panels.put(pref, panel);
+        if (pref.getInt() >= 0) {
+            lpane.setLayer(panel, pref.getInt());
+        }
+
+        callback(Messages.CONFIG_CHANGED, pref);
+    }
+
+    private synchronized void place(UserPreferences pref, Container cont, String constr) {
+        // if component not added yet
+        if (!panels.containsKey(pref)) {
+            return;
+        }
+        if (pref.getBool()) {
+            if (constraints.containsKey(pref)) {
+                if (constr ==  null) {
+                    if (constraints.get(pref) == null) {
+                        return;
+                    }
+                } else {
+                    if (constr.equals(constraints.get(pref))) {
+                        return;
+                    }
+                }
+                cont.remove(panels.get(pref));
+            }
+            constraints.put(pref, constr);
+
+            cont.add(panels.get(pref), constr);
+            panels.get(pref).invalidate();
+            panels.get(pref).validate();
+        } else {
+            if (constraints.containsKey(pref)) {
+                constraints.remove(pref);
+
+                cont.remove(panels.get(pref));
+            }
+        }
+    }
+
+    public void rebuildForm() {
+        String whole = "1-99.5";
+        String upperY = whole;
+        String lowerY = whole;
+        if ((train.getBool() || map.getBool()) && (prof.getBool())) {
+            upperY = "1-60.5";
+            lowerY = "61-99.5";
+        }
+        String leftX = whole;
+        String rightX = whole;
+        if (train.getBool() && map.getBool()) {
+            leftX = "0.5-60.5";
+            rightX = "61-99.5";
+        }
+
+        //setVisible(true);
+        //revalidate();
+        invalidate();
+        validate();
+
+        place(train, lpane, leftX + "/" + upperY);
+        place(map, lpane, rightX + "/" + upperY);
+        place(prof, lpane, whole + "/" + lowerY);
+        place(info, lpane, "west+2/north+2");
+        place(pause, lpane, "30-70/25-45");
+        // ODO is under main pane, not on layeredPane
+        place(odo, this, BorderLayout.SOUTH);
+    }
 
 	@Override
 	public void callback(Messages message, Object o) {
-		logger.info(message);
 		switch (message) {
-		case CLOSE:
-			// remember position and size	
-			Rectangle r = this.getBounds();
-			UserPreferences.INSTANCE.setMainBounds(r);
-			
-			this.invalidate();
-			this.validate();
-			// this.revalidate(); JDK 1.7 only
+        	case CONFIG_CHANGED:
+                UserPreferences pref = (UserPreferences) o;
+                if (panels.containsKey(pref)) {
+                    panels.get(pref).setVisible(pref.getBool());
+                    rebuildForm();
+                }
+                break;
 
-			break;
-		}
-	}
+            case GPXLOAD:
+                RouteReader routeData = (RouteReader) o;
+                String routeName = routeData.getName();
+                if (routeName == null) {
+                    routeName = appName;
+                }
+                setTitle(routeName);
+                break;
+            case CLOSE:
+                setTitle(appName);
+                break;
+        }
+    }
 }

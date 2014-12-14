@@ -18,7 +18,12 @@ package com.wattzap.model;
 import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
+import com.wattzap.controller.MessageBus;
+import com.wattzap.controller.Messages;
+import com.wattzap.model.dto.AxisPointInterest;
 import com.wattzap.model.dto.Telemetry;
+import com.wattzap.utils.FileName;
+import java.io.File;
 
 /**
  * Interface for loading route files. Should be subclassed to implement a new
@@ -34,58 +39,122 @@ import com.wattzap.model.dto.Telemetry;
  * @author Jarek
  */
 public abstract class RouteReader extends SourceDataHandler {
+    private File currentFile = null;
+    private XYSeries series = null;
+    protected GPXFile gpxFile = null;
+
+    protected double maxSlope = 0.0;
+    protected double minSlope = 0.0;
+    protected double routeLen = 0.0;
+
     // extension for this routeReader
     public abstract String getExtension();
 
-    // load training file and set all data..
-    public abstract String load(String filename);
-
     // full path where training file and video are located
-    public abstract String getPath();
+	public String getPath() {
+		return currentFile.getParent();
+	}
 
     // name of video file, whole path is filePath / videoFile.
     // Some directory stuff might be extraordinary (useful for RLV/cycleops
     // trainings): these values are checked and stripped if necessary.
-    public abstract String getVideoFile();
+	public String getVideoFile() {
+		return FileName.stripExtension(currentFile.getName()) + ".avi";
+	}
 
-	// get name from the GPX file
-    public abstract String getName();
+    // name to be displayed above profile panel
+	public String getName() {
+        return FileName.stripExtension(currentFile.getName()).replace('_', ' ');
+	}
 
-	// Used by map view, it is shown on the map
-    public abstract GPXFile getGpxFile();
+    public GPXFile getGpxFile() {
+        return gpxFile;
+    }
 
-	// Used by profile view, gives time|distance/altitude|power values
-	public abstract XYSeries getSeries();
+    public XYSeries getSeries() {
+        return series;
+    }
+
+
+    // load training file and set all data.. Don't check any config flag
+    // to load file, just read file and process contained data!
+    public final String load(String filename) {
+        currentFile = new File(filename);
+        if (!currentFile.exists()) {
+            return "File doesn't exist";
+        }
+        AxisPointInterest.path = currentFile.getParent();
+        String err = load(currentFile);
+        if (err != null) {
+            return err;
+        }
+        if (getName() == null) {
+            return "Training without name";
+        }
+        return null;
+    }
+
+    public abstract String load(File file);
+
+    public final void activate() {
+        // store current configuration
+        configChanged(UserPreferences.INSTANCE);
+        series = createProfile();
+        if (gpxFile == null) {
+            gpxFile = createGpx();
+        }
+        MessageBus.INSTANCE.send(Messages.GPXLOAD, this);
+    }
+
+    protected void rebuildProfile() {
+        if (series != null) {
+            series = createProfile();
+            MessageBus.INSTANCE.send(Messages.PROFILE, series);
+        }
+    }
+    // used mostly when FTP/FTHR changed in TRN mode, to "update" profile
+    protected void reloadTraining() {
+        load(currentFile);
+        rebuildProfile();
+    }
+
+    public XYSeries createProfile() {
+        return null;
+    }
+    public GPXFile createGpx() {
+        return null;
+    }
+
+    // Training was closed, another training will be used.
+    public void close() {
+        currentFile = null;
+        gpxFile = null;
+        series = null;
+
+        routeLen = 0.0;
+        maxSlope = 0.0;
+        minSlope = 0.0;
+    }
 
     // Returns length of the route in meters, or in ms (for TIME trainings)
     // Used by control panel.. it is max value for slider. It should be replaced
     // by clicking in Profile panel, for sure it would be more accurate.
     @Deprecated
     public final double getDistanceMeters() {
-        if (getSeries() == null) {
-            return 1000.0 * 100; // 100%
-        }
-        return 1000.0 * (getSeries().getMaxX() - getSeries().getMinX());
+        return routeLen;
     }
-
-    // description of Profile chart axis
-    public String getXKey() {
-        return "distance";
-    }
-    public String getYKey() {
-        return "altitude";
-    }
-
-    // Training was closed, another training will be used.
-    public abstract void close();
-
 
     // used by simulSpeed power handler (only?)
+    // TODO move it to config file..
     @Deprecated
-    public abstract double getMaxSlope();
+    public double getMaxSlope() {
+        return maxSlope;
+    }
 
     @Deprecated
-	public abstract double getMinSlope();
+	public double getMinSlope() {
+        return minSlope;
+    }
 
 
     // TelemetryHandler interface

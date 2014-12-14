@@ -27,12 +27,13 @@ public interface AntSubsystemIntf extends SubsystemIntf {
     /* create new free channel (if available).
      * When channel is properly paired, new messages are passed to its handler.
      */
-    Channel createChannel(int sensorId, AntSensor sensorHandler);
+    Channel createChannel(AntSensor sensor);
 
     /* Get current sensorId for registered channel. Channel can be created with
      * exact ID or with 0 ("mask"). Return non-zero value if channel is paired.
+     * AntSensor is passed to be added to
      */
-    int getChannelId(Channel channel);
+    int getChannelId(Channel channel, AntSensorIntf sensor);
 
     /* close and free the channel. */
     void closeChannel(Channel channel);

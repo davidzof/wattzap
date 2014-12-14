@@ -28,8 +28,8 @@ import net.miginfocom.swing.MigLayout;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.PauseMsgEnum;
 import com.wattzap.model.SourceDataEnum;
-import com.wattzap.model.TelemetryProvider;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TelemetryValidityEnum;
@@ -80,6 +80,13 @@ public class Odo extends JPanel implements MessageCallback {
             this.valid = TelemetryValidityEnum.NOT_PRESENT;
         }
 
+        public SourceDataEnum getSourceData() {
+            return sourceData;
+        }
+        public boolean visible() {
+            return valid != TelemetryValidityEnum.NOT_PRESENT;
+        }
+
         public boolean shown(Telemetry t) {
             return true;
         }
@@ -128,6 +135,15 @@ public class Odo extends JPanel implements MessageCallback {
     }
 
     private final List<ValueCol> columns = new ArrayList<>();
+    private boolean fieldVisible(SourceDataEnum sourceData) {
+        for (ValueCol column : columns) {
+            if (column.getSourceData() == sourceData) {
+                return column.isVisible();
+            }
+        }
+        // column not added, so not visible
+        return false;
+    }
 
 	public Odo() {
 		super();
@@ -136,37 +152,71 @@ public class Odo extends JPanel implements MessageCallback {
 		MigLayout layout = new MigLayout("fillx", "[center]", "[][shrink 0]");
 		setLayout(layout);
 
+        // current
         columns.add(new ValueCol(SourceDataEnum.SPEED));
+
+        // route data
+        columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.SPEED);
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.ROUTE_TIME) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return !fieldVisible(SourceDataEnum.SPEED);
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.ALTITUDE));
+        columns.add(new ValueCol(SourceDataEnum.SLOPE));
+
+
+        // sensors data and corresponding target fields
+        columns.add(new ValueCol(SourceDataEnum.POWER));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_POWER) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.POWER);
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.HEART_RATE));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_HR) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.HEART_RATE);
+            }
+        });
+        columns.add(new ValueCol(SourceDataEnum.CADENCE));
+        columns.add(new ValueCol(SourceDataEnum.TARGET_CADENCE) {
+            @Override
+            public boolean shown(Telemetry t) {
+                return fieldVisible(SourceDataEnum.CADENCE);
+            }
+        });
+
+        // turbo trainer data
         columns.add(new ValueCol(SourceDataEnum.WHEEL_SPEED) {
             @Override
             public boolean shown(Telemetry t) {
                 return wheelSpeedShown;
             }
         });
-        columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
+        columns.add(new ValueCol(SourceDataEnum.RESISTANCE) {
             @Override
             public boolean shown(Telemetry t) {
-                return t.isAvailable(SourceDataEnum.SPEED);
+                return fieldVisible(SourceDataEnum.WHEEL_SPEED);
             }
         });
-        columns.add(new ValueCol(SourceDataEnum.ROUTE_TIME) {
-            @Override
-            public boolean shown(Telemetry t) {
-                return !t.isAvailable(SourceDataEnum.SPEED);
-            }
-        });
-        // sensors data
-        columns.add(new ValueCol(SourceDataEnum.POWER));
-        columns.add(new ValueCol(SourceDataEnum.HEART_RATE));
-        columns.add(new ValueCol(SourceDataEnum.CADENCE));
-        columns.add(new ValueCol(SourceDataEnum.RESISTANCE));
-        columns.add(new ValueCol(SourceDataEnum.SLOPE));
-        columns.add(new ValueCol(SourceDataEnum.ALTITUDE));
+
+        // chronometer
+        columns.add(new ValueCol(SourceDataEnum.VIDEO_RATE));
+        // chronometer
         columns.add(new ValueCol(SourceDataEnum.TIME));
 
         // fill with "empty" values
         callback(Messages.CONFIG_CHANGED, UserPreferences.INSTANCE);
-        callback(Messages.TELEMETRY, new Telemetry(-1));
+        callback(Messages.TELEMETRY, new Telemetry(PauseMsgEnum.INITIALIZE));
 
         MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
         MessageBus.INSTANCE.register(Messages.CONFIG_CHANGED, this);
@@ -177,7 +227,7 @@ public class Odo extends JPanel implements MessageCallback {
 		switch (message) {
             case TELEMETRY:
                 Telemetry t = (Telemetry) o;
-                paused = (TelemetryProvider.pauseMsg(t) != null);
+                paused = (PauseMsgEnum.msg(t) != null);
                 int num = 0;
                 int last = 0;
                 for (ValueCol column : columns) {
@@ -217,8 +267,14 @@ public class Odo extends JPanel implements MessageCallback {
             case CONFIG_CHANGED:
                 UserPreferences pref = (UserPreferences) o;
                 if ((pref == UserPreferences.METRIC) ||
-                        pref == UserPreferences.INSTANCE) {
+                    (pref == UserPreferences.INSTANCE))
+                {
                     metric = pref.isMetric();
+                }
+                if ((pref == UserPreferences.WHEEL_SPEED_VISIBLE) ||
+                    (pref == UserPreferences.INSTANCE))
+                {
+                    wheelSpeedShown = pref.isWheelSpeedVisible();
                 }
                 break;
         }

@@ -19,31 +19,32 @@ package com.wattzap.model;
 import com.wattzap.model.dto.Telemetry;
 
 /**
- * Power profile which runs video with 1:1 speed, this is calculates power
- * which is value reversed for video speed.
+ * Module that reports wheelSpeed unavailable. It is intended to be used in
+ * conjunction with powerSensor only, otherwise training won't run.
+ *
  * @author Jarek
  */
-public class SensorOnlyPowerProfile extends VirtualPowerProfile {
+@SelectableDataSourceAnnotation
+public class NoSpeedProfile extends TelemetryHandler {
+
     @Override
     public String getPrettyName() {
-        return "sensorPowerProfile";
+        return "no_wheel_speed";
+    }
+
+   @Override
+    public void configChanged(UserPreferences pref) {
     }
 
     @Override
     public boolean provides(SourceDataEnum data) {
-        // doesn't provide power! Only pauses if no power sensor is selected.
-        return (data == SourceDataEnum.PAUSE);
+        return data == SourceDataEnum.WHEEL_SPEED;
     }
 
     @Override
     public void storeTelemetryData(Telemetry t) {
-        SensorIntf sensor = TelemetryProvider.INSTANCE.getSensor(SourceDataEnum.POWER);
-        if (sensor == null) {
-            setValue(SourceDataEnum.PAUSE, 250);
-        } else {
-            // sensor is available, but might not work: it is "handled" by
-            // general speedPause condition
-            setValue(SourceDataEnum.PAUSE, 0);
-        }
+        // negative speed value causes value is not present
+        // (same as handler doesn't exist)
+        setValue(SourceDataEnum.WHEEL_SPEED, -1.0);
     }
 }

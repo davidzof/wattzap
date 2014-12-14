@@ -23,9 +23,15 @@ import com.wattzap.model.UserPreferences;
  * @author Jarek
  */
 public interface ConfigFieldIntf {
+    // field name, this is key to get from resource bundle
     String getName();
+
     // value in the field was changed, it must be set in property
     void fieldChanged();
+
     // property changed, it must be updated (if not "local" change)
     void propertyChanged(UserPreferences prop, String locallyChanged);
+
+    // field removal
+    void remove();
 }

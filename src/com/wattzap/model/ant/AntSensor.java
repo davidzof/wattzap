@@ -39,6 +39,10 @@ public abstract class AntSensor extends Sensor
     private Channel channel = null;
 
     @Override
+    public void configChanged(UserPreferences config) {
+    }
+
+    @Override
     public SubsystemTypeEnum getSubsystemType() {
         return SubsystemTypeEnum.ANT;
     }
@@ -54,10 +58,11 @@ public abstract class AntSensor extends Sensor
         }
 
         if (setLastMessageTime() == 0) {
-            logger.debug("First " + getPrettyName() + " message received, sensorId=" + getSensorId());
+            logger.debug(toString() + ":: first message received");
             if (getSensorId() == 0) {
-                // if sensorId is a mask, just get real value and update configuration
-                // when new sensorId is received, notification about sensor ready is sent
+                // if sensorId is a mask, just get real value and update
+                // configuration when new sensorId is received, notification
+                // about sensor ready is sent.
                 new AntSensorIdQuery(this, channel).start();
             } else {
                 // imediatelly send notification about sensor ready
@@ -75,18 +80,18 @@ public abstract class AntSensor extends Sensor
             // channel is recreated only if non-zero id is replaced with another
             // non-zero id..
             if ((channel != null) && (getSensorId() != 0) && (getSensorId() != sensorId)) {
-                // to avoid race condition with handling MsgBundle, all MsgBundle
-                // (from the "past") must be discarded
                 Channel chn = channel;
                 channel = null;
+                logger.debug("Restart channel for " + getPrettyName() + "." + sensorId);
                 ((AntSubsystemIntf) getSubsystem()).closeChannel(chn);
-                logger.debug("Restart channel for " + getPrettyName() + " #" + sensorId);
                 setLastMessageTime(0);
                 assert getSubsystem() != null : "Subsystem doesn't exist";
-                channel = ((AntSubsystemIntf) getSubsystem()).createChannel(sensorId, this);
+                super.setSensorId(sensorId);
+                channel = ((AntSubsystemIntf) getSubsystem()).createChannel(this);
+            } else {
+                // otherwise just store new id..
+                super.setSensorId(sensorId);
             }
-            // store new id..
-            super.setSensorId(sensorId);
         }
     }
 
@@ -94,11 +99,11 @@ public abstract class AntSensor extends Sensor
     public void subsystemState(boolean enabled) {
         if (enabled) {
             assert (channel == null) : "Channel already created";
-            logger.debug("Subsystem started, create channel for " + getSensorId());
-            channel = ((AntSubsystemIntf) getSubsystem()).createChannel(getSensorId(), this);
+            channel = ((AntSubsystemIntf) getSubsystem()).createChannel(this);
         } else {
             if (channel != null) {
-                logger.debug("Subsystem stopped, close channel for " + getSensorId());
+                logger.debug("Close channel for " + getPrettyName() + ":" +
+                    getTransmissionType() + "." + getSensorId());
                 ((AntSubsystemIntf) getSubsystem()).closeChannel(channel);
                 channel = null;
             }
@@ -109,10 +114,21 @@ public abstract class AntSensor extends Sensor
     public void handleChannelId(Channel channel, int sensorId) {
         // if response is from requested channel..
         if ((this.channel == channel) && (getSensorId() == 0)) {
-            setSensorId(sensorId);
+            if (((sensorId >> 16) & 0xf) != getTransmissionType()) {
+                logger.error(toString() + ":: Incorrect transmission type " +
+                        ((sensorId >> 16) & 0xf));
+                return;
+            }
+            // store channel configuration
+            setSensorId((sensorId & 0xffff) | ((sensorId >> 4) & 0xf0000));
             // this call configChanged callback
-            UserPreferences.INSTANCE.setSensorId(getPrettyName(), sensorId);
+            UserPreferences.INSTANCE.setSensorId(getPrettyName(), getSensorId());
             MessageBus.INSTANCE.send(Messages.HANDLER, this);
         }
+    }
+
+    @Override
+    public String toString() {
+        return getPrettyName() + ":" + getTransmissionType() + "." + getSensorId();
     }
 }

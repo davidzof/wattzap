@@ -37,5 +37,6 @@ public class UserPanel extends ConfigPanel {
 
         add(new ConfigFieldCheck(this, UserPreferences.LOAD_LAST, "load_last"));
         add(new ConfigFieldCheck(this, UserPreferences.AUTO_START, "autostart"));
+        add(new ConfigFieldCheck(this, UserPreferences.AUTO_SAVE, "autosave"));
 	}
 }

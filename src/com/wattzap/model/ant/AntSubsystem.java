@@ -28,7 +28,6 @@ import org.cowboycoders.ant.NetworkKey;
 import org.cowboycoders.ant.Node;
 import org.cowboycoders.ant.events.MessageCondition;
 import org.cowboycoders.ant.events.MessageConditionFactory;
-import org.cowboycoders.ant.interfaces.AntTransceiver;
 import org.cowboycoders.ant.messages.SlaveChannelType;
 import org.cowboycoders.ant.messages.commands.ChannelRequestMessage;
 import org.cowboycoders.ant.messages.commands.ChannelRequestMessage.Request;
@@ -43,36 +42,17 @@ import com.wattzap.model.SubsystemTypeEnum;
 import com.wattzap.model.UserPreferences;
 import java.util.ArrayList;
 import java.util.List;
+import org.cowboycoders.ant.interfaces.AntTransceiver;
 
 /**
- * Gets data from Ant device and calculates speed, distance, cadence etc.
- *
- * @author David George
- * @date 30 May 2013
+ * Handles ANT messages and passes them to apropriate sensors
+ * @author Jarek
  */
 public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	private static Logger logger = LogManager.getLogger("Ant");
 	public static final Level LOG_LEVEL = Level.SEVERE;
 
-    /*
-	 * This should match the device you are connecting with. Some devices are
-	 * put into pairing mode (which sets this bit).
-	 *
-	 * Note: Many ANT+ sport devices do not set this bit (eg. HRM strap).
-	 *
-	 * See ANT+ docs.
-	 */
-	private static final boolean PAIRING_FLAG = false;
-
-	/*
-	 * Should match device transmission id (0-255). Special rules apply for
-	 * shared channels. See ANT+ protocol.
-	 *
-	 * 0: wildcard, matches any value (slave only)
-	 */
-	private static final int DEFAULT_TRANSMISSION_TYPE = 1;
-
-	private static final int ANT_SPORT_FREQ = 57; // 0x39
+	private static final int ANT_SPORT_FREQ = 57; // 2457MHz
 
     private final List<Channel> channels = new ArrayList<>();
     private SubsystemStateEnum runLevel;
@@ -113,6 +93,7 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
 	public static void setupLogging() {
 		// set logging level
+        // AntTransceiver.logger = logger;
 		AntTransceiver.LOGGER.setLevel(LOG_LEVEL);
 		ConsoleHandler handler = new ConsoleHandler();
 		// PUBLISH this level
@@ -148,13 +129,13 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
      * WARNING this function is blocking, it cannot be run in USB thread!
      */
 	@Override
-    public int getChannelId(Channel channel) {
+    public int getChannelId(Channel channel, AntSensorIntf sensor) {
         if (!channels.contains(channel)) {
             logger.error("Channel is not handled by the subsystem");
             return 0;
         }
 
-        logger.debug("Getting channel ID...");
+        logger.debug("Getting channel ID for " + sensor);
 		// build request
 		ChannelRequestMessage msg = new ChannelRequestMessage(
 				channel.getNumber(), Request.CHANNEL_ID);
@@ -179,8 +160,9 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
              * System.out.println();
 			 */
 
-            logger.debug("Channel with id=" + response.getDeviceNumber());
-            return response.getDeviceNumber();
+            logger.debug("Received " + response.getTransmissionType() + "." +
+                    response.getDeviceNumber() + ", channel for " + sensor);
+            return (response.getTransmissionType() << 16) + response.getDeviceNumber();
 		} catch (Exception e) {
 			logger.error("exception " + e.getLocalizedMessage());
 		}
@@ -214,18 +196,18 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 	@Override
     public void open() {
         if (runLevel == SubsystemStateEnum.NOT_AVAILABLE) {
-            /*
-             * Choose driver: AndroidAntTransceiver or AntTransceiver
-             *
-             * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
-             * sticks plugged in 0: first usb ant-stick
-             */
             if (!enabled) {
                 logger.warn("ANT is disabled, cannot open");
                 return;
             }
 
             try {
+                /*
+                 * Choose driver: AndroidAntTransceiver or AntTransceiver
+                 *
+                 * AntTransceiver(int deviceNumber) deviceNumber : 0 ... number of usb
+                 * sticks plugged in 0: first usb ant-stick
+                 */
                 AntTransceiver antChip;
                 if (usbM) {
                     antChip = new AntTransceiver(0, AntTransceiver.ANTUSBM_ID);
@@ -239,8 +221,6 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
                 networkKey = new NetworkKey(0xB9, 0xA5, 0x21, 0xFB, 0xBD, 0x72, 0xC3, 0x45);
                 networkKey.setName("N:ANT+");
                 runLevel = SubsystemStateEnum.CLOSED;
-
-                logger.debug("ANT connection created");
             } catch (Exception e) {
                 logger.error("ANT+ " + e.getMessage());
             }
@@ -252,14 +232,11 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
         }
 
 		/* must be called before any configuration takes place */
-        logger.debug("node start");
 		node.start();
 
 		/* sends reset request : resets channels to default state */
-        logger.debug("node reset");
 		node.reset();
 
-		logger.debug("wait a second");
         // specs say wait 500ms after reset before sending any more host
 		// commands
 		try {
@@ -268,16 +245,12 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
 		}
 		// sets network key of network zero
-        logger.debug("set network key");
 		node.setNetworkKey(0, networkKey);
 
-        logger.debug("ANT subsystem started");
-
         // notify all handlers about subsystem ready
+        logger.debug("ANT subsystem started");
         runLevel = SubsystemStateEnum.OPENED;
         MessageBus.INSTANCE.send(Messages.SUBSYSTEM, this);
-
-        logger.debug("All sensors notified");
     }
 
     @Override
@@ -290,15 +263,13 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
                     enabled = prefs.isAntEnabled();
                     usbM = prefs.isAntUSBM();
                     boolean reopen = false;
-                    switch (runLevel) {
-                        case OPENED:
-                            reopen = true;
-                            close();
-                            /* no break */
-                        case CLOSED:
-                            node = null;
-                            runLevel = SubsystemStateEnum.NOT_AVAILABLE;
-                            /* no break */
+                    if (runLevel == SubsystemStateEnum.OPENED) {
+                        reopen = true;
+                        close();
+                    }
+                    if (runLevel == SubsystemStateEnum.CLOSED) {
+                        node = null;
+                        runLevel = SubsystemStateEnum.NOT_AVAILABLE;
                     }
                     if (reopen) {
                         open();
@@ -307,11 +278,9 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
                 break;
 
             case START:
-                logger.debug("ANT Subsystem starting");
                 open();
                 break;
             case STOP:
-                logger.debug("ANT Subsystem stopping");
                 close();
                 break;
 		}
@@ -328,8 +297,8 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
     }
 
     @Override
-    public Channel createChannel(int sensorId, AntSensor sensorHandler) {
-        logger.debug("Create channel " + sensorId);
+    public Channel createChannel(AntSensor sensor) {
+        logger.debug("Create channel " + sensor);
         // subsystem is closed.. cannot create new channel
         if (!isOpen()) {
             logger.error("Cannot create channel, subsystem not opened");
@@ -338,15 +307,28 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 
         Channel channel = node.getFreeChannel();
 		// Arbitrary name : useful for identifying channel
-		channel.setName(sensorHandler.getPrettyName());
+		channel.setName(sensor.getPrettyName());
 		// use ant network key "N:ANT+"
 		channel.assign("N:ANT+", new SlaveChannelType());
 		// registers an instance of our callback with the channel
-		channel.registerRxListener(sensorHandler, BroadcastDataMessage.class);
+		channel.registerRxListener(sensor, BroadcastDataMessage.class);
         // set channel configuration
-		channel.setId(sensorId, sensorHandler.getSensorType(), DEFAULT_TRANSMISSION_TYPE, PAIRING_FLAG);
+		channel.setPeriod(sensor.getSensorPeriod());
+
+        // some sensors use transmission type to extend id by 4 bits
+        int transmissionType = 0;
+        int sensorId = sensor.getSensorId();
+        if (sensorId != 0) {
+            transmissionType = (
+                    (sensor.getTransmissionType() & 0x0f) |
+                    ((sensorId >> 12) & 0xf0));
+            sensorId &= 0xffff;
+
+        }
+        // when pairing flag shall be set?
+		channel.setId(sensorId, sensor.getSensorType(), transmissionType, false);
+        // set default ANT+ frequency
 		channel.setFrequency(ANT_SPORT_FREQ);
-		channel.setPeriod(sensorHandler.getSensorPeriod());
 		// timeout before we give up looking for device
 		channel.setSearchTimeout(Channel.SEARCH_TIMEOUT_NEVER);
 
@@ -354,6 +336,8 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
 		channel.open();
         // keep channel for close operation..
         channels.add(channel);
+
+        //logger.debug("Found id = " + getChannelId(channel, sensor));
         return channel;
     }
 
@@ -364,10 +348,11 @@ public class AntSubsystem implements MessageCallback, AntSubsystemIntf {
             return;
         }
 
-        channels.remove(channel);
-        channel.removeAllRxListeners();
+        logger.debug("Close channel " + channel.getName() + " #" + channel.getNumber());
         channel.close();
         channel.unassign();
+        channel.removeAllRxListeners();
         node.freeChannel(channel);
+        channels.remove(channel);
     }
 }

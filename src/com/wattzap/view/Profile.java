@@ -19,7 +19,6 @@ import com.wattzap.MsgBundle;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Dimension;
 
 import javax.swing.JPanel;
 
@@ -38,8 +37,23 @@ import org.jfree.data.xy.XYSeriesCollection;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.Constants;
 import com.wattzap.model.RouteReader;
+import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
+import java.awt.Point;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
+import java.text.FieldPosition;
+import java.text.NumberFormat;
+import java.text.ParsePosition;
+import java.util.Map;
+import java.util.HashMap;
+import org.jfree.chart.ChartMouseEvent;
+import org.jfree.chart.ChartMouseListener;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.ui.RectangleEdge;
 
 /*
  * Shows a profile of the route and moves an indicator to show rider progress on profile
@@ -50,71 +64,157 @@ import com.wattzap.model.dto.Telemetry;
  * @author Jarek
  * Some small improvements. Profile shows any profile (this is defined by current
  * RouteReader). It might be distance/altitude, time/power..
- * TODO add action listener to set new position on click, and remove slider.
- * TODO If x-axis key is time, there should be shown xx:xx instead of number of
- * seconds..
+ * TODO Profile CANNOT show the training name. The component doesn't handle
+ * UTF-8, while some files contains "national" characters (which cannot be
+ * displayed correctly)
  */
-public class Profile extends JPanel implements MessageCallback {
-	ValueMarker marker = null;
-	XYPlot plot;
-	private ChartPanel chartPanel = null;
-
+public class Profile extends JPanel implements MessageCallback, ChartMouseListener {
 	private static Logger logger = LogManager.getLogger("Profile");
+    private static final Map<String, Double> valCorrections = new HashMap<>();
+    static {
+        // normal distance trainig, distance in in [km]
+        valCorrections.put("distance_km", 1.0);
+        valCorrections.put("distance_mi", Constants.KMTOMILES);
+        // for time trainings, distance is time [s]
+        valCorrections.put("time_min", 60.0);
+        // altitude is in [m]
+        valCorrections.put("altitude_m", 1.0);
+        valCorrections.put("altitude_feet", Constants.MTOFEET);
+    }
 
-	public Profile(Dimension d) {
+    private static final NumberFormat timeFormat = new NumberFormat() {
+        @Override
+        public StringBuffer format(double number, StringBuffer toAppendTo, FieldPosition pos) {
+            int min = (int) number;
+            number -= min;
+            int sec = (int) (number * 60);
+            StringBuffer buf = new StringBuffer();
+            buf.append(min);
+            buf.append(':');
+            if (sec < 10) {
+                buf.append('0');
+            }
+            buf.append(sec);
+            return buf;
+        }
+        @Override
+        public StringBuffer format(long number, StringBuffer toAppendTo, FieldPosition pos) {
+            return null;
+        }
+        @Override
+        public Number parse(String source, ParsePosition parsePosition) {
+            return null;
+        }
+    };
+
+    private ValueMarker marker = null;
+	private XYPlot plot = null;
+	private ChartPanel chartPanel = null;
+    private String xKey = null;
+    private String yKey = null;
+    private String routeName = null;
+    private double distance = 0.0;
+
+	public Profile() {
 		super();
-
-		// this.setPreferredSize(d);
+        // Dimension d
+		// setPreferredSize(d);
 
 		MessageBus.INSTANCE.register(Messages.TELEMETRY, this);
-		MessageBus.INSTANCE.register(Messages.STARTPOS, this);
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
+		MessageBus.INSTANCE.register(Messages.PROFILE, this);
 	}
 
-	@Override
+    private void handleClick(Point point) {
+        Point2D p = chartPanel.translateScreenToJava2D(point);
+        Rectangle2D plotArea = chartPanel.getScreenDataArea();
+        XYPlot plot = (XYPlot) chartPanel.getChart().getPlot();
+        ValueAxis domainAxis = plot.getDomainAxis();
+        RectangleEdge domainAxisEdge = plot.getDomainAxisEdge();
+        double chartX = domainAxis.java2DToValue(p.getX(), plotArea, domainAxisEdge);
+        if (chartX < 0.0) {
+            chartX = 0.0;
+        }
+        double corr = 1.0;
+        if (valCorrections.containsKey(xKey)) {
+            corr = valCorrections.get(xKey);
+        }
+        MessageBus.INSTANCE.send(Messages.STARTPOS, chartX * corr);
+    }
+
+    @Override
+    public void chartMouseClicked(ChartMouseEvent cme) {
+        handleClick(cme.getTrigger().getPoint());
+    }
+
+    @Override
+    public void chartMouseMoved(ChartMouseEvent cme) {
+        // nothing
+    }
+
+    @Override
 	public void callback(Messages message, Object o) {
-		double distance = 0.0;
-		switch (message) {
+        boolean rebuildSeries = false;
+        switch (message) {
 		case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 			distance = t.getDistance();
+            if (valCorrections.containsKey(xKey)) {
+                distance /= valCorrections.get(xKey);
+            }
 			break;
-		case STARTPOS:
-			distance = (Double) o;
-			break;
-		case CLOSE:
-			if (this.isVisible()) {
-				remove(chartPanel);
-				setVisible(false);
-				revalidate();
-			}
 
-			return;
-		case GPXLOAD:
-			// Note if we are loading a Power Profile there is no GPX data so we don't show the chart panel
+        case CLOSE:
+            rebuildSeries = true;
+            o = null;
+            break;
+        case GPXLOAD:
 			RouteReader routeData = (RouteReader) o;
+            rebuildSeries = true;
+            o = routeData.getSeries();
+            break;
 
+        case PROFILE:
+            rebuildSeries = true;
+            break;
+        }
+
+        if (rebuildSeries) {
+            XYSeries series = (XYSeries) o;
 			if (chartPanel != null) {
 				remove(chartPanel);
-                if (routeData.getSeries() == null) {
-					setVisible(false);
-					chartPanel.revalidate();
-					return;
-				}
-			} else if (routeData.getSeries() == null) {
+                chartPanel.removeChartMouseListener(this);
+                chartPanel.revalidate();
+                if ((plot != null) && (marker != null)) {
+                    plot.removeDomainMarker(marker);
+                }
+                chartPanel = null;
+                plot = null;
+                marker = null;
+			}
+            if (series == null) {
+                UserPreferences.PROFILE_VISIBLE.setBool(false);
 				return;
 			}
 
-			logger.debug("Load " + routeData.getPath());
-			XYDataset xyDataset = new XYSeriesCollection(routeData.getSeries());
+            // get axis keys from series. No spaces are allowed
+            xKey = "distance";
+            yKey = "altitude";
+            String key = (String) series.getKey();
+            int index = key.indexOf(',');
+            if (index >= 0) {
+                xKey = key.substring(0, index);
+                yKey = key.substring(index + 1);
+            }
 
 			// create the chart...
+			XYDataset xyDataset = new XYSeriesCollection(series);
 			final JFreeChart chart = ChartFactory.createXYAreaChart(
 					// title
-					routeData.getName(),
-					MsgBundle.getString(routeData.getXKey()), // domain axis label
-					MsgBundle.getString(routeData.getYKey()), // range axis label
+					null, // routeName,
+					MsgBundle.getString(xKey), // domain axis label
+					MsgBundle.getString(yKey), // range axis label
 					xyDataset, // data
 					PlotOrientation.VERTICAL, // orientation
 					false, // include legend
@@ -127,7 +227,9 @@ public class Profile extends JPanel implements MessageCallback {
 			plot = chart.getXYPlot();
 			// plot.setForegroundAlpha(0.85f);
 
-			plot.setBackgroundPaint(Color.white);
+            XYPlot plot = chart.getXYPlot();
+
+            plot.setBackgroundPaint(Color.white);
 			plot.setDomainGridlinePaint(Color.lightGray);
 			plot.setRangeGridlinePaint(Color.lightGray);
 
@@ -138,8 +240,12 @@ public class Profile extends JPanel implements MessageCallback {
 			domainAxis.setTickLabelPaint(Color.white);
 			domainAxis.setLabelPaint(Color.white);
 
-			double minY = routeData.getSeries().getMinY();
-			double maxY = routeData.getSeries().getMaxY();
+            if ("time_min".equals(xKey)) {
+                ((NumberAxis) domainAxis).setNumberFormatOverride(timeFormat);
+            }
+
+            double minY = series.getMinY();
+			double maxY = series.getMaxY();
             double delta = (maxY - minY) / 10.0;
             if ((long) minY  == 0) {
                 rangeAxis.setRange(minY, maxY + delta);
@@ -150,25 +256,26 @@ public class Profile extends JPanel implements MessageCallback {
 			chartPanel = new ChartPanel(chart);
 			// chartPanel.setSize(100, 800);
 
+            // handle clicks to change training position
+            chartPanel.addChartMouseListener(this);
+
 			setLayout(new BorderLayout());
 			add(chartPanel, BorderLayout.CENTER);
 			setBackground(Color.black);
 			chartPanel.revalidate();
-			setVisible(true);
-			break;
+            UserPreferences.PROFILE_VISIBLE.setBool(true);
 		}
 
-        // marker must be recreated all the time?
         if (plot != null) {
             if (marker != null) {
-                plot.removeDomainMarker(marker);
+                marker.setValue(distance);
+            } else {
+                marker = new ValueMarker(distance);
+                marker.setPaint(Color.blue);
+                BasicStroke stroke = new BasicStroke(2);
+                marker.setStroke(stroke);
+                plot.addDomainMarker(marker);
             }
-            marker = new ValueMarker(distance);
-
-            marker.setPaint(Color.blue);
-            BasicStroke stroke = new BasicStroke(2);
-            marker.setStroke(stroke);
-            plot.addDomainMarker(marker);
         }
 	}
 }

@@ -27,6 +27,7 @@ public interface AntSensorIntf extends SensorIntf {
     // default sensor configuration
     int getSensorType();
     int getSensorPeriod();
+    int getTransmissionType();
 
     // notification about setting proper id instead of wildcard
     void handleChannelId(Channel channel, int channelId);

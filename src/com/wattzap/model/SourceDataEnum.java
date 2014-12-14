@@ -62,7 +62,8 @@ public enum SourceDataEnum {
     // and too_low states for power, cadence, hr in POWER training handler.
     TARGET_POWER("targetpower", 0.0, 0, "%"), // of FTP
     TARGET_CADENCE("targetcadence", 0.0, 0, "rpm"),
-    TARGET_HR("targethr", 0.0, 0, "bpm");
+    TARGET_HR("targethr", 0.0, 0, "bpm"),
+    VIDEO_RATE("video_rate", 1.0, -5, "%");
 
     // formating stuff
     private static final char digits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
@@ -116,6 +117,7 @@ public enum SourceDataEnum {
 
     // common and fast conversion from value to string representation
     public String format(double value, boolean metric) {
+        int pprec = prec;
         if (prec < 0) {
             switch (prec) {
                 case -1:
@@ -125,15 +127,22 @@ public enum SourceDataEnum {
                     }
                     return timeFormat.format(new Date((long) value));
                 case -2: // pauseMsg
-                    String msg = TelemetryProvider.pauseMsg((int) value, true);
+                    String msg = PauseMsgEnum.get((int) value).key();
                     if (msg == null) {
                         msg = "-";
                     }
                     return msg;
                 case -3: // latitude N/S
                 case -4: // longitude E/W
-                default:
                     // value cannot be formatted, don't show the label, etc
+                    return null;
+                case -5:
+                    // show '%' value
+                    pprec = 0;
+                    value *= 100;
+                    break;
+                default:
+                    assert false : "Not handled format type " + prec;
                     return null;
             }
         }
@@ -160,9 +169,9 @@ public enum SourceDataEnum {
             buf.insert(0, '-');
         }
 
-        if (prec != 0) {
+        if (pprec != 0) {
             buf.append('.');
-            for (int i = 0; i < prec; i++) {
+            for (int i = 0; i < pprec; i++) {
                 value *= 10;
                 val = (int) value;
                 value -= val;

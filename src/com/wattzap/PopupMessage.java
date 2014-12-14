@@ -31,7 +31,17 @@ public class PopupMessage implements PopupMessageIntf {
     }
 
     public void showWarning(String src, String msg) {
-            JOptionPane.showMessageDialog(frame, src + " " + msg,
-                MsgBundle.getString("warning"), JOptionPane.WARNING_MESSAGE);
+        JOptionPane.showMessageDialog(frame, msg, src,
+            JOptionPane.WARNING_MESSAGE);
+    }
+
+    public boolean confirm(String src, String msg) {
+        return JOptionPane.showConfirmDialog(frame, msg, src,
+                JOptionPane.YES_NO_OPTION) == 0;
+    }
+
+    public void showMessage(String src, String msg) {
+        JOptionPane.showMessageDialog(frame, msg, src,
+                JOptionPane.INFORMATION_MESSAGE);
     }
 }

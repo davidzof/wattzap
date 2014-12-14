@@ -59,6 +59,8 @@ public class Preferences extends JFrame implements ActionListener {
         jtp.addTab(MsgBundle.getString("sensors"), new SensorsPanel());
 		// Trainer Profiles
 		jtp.addTab(MsgBundle.getString("trainers"), new TurboPanel());
+        // data sources, and their config
+        jtp.addTab(MsgBundle.getString("sources"), new SourcesPanel());
 
         JPanel buttonPanel = new JPanel();
 		buttonPanel.setLayout(new FlowLayout());

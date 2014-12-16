@@ -305,7 +305,11 @@ public enum TelemetryProvider implements MessageCallback
                     // and telemetryHandler report here value condition.
                     if (handler.checks(prop)) {
                         TelemetryValidityEnum target;
-                        if (handler.getModificationTime(prop) < 0) {
+                        if (handler.getModificationTime(prop) <= -100) {
+                            target = TelemetryValidityEnum.NOT_AVAILABLE;
+                        } else if (handler.getModificationTime(prop) >= 100) {
+                            target = TelemetryValidityEnum.WRONG;
+                        } else if (handler.getModificationTime(prop) < 0) {
                             target = TelemetryValidityEnum.TOO_SMALL;
                         } else if (handler.getModificationTime(prop) > 0) {
                             target = TelemetryValidityEnum.TOO_BIG;

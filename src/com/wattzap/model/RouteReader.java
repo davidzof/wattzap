@@ -76,6 +76,7 @@ public abstract class RouteReader extends SourceDataHandler {
     public XYSeries getSeries() {
         return series;
     }
+
     public void sendingMessages(boolean val) {
         sendingMessages = val;
     }

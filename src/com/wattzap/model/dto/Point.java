@@ -15,6 +15,8 @@
  */
 package com.wattzap.model.dto;
 
+import com.wattzap.model.SourceDataEnum;
+
 /**
  *
  * Represents a data point from a route or power file (gpx, rlv, pwr etc)
@@ -23,19 +25,31 @@ package com.wattzap.model.dto;
  * @date 19 June 2013
  */
 public class Point extends AxisPoint {
-	private double latitude;
-	private double longitude;
-	private double elevation;
-	private double gradientOrPower;
-	private double speed;
-	// private double level;
-	private long time;
+    private boolean hasPosition = false;
+	private double latitude = -91.0;
+	private double longitude = -181.0;
+	private double elevation = 0.0;
+	private double gradient = 0.0;
+	private double speed = 0.0;
+	private long time = 0;
 
     public Point(double distanceFromStart) {
         super(distanceFromStart);
     }
 
 
+    public Point(Telemetry t, long timeOff) {
+        super(t.getDistance());
+        if (t.isAvailable(SourceDataEnum.LATITUDE) && t.isAvailable(SourceDataEnum.LONGITUDE)) {
+            latitude = t.getLatitude();
+            longitude = t.getLongitude();
+            hasPosition = true;
+        }
+        elevation = t.getElevation();
+        gradient = t.getGradient();
+        speed = t.getSpeed();
+        time = t.getTime() - timeOff;
+    }
 
 	public double getSpeed() {
 		return speed;
@@ -54,26 +68,23 @@ public class Point extends AxisPoint {
 	}
 
 	public double getGradient() {
-		return gradientOrPower;
-	}
-
-	public double getPower() {
-		return gradientOrPower; // overload gradient with power
+		return gradient;
 	}
 
 	public void setGradient(double gradient) {
-		this.gradientOrPower = gradient;
+		this.gradient = gradient;
 	}
 
-	public void setPower(double power) {
-		this.gradientOrPower = power;
-	}
+    public boolean hasPosition() {
+        return hasPosition;
+    }
 
 	public double getLatitude() {
 		return latitude;
 	}
 
 	public void setLatitude(double latitude) {
+        this.hasPosition = true;
 		this.latitude = latitude;
 	}
 
@@ -82,6 +93,7 @@ public class Point extends AxisPoint {
 	}
 
 	public void setLongitude(double longitude) {
+        this.hasPosition = true;
 		this.longitude = longitude;
 	}
 
@@ -99,9 +111,9 @@ public class Point extends AxisPoint {
 
 	@Override
 	public String toString() {
-		return "Point [latitude=" + latitude + ", longitude=" + longitude
-				+ ", elevation=" + elevation + ", distanceFromStart="
-				+ getDistance() + ", gradient=" + gradientOrPower
-				+ ", speed=" + speed + ", time=" + time + "]";
+		return "Point [distanceFromStart=" + getDistance() +
+                ", time=" + time + ", speed=" + speed +
+				", elevation=" + elevation + ", gradient=" + gradient +
+				", latitude=" + latitude + ", longitude=" + longitude + "]";
 	}
 }

@@ -15,7 +15,6 @@
 */
 package com.wattzap.utils;
 
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,6 +31,8 @@ import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.WorkoutData;
 import com.wattzap.view.training.TrainingAnalysis;
+import java.io.File;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Imports Training Activities into the Wattzap database
@@ -50,98 +51,77 @@ public class ActivityReader  {
 	}
 
 	public void readActivity(String fileName) {
-			try {
-				ArrayList<Telemetry> telemetry = readTelemetry(fileName);
-				if (telemetry != null) {
+        List<Telemetry> telemetry = readTelemetry(fileName);
+        if (telemetry != null) {
 
-					String workoutName = TcxWriter.getWorkoutName(telemetry
-							.get(0).getTime());
-					WorkoutData workout = UserPreferences.INSTANCE
-							.getWorkout(workoutName);
-					int dataSource = telemetry.get(0).getResistance();
+            String workoutName = TcxWriter.getWorkoutName(telemetry
+                    .get(0).getTime());
+            WorkoutData workout = UserPreferences.INSTANCE
+                    .getWorkout(workoutName);
+            int dataSource = telemetry.get(0).getResistance();
 
-					if (workout != null) {
-						logger.info("File already in database "
-								+ workout.getTcxFile());
-					} else {
-						workout = TrainingAnalysis.analyze(telemetry);
-						workout.setFtp(UserPreferences.INSTANCE.getMaxPower());
-						workout.setTcxFile(workoutName);
-						workout.setSource(dataSource);
+            if (workout != null) {
+                logger.info("File already in database "
+                        + workout.getTcxFile());
+            } else {
+                workout = TrainingAnalysis.analyze(telemetry);
+                workout.setFtp(UserPreferences.INSTANCE.getMaxPower());
+                workout.setTcxFile(workoutName);
+                workout.setSource(dataSource);
 
-						TcxWriter writer = new TcxWriter();
-						importedFiles.add(writer.save(telemetry, true));
+                TcxWriter writer = new TcxWriter();
+                importedFiles.add(writer.save(telemetry, true));
 
-						UserPreferences.INSTANCE.addWorkout(workout);
-					}
-
-				}
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				/*
-				 * C:\Documents and Settings\david\Application
-				 * Data\Wattzap\Imports\Col-des-Ayes-8may2014.fitlog
-				 * org.xml.sax.SAXParseException; lineNumber: 1; columnNumber:
-				 * 1; Content is not allowed in prolog. at
-				 * com.sun.org.apache.xerces
-				 * .internal.util.ErrorHandlerWrapper.createSAXParseException
-				 * (ErrorHandlerWrapper.java:198) at
-				 * com.sun.org.apache.xerces.internal
-				 * .util.ErrorHandlerWrapper.fatalError
-				 * (ErrorHandlerWrapper.java:177) at
-				 * com.sun.org.apache.xerces.internal
-				 * .impl.XMLErrorReporter.reportError(XMLErrorReporter.java:441)
-				 */
-				e.printStackTrace();
-			}
+                UserPreferences.INSTANCE.addWorkout(workout);
+            }
+        }
 	}
 
-	public static ArrayList<Telemetry> readTelemetry(String fileName)
-			throws SAXException, IOException {
-		ArrayList<Telemetry> data = null;
+    private static boolean importXml(DefaultHandler handler, String fileName) {
+        File file = new File(fileName);
+        if (!file.exists()) {
+            return false;
+        }
+
+        XMLReader xmlReader;
+        try {
+            xmlReader = XMLReaderFactory.createXMLReader();
+        } catch (SAXException ex) {
+            return false;
+        }
+        xmlReader.setContentHandler(handler);
+        xmlReader.setErrorHandler(handler);
+
+        try {
+            FileReader fileReader = new FileReader(file);
+			xmlReader.parse(new InputSource(fileReader));
+			fileReader.close();
+            return true;
+        } catch (IOException | SAXException ex) {
+            return false;
+        }
+    }
+
+    public static ArrayList<Telemetry> readTelemetry(String fileName) {
 		if (fileName.endsWith(".tcx")) {
-			XMLReader xr = XMLReaderFactory.createXMLReader();
-
 			TcxImporter handler = new TcxImporter();
-			xr.setContentHandler(handler);
-			xr.setErrorHandler(handler);
-
-			FileReader r = new FileReader(fileName);
-
-			xr.parse(new InputSource(r));
-
-			data = handler.data;
-			r.close();
-			Telemetry last = data.get(data.size() - 1);
-			last.setDistance(handler.distance);
-			return data;
+            if (!importXml(handler, fileName)) {
+                return null;
+            }
+            return handler.getData();
 		} else if (fileName.endsWith(".fit")) {
 			FitImporter handler = new FitImporter(fileName);
 			return handler.data;
 		} else if (fileName.endsWith(".gpx")) {
-			XMLReader xr = XMLReaderFactory.createXMLReader();
 			GpxImporter handler = new GpxImporter();
-			xr.setContentHandler(handler);
-			xr.setErrorHandler(handler);
+            if (!importXml(handler, fileName)) {
+                return null;
+            }
+            ArrayList<Telemetry> data = handler.data;
 
-			FileReader r = new FileReader(fileName);
-			xr.parse(new InputSource(r));
-
-			data = handler.data;
-			r.close();
-			FitlogImporter flHandler = new FitlogImporter();
-			xr.setContentHandler(flHandler);
-			xr.setErrorHandler(flHandler);
-
-			// Merge Fitlog if it exists
-			fileName = fileName.substring(0, fileName.length() - 3); // trim gpx
-			File f = new File(fileName + "fitlog");
-			if (f.exists()) {
-				r = new FileReader(f);
-				xr.parse(new InputSource(r));
-
+            FitlogImporter flHandler = new FitlogImporter();
+            if (importXml(flHandler, fileName + "fitlog")) {
 				ArrayList<Telemetry> fitData = flHandler.data;
-				r.close();
 				long first = data.get(0).getTime();
 				int count = 0;
 				for (Telemetry t : data) {
@@ -161,8 +141,10 @@ public class ActivityReader  {
 				}
 				data.get(0).setResistance(WorkoutData.FITLOG);
 			}
-		}
-
-		return data;
+    		return data;
+		} else {
+            // unhandled extension
+            return null;
+        }
 	}
 }

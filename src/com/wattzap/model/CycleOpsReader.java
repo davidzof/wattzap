@@ -96,6 +96,19 @@ public class CycleOpsReader extends RouteReader {
         iPoints = null;
     }
 
+    private String getText(XMLStreamReader xsr) throws XMLStreamException {
+        StringBuilder bld = new StringBuilder();
+        for (;;) {
+            xsr.next();
+            if (xsr.isCharacters()) {
+                bld.append(xsr.getText());
+            } else {
+                break;
+            }
+        }
+        return bld.toString();
+    }
+
     @Override
     public String load(File file) {
         // parse track.xml file, put all points into local lists
@@ -133,15 +146,9 @@ public class CycleOpsReader extends RouteReader {
                         }
                         if ((ln.equals("Name")) && (iPoint == null)) {
                             // TODO get whole string! Both characters and entities!
-                            xsr.next();
-                            if (xsr.isCharacters()) {
-                                nameTag = xsr.getText();
-                            }
+                            nameTag = getText(xsr);
                         } else if (ln.equals("Video")) {
-                            xsr.next();
-                            if (xsr.isCharacters()) {
-                                videoTag = xsr.getText();
-                            }
+                            videoTag = getText(xsr);
                         } else if (ln.equals("AltitudePoint")) {
                             double dist;
                             try {
@@ -237,20 +244,11 @@ public class CycleOpsReader extends RouteReader {
                             }
                             iPoint = new AxisPointInterest(dist);
                         } else if ((ln.equals("Name")) && (iPoint != null)) {
-                            xsr.next();
-                            if (xsr.isCharacters()) {
-                                iPoint.setMessage(xsr.getText());
-                            }
+                            iPoint.setMessage(getText(xsr));
                         } else if ((ln.equals("Description")) && (iPoint != null)) {
-                            xsr.next();
-                            if (xsr.isCharacters()) {
-                                iPoint.setDescription(xsr.getText());
-                            }
+                            iPoint.setDescription(getText(xsr));
                         } else if ((ln.equals("Image")) && (iPoint != null)) {
-                            xsr.next();
-                            if (xsr.isCharacters()) {
-                                iPoint.setImage(xsr.getText());
-                            }
+                            iPoint.setImage(getText(xsr));
                         }
                         break;
                     case XMLStreamReader.END_ELEMENT:

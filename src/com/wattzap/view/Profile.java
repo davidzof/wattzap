@@ -40,6 +40,7 @@ import com.wattzap.controller.Messages;
 import com.wattzap.model.Constants;
 import com.wattzap.model.RouteReader;
 import com.wattzap.model.UserPreferences;
+import com.wattzap.model.dto.OpponentData;
 import com.wattzap.model.dto.Telemetry;
 import java.awt.Point;
 import java.awt.geom.Point2D;
@@ -49,6 +50,8 @@ import java.text.NumberFormat;
 import java.text.ParsePosition;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import org.jfree.chart.ChartMouseEvent;
 import org.jfree.chart.ChartMouseListener;
 import org.jfree.chart.axis.NumberAxis;
@@ -64,12 +67,9 @@ import org.jfree.ui.RectangleEdge;
  * @author Jarek
  * Some small improvements. Profile shows any profile (this is defined by current
  * RouteReader). It might be distance/altitude, time/power..
- * TODO Profile CANNOT show the training name. The component doesn't handle
- * UTF-8, while some files contains "national" characters (which cannot be
- * displayed correctly)
  */
 public class Profile extends JPanel implements MessageCallback, ChartMouseListener {
-	private static Logger logger = LogManager.getLogger("Profile");
+	private static final Logger logger = LogManager.getLogger("Profile");
     private static final Map<String, Double> valCorrections = new HashMap<>();
     static {
         // normal distance trainig, distance in in [km]
@@ -112,8 +112,8 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 	private ChartPanel chartPanel = null;
     private String xKey = null;
     private String yKey = null;
-    private String routeName = null;
     private double distance = 0.0;
+    private Map<Integer, ValueMarker> opponents = new HashMap<>();
 
 	public Profile() {
 		super();
@@ -124,6 +124,7 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 		MessageBus.INSTANCE.register(Messages.CLOSE, this);
 		MessageBus.INSTANCE.register(Messages.GPXLOAD, this);
 		MessageBus.INSTANCE.register(Messages.PROFILE, this);
+		MessageBus.INSTANCE.register(Messages.OPPONENTS, this);
 	}
 
     private void handleClick(Point point) {
@@ -157,7 +158,42 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 	public void callback(Messages message, Object o) {
         boolean rebuildSeries = false;
         switch (message) {
-		case TELEMETRY:
+        case OPPONENTS:
+            if (plot == null) {
+                break;
+            }
+            OpponentData[] data = (OpponentData[]) o;
+            Set<Integer> existing = new HashSet<>(opponents.keySet());
+            if (data != null) {
+                for (OpponentData opData : data) {
+                    // "own" marker is displayed on telemetry
+                    if (opData.getId() != 0) {
+                        double dist = opData.getPassed();
+                        if (valCorrections.containsKey(xKey)) {
+                            dist /= valCorrections.get(xKey);
+                        }
+                        if (existing.contains(opData.getId())) {
+                            existing.remove(opData.getId());
+                            opponents.get(opData.getId()).setValue(dist);
+                        } else {
+                            ValueMarker oppMarker = new ValueMarker(dist);
+                            oppMarker.setPaint(opData.getLabelColor());
+                            BasicStroke stroke = new BasicStroke(1);
+                            oppMarker.setStroke(stroke);
+                            oppMarker.setLabel(opData.getLabel());
+                            plot.addDomainMarker(oppMarker);
+                            opponents.put(opData.getId(), oppMarker);
+                        }
+                    }
+                }
+            }
+            for (Integer id : existing) {
+                plot.removeDomainMarker(opponents.get(id));
+                opponents.remove(id);
+            }
+            break;
+
+        case TELEMETRY:
 			Telemetry t = (Telemetry) o;
 			distance = t.getDistance();
             if (valCorrections.containsKey(xKey)) {
@@ -189,9 +225,13 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
                 if ((plot != null) && (marker != null)) {
                     plot.removeDomainMarker(marker);
                 }
-                chartPanel = null;
+                // remove all opponents
+                if (!opponents.isEmpty()) {
+                    callback(Messages.OPPONENTS, null);
+                }
                 plot = null;
                 marker = null;
+                chartPanel = null;
 			}
             if (series == null) {
                 UserPreferences.PROFILE_VISIBLE.setBool(false);
@@ -211,8 +251,7 @@ public class Profile extends JPanel implements MessageCallback, ChartMouseListen
 			// create the chart...
 			XYDataset xyDataset = new XYSeriesCollection(series);
 			final JFreeChart chart = ChartFactory.createXYAreaChart(
-					// title
-					null, // routeName,
+					null,
 					MsgBundle.getString(xKey), // domain axis label
 					MsgBundle.getString(yKey), // range axis label
 					xyDataset, // data

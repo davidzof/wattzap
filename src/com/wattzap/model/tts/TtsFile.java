@@ -27,15 +27,22 @@ public class TtsFile {
     private static int imageId;
 
     public static void main(String[] args) {
-        String[] files = new String[]{
-            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\2008GaviaDemo.tts"
-        };
 
-        //try {
-        //    out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
-        //} catch (Exception e) {
-        //    System.err.println("Cannot create file, " + e);
-        //}
+        String[] files;
+        if (true) {
+            files = new String[]{
+                "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\IT_Gavia08.tts"
+            };
+        } else {
+            files = new String[]{
+                "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\ZA_Argus2010.tts"
+            };
+            try {
+                out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
+            } catch (Exception e) {
+                System.err.println("Cannot create file, " + e);
+            }
+        }
         for (String file : files) {
             currentFile = file;
             imageId = 0;
@@ -87,37 +94,24 @@ public class TtsFile {
         }
     }
 
-    private static int[] rehashKey(int[] A_0, int A_1) {
+    private static int[] rehashKey(int[] key, int seed) {
         int i;
-        char[] chArray1 = new char[A_0.length / 2];
+        char[] chArray1 = new char[key.length / 2];
         for (i = 0; i < chArray1.length; i++) {
-            chArray1[i] = (char) (A_0[2 * i] + 256 * A_0[2 * i + 1]);
+            chArray1[i] = (char) (key[2 * i] + 256 * key[2 * i + 1]);
         }
 
-        int num1 = 1000170181 + A_1;
-        int num2 = 0;
-        int num3 = 1;
-        while (num2 < chArray1.length) {
-            int index1 = num2;
-            char[] chArray2 = chArray1;
-            int index2 = index1;
-            int num4 = (int) (short) chArray1[index1];
-            int num5 = (int) 255;
-            int num6 = num4 & num5;
-            int num7 = num1;
-            int num8 = 1;
-            int num9 = num7 + num8;
-            byte num10 = (byte) (num6 ^ num7);
-            int num11 = 8;
-            int num12 = num4 >> num11;
-            int num13 = num9;
-            int num14 = 1;
-            num1 = num13 + num14;
+        int num1 = 1000170181 + seed;
+        for (int num2 = 0; num2 < chArray1.length; num2++) {
+            int num4 = (int) (short) chArray1[num2];
+            int num6 = num4 & 0xff;
+            byte num10 = (byte) (num6 ^ num1);
+            int num12 = num4 >> 8;
+            int num13 = num1 + 1;
+            num1 = num13 + 1;
             int num15 = (int) (byte) (num12 ^ num13);
             int num16 = (int) (uint(num10) << 8 | uint((byte) num15)) & 0xffff;
-            chArray2[index2] = (char) num16;
-            int num17 = 1;
-            num2 += num17;
+            chArray1[num2] = (char) num16;
         }
 
         int[] ret = new int[chArray1.length];
@@ -127,49 +121,20 @@ public class TtsFile {
         return ret;
     }
 
-    private static int[] encryptHeader(int[] A_0, int[] key2) {
-        int[] bytes = key2;
-        int[] numArray = new int[bytes.length];
+    private static int[] encryptHeader(int[] header, int[] key2) {
+        int[] numArray = new int[key2.length];
+
         int index1 = 0;
         int index2 = 0;
-        int num = 6;
-        while (true) {
-            switch (num) {
-                case 0:
-                    index1 = 0;
-                    num = 2;
-                    continue;
-                case 1:
-                    if (index2 < bytes.length) {
-                        numArray[index2] = (A_0[index1] ^ bytes[index2]);
-                        num = 5;
-                        continue;
-                    } else {
-                        num = 3;
-                        continue;
-                    }
-                case 2:
-                    ++index2;
-                    num = 4;
-                    continue;
-                case 3:
-                    return numArray;
-                case 4:
-                case 6:
-                    num = 1;
-                    continue;
-                case 5:
-                    if (index1++ >= A_0.length - 1) {
-                        num = 0;
-                        continue;
-                    } else {
-                        num = 2;
-                        continue;
-                    }
-                default:
-                    throw new IllegalArgumentException("Restart function?");
+        while (index2 < key2.length) {
+            numArray[index2] = (header[index1] ^ key2[index2]);
+            index1++;
+            if (index1 >= header.length) {
+                index1 = 0;
             }
+            index2++;
         }
+        return numArray;
     }
 
     private static int[] decryptData(int[] A_0, int[] A_1) {
@@ -274,15 +239,9 @@ public class TtsFile {
         return getUShort(buffer, offset) | (getUShort(buffer, offset + 2) << 16);
     }
 
-    private static String getHex(byte[] buffer, int offset) {
-        StringBuilder b = new StringBuilder();
-        for (int i = offset; i < buffer.length; i++) {
-            b.append(' ');
-            b.append(toHex(buffer[i]));
-        }
-        return b.toString();
-    }
-
+    // this function is not correct. Some headers don't have data (are fingerprints
+    // only), while other have. It should be "converted" to proper behaviour, but
+    // it won't.
     private static boolean isHeader(byte[] buffer) {
         if (buffer.length < 2) {
             return false;
@@ -345,6 +304,19 @@ public class TtsFile {
         }
     }
 
+    private static final Map<Integer, String> fingerprints = new HashMap<>();
+
+    static {
+        fingerprints.put(120, "embeded image");
+
+        fingerprints.put(1, ".tts file");
+        fingerprints.put(1000, "route");
+        fingerprints.put(1030, "training");
+        fingerprints.put(1040, "segment");
+        fingerprints.put(2000, "description");
+        fingerprints.put(5000, "video");
+        fingerprints.put(6000, "infoboxes");
+    }
     private static final Map<Integer, String> strings = new HashMap<>();
 
     static {
@@ -352,13 +324,28 @@ public class TtsFile {
         strings.put(1002, "route description");
         strings.put(1041, "segment name");
         strings.put(1042, "segment description");
+        strings.put(5001, "product id");
+        strings.put(5002, "video name");
+        // these.. can vary somehow
         strings.put(2001, "company");
         strings.put(2004, "serial");
         strings.put(2005, "time");
         strings.put(2007, "link");
-        strings.put(5001, "product");
-        strings.put(5002, "video name");
-        strings.put(6001, "infobox #1");
+    }
+
+    private static String videoDuration(int time) {
+        time /= 1000;
+        String sec = "" + (time % 60);
+        if (sec.length() == 1) {
+            sec = "0" + sec;
+        }
+        time /= 60;
+        String min = "" + (time % 60);
+        if (min.length() == 1) {
+            min = "0" + min;
+        }
+        time /= 60;
+        return "" + time + ":" + min + ":" + sec;
     }
 
     private interface Formatter {
@@ -368,6 +355,23 @@ public class TtsFile {
     private static final Map<Integer, Formatter> formatters = new HashMap<>();
 
     static {
+        // general route info, there is date and total length.. First integer seems to
+        // be a set of some flags (ca 03 for "normal" RLV, d4 02 for ergos). Some ints
+        // are always 0
+        //
+        formatters.put(1020, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                return "[training info] "
+                        + getUShort(data, 4) + "." + getUByte(data, 6) + "." + getUByte(data, 7)
+                        + " " + getUByte(data, 8) + ":" + getUByte(data, 9) + ":" + getUByte(data, 10)
+                        + " total=" + (getUInt(data, 11) / 100000.0)
+                        + " duration=" + videoDuration(getUInt(data, 15))
+                        + " altitude=" + (getUInt(data, 23) / 100.0)
+                        + " climbing=" + (getUInt(data, 27) / 100000.0);
+            }
+        });
+
         // it looks like part of GENERALINFO, definition of type is included:
         // DWORD WattSlopePulse;//0 = Watt program, 1 = Slope program, 2 = Pulse (HR) program
         // DWORD TimeDist;		//0 = Time based program, 1 = distance based program
@@ -451,12 +455,12 @@ public class TtsFile {
                     return null;
                 }
                 StringBuilder b = new StringBuilder();
-                b.append("[segment range]");
+                b.append("[route range]");
                 for (int i = 0; i < data.length / 10; i++) {
                     b.append(" [" + i + "="
                             + (getUInt(data, i * 10 + 0) / 100000.0) + "-" + (getUInt(data, i * 10 + 4) / 100000.0));
-                    if (getUShort(data, i * 10 + 6) != 0) {
-                        b.append("/0x" + Integer.toHexString(getUShort(data, i * 10 + 6)));
+                    if (getUShort(data, i * 10 + 8) != 0) {
+                        b.append("/0x" + Integer.toHexString(getUShort(data, i * 10 + 8)));
                     }
                     b.append("]");
                 }
@@ -489,7 +493,7 @@ public class TtsFile {
                 StringBuilder b = new StringBuilder();
                 b.append("[" + (data.length / 8) + " video points][last frame " + getUInt(data, data.length - 4) + "]");
                 for (int i = 0; i < data.length / 8; i++) {
-                    b.append(" " + getUInt(data, i * 8) + "." + getUInt(data, i * 8 + 4));
+                    b.append(" " + (getUInt(data, i * 8) / 100000.0) + "@" + getUInt(data, i * 8 + 4));
                 }
                 return b.toString();
             }
@@ -512,6 +516,12 @@ public class TtsFile {
                 return b.toString();
             }
         });
+        formatters.put(6020, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                return "[infobox tml] " + getUShort(data, 0);
+            }
+        });
     }
 
     private enum StringType {
@@ -527,6 +537,7 @@ public class TtsFile {
         int[] key2 = rehashKey(key, 17);
         int[] keyH = null;
 
+        int previousBlock = -1;
         int blockType = -1;
         int version = -1;
         int stringId = -1;
@@ -537,12 +548,13 @@ public class TtsFile {
         for (byte[] data : content) {
             if (isHeader(data)) {
                 if (keyH != null) {
-                    out.println(":: fingerprint -> " + (bytes + fingerprint));
+                    out.println(":: " + fingerprints.get(previousBlock) + " fingerprint -> " + (bytes + fingerprint));
                 }
                 String hdr = bytes + " [" + Integer.toHexString(bytes) + "]: "
                         + getUShort(data, 0) + "." + getUShort(data, 2)
                         + " v" + getUShort(data, 4) + " " + getUInt(data, 6) + "x" + getUInt(data, 10);
                 out.print(hdr);
+                previousBlock = getUShort(data, 2);
                 fingerprint = getUInt(data, 6);
                 keyH = encryptHeader(iarr(data), key2);
 

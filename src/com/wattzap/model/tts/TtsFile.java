@@ -121,67 +121,20 @@ public class TtsFile {
         return ret;
     }
 
-    private static int[] encryptHeader(int[] header, int[] key2) {
-        int[] numArray = new int[key2.length];
+    private static int[] xorWithHeader(int[] data, int[] header) {
+        int[] result = new int[data.length];
 
         int index1 = 0;
         int index2 = 0;
-        while (index2 < key2.length) {
-            numArray[index2] = (header[index1] ^ key2[index2]);
+        while (index2 < data.length) {
+            result[index2] = data[index2] ^ header[index1];
             index1++;
             if (index1 >= header.length) {
                 index1 = 0;
             }
             index2++;
         }
-        return numArray;
-    }
-
-    private static int[] decryptData(int[] A_0, int[] A_1) {
-        int[] numArray = new int[A_0.length];
-        int index = 0;
-        int num1 = 5;
-
-        int num2 = -1000;
-        int e = 0; // set before each block
-        while (true) {
-            switch (num1) {
-                case 0:
-                    return numArray;
-                case 1:
-                    e = 0;
-                    num1 = 4;
-                    continue;
-                case 2:
-                    if (index < A_0.length) {
-                        numArray[index] = A_1[e] ^ A_0[index];
-                        num2 = e++;
-                        num1 = 6;
-                        continue;
-                    } else {
-                        num1 = 0;
-                        continue;
-                    }
-                case 3:
-                case 5:
-                    num1 = 2;
-                    continue;
-                case 4:
-                    ++index;
-                    num1 = 3;
-                    continue;
-                case 6:
-                    if (num2 >= A_1.length - 1) {
-                        num1 = 1;
-                        continue;
-                    } else {
-                        num1 = 4;
-                        continue;
-                    }
-                default:
-                    throw new IllegalArgumentException("Restart function?");
-            }
-        }
+        return result;
     }
 
     private static int[] iarr(byte[] a) {
@@ -556,7 +509,7 @@ public class TtsFile {
                 out.print(hdr);
                 previousBlock = getUShort(data, 2);
                 fingerprint = getUInt(data, 6);
-                keyH = encryptHeader(iarr(data), key2);
+                keyH = xorWithHeader(key2, iarr(data));
 
                 stringType = StringType.NONPRINTABLE;
                 switch (getUShort(data, 2)) {
@@ -586,7 +539,7 @@ public class TtsFile {
                         break;
                 }
             } else {
-                int[] decrD = decryptData(iarr(data), keyH);
+                int[] decrD = xorWithHeader(iarr(data), keyH);
                 keyH = null;
                 out.print("::");
 

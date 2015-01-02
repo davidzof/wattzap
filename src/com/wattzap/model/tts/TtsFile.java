@@ -3,10 +3,11 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package tts_files;
+package com.wattzap.model.tts;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
@@ -22,23 +23,23 @@ import java.util.Map;
 public class TtsFile {
 
     private static PrintStream out = System.out;
+    private static String currentFile;
+    private static int imageId;
 
     public static void main(String[] args) {
         String[] files = new String[]{
-            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\Amstel2010.tts",
-            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\AU_Gerlospass08.tts",
-            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\AU_Grossgloc08.tts",
-            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\Devils Elbows.tts"
+            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\2008GaviaDemo.tts"
         };
 
-        /*
-         try {
-         out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
-         } catch (Exception e) {
-         System.err.println("Cannot create file, " + e);
-         }
-         */
+        //try {
+        //    out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
+        //} catch (Exception e) {
+        //    System.err.println("Cannot create file, " + e);
+        //}
         for (String file : files) {
+            currentFile = file;
+            imageId = 0;
+
             if (out != System.out) {
                 System.err.println("File " + file);
             }
@@ -356,8 +357,8 @@ public class TtsFile {
         strings.put(2005, "time");
         strings.put(2007, "link");
         strings.put(5001, "product");
-        strings.put(5002, "name");
-        strings.put(6001, "infoboxes");
+        strings.put(5002, "video name");
+        strings.put(6001, "infobox #1");
     }
 
     private interface Formatter {
@@ -367,39 +368,50 @@ public class TtsFile {
     private static final Map<Integer, Formatter> formatters = new HashMap<>();
 
     static {
-        formatters.put(991032, new Formatter() {
+        // it looks like part of GENERALINFO, definition of type is included:
+        // DWORD WattSlopePulse;//0 = Watt program, 1 = Slope program, 2 = Pulse (HR) program
+        // DWORD TimeDist;		//0 = Time based program, 1 = distance based program
+        // I'm not sure about the order.. but only slope/distance (0/) and
+        //  power/time (1/1) pairs are handled..
+        formatters.put(1031, new Formatter() {
             @Override
             public String format(int version, byte[] data) {
-                StringBuilder b = new StringBuilder();
-                for (int i = 0; i < data.length / 6; i++) {
-                    b.append("[");
-                    b.append(getUInt(data, 6 * i + 2));
-                    if (getUShort(data, 6 * i) != 0) {
-                        b.append("/");
-                        b.append(getUShort(data, 6 * i));
-                    }
-                    b.append("]");
+                String programType;
+                switch (data[0]) {
+                    case 0:
+                        programType = "slope";
+                        break;
+                    case 1:
+                        programType = "watt";
+                        break;
+                    case 2:
+                        programType = "heartRate";
+                        break;
+                    default:
+                        programType = "unknown program";
+                        break;
                 }
-                return b.toString();
-            }
-        });
-
-        formatters.put(991010, new Formatter() {
-            @Override
-            public String format(int version, byte[] data) {
-                return "[current] " + (getUInt(data, 2) / 100000.0) + "/" + getUShort(data, 0);
-            }
-        });
-        formatters.put(1041, new Formatter() {
-            @Override
-            public String format(int version, byte[] data) {
-                if (data.length != 10) {
-                    return null;
+                String trainingType;
+                switch (data[1]) {
+                    case 0:
+                        trainingType = "distance";
+                        break;
+                    case 1:
+                        trainingType = "time";
+                        break;
+                    default:
+                        trainingType = "unknown training";
+                        break;
                 }
-                // segment range; 548300 is 5.483km
-                return "[segment range] " + (getUInt(data, 2) / 100000.0) + "-" + (getUInt(data, 6) / 100000.0) + "/" + getUShort(data, 0);
+                return "[program type] " + programType + "*" + trainingType;
             }
         });
+        // it looks like part of PROGRAM data (record 1020)
+        // FLOAT DurationDistance;	//Seconds or metres, depending on program type
+        // FLOAT PulseSlopeWatts;	//Pulse, slope or watts data, depending on program type
+        // FLOAT RollingFriction;	// Usually 4.0
+        // Now it is integer (/100=>[m], /100=>[s]) and short (/100=>[%], [W], probably HR as well..)
+        // Value selector is in 1031.
         formatters.put(1032, new Formatter() {
             @Override
             public String format(int version, byte[] data) {
@@ -407,13 +419,29 @@ public class TtsFile {
                     return null;
                 }
                 StringBuilder b = new StringBuilder();
-                b.append("[video points]");
+                b.append("[" + (data.length / 6) + " program points]");
                 for (int i = 0; i < data.length / 6; i++) {
-                    b.append(" [" + i + "="
-                            + getUShort(data, i * 6) + "*" + getUInt(data, i * 6 + 2));
-                    b.append("]");
+                    int slope = getUShort(data, i * 6);
+                    if ((slope & 0x8000) != 0) {
+                        slope -= 0x10000;
+                    }
+                    b.append(" " + slope + "*" + (getUInt(data, i * 6 + 2) / 100.0));
                 }
                 return b.toString();
+            }
+        });
+
+        // segment range; 548300 is 5.483km. What is short value in "old" files?
+        formatters.put(1041, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                if ((version == 1104) && (data.length == 8)) {
+                    return "[segment range] " + (getUInt(data, 0) / 100000.0) + "-" + (getUInt(data, 4) / 100000.0);
+                }
+                if ((version == 1000) && (data.length == 10)) {
+                    return "[segment range] " + (getUInt(data, 2) / 100000.0) + "-" + (getUInt(data, 6) / 100000.0) + "/" + getUShort(data, 0);
+                }
+                return null;
             }
         });
         formatters.put(1050, new Formatter() {
@@ -435,15 +463,74 @@ public class TtsFile {
                 return b.toString();
             }
         });
+
+        // 1 for "plain" RLV, 2 for ERGOs
+        formatters.put(5010, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                if (version == 1004) {
+                    switch (data[5]) {
+                        case 1:
+                            return "[video type] RLV";
+                        case 2:
+                            return "[video type] ERGO";
+                    }
+                }
+                return null;
+            }
+        });
+        // Distance to frame mapping. But where is FPS?
+        formatters.put(5020, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                if (data.length % 8 != 0) {
+                    return null;
+                }
+                StringBuilder b = new StringBuilder();
+                b.append("[" + (data.length / 8) + " video points][last frame " + getUInt(data, data.length - 4) + "]");
+                for (int i = 0; i < data.length / 8; i++) {
+                    b.append(" " + getUInt(data, i * 8) + "." + getUInt(data, i * 8 + 4));
+                }
+                return b.toString();
+            }
+        });
+        // It screams.. "I'm GPS position!". Distance followed by lat, lon, altitude
+        formatters.put(5050, new Formatter() {
+            @Override
+            public String format(int version, byte[] data) {
+                if (data.length % 16 != 0) {
+                    return null;
+                }
+                StringBuilder b = new StringBuilder();
+                b.append("[" + (data.length / 16) + " gps points]");
+                for (int i = 0; i < data.length / 16; i++) {
+                    b.append(" " + getUInt(data, i * 16) + "="
+                            + Float.intBitsToFloat(getUInt(data, i * 16 + 4)) + "/"
+                            + Float.intBitsToFloat(getUInt(data, i * 16 + 8)) + "/"
+                            + Float.intBitsToFloat(getUInt(data, i * 16 + 12)));
+                }
+                return b.toString();
+            }
+        });
     }
+
+    private enum StringType {
+
+        NONPRINTABLE,
+        BLOCK,
+        STING,
+        IMAGE,
+        CRC
+    };
 
     public void printHeaders() {
         int[] key2 = rehashKey(key, 17);
         int[] keyH = null;
 
         int blockType = -1;
-        int stringId = -1;
         int version = -1;
+        int stringId = -1;
+        StringType stringType = StringType.BLOCK;
 
         int fingerprint = 0;
         int bytes = 0;
@@ -459,39 +546,72 @@ public class TtsFile {
                 fingerprint = getUInt(data, 6);
                 keyH = encryptHeader(iarr(data), key2);
 
-                stringId = -1;
-                if (getUShort(data, 2) == 110) {
-                    stringId = getUShort(data, 0);
-                } else {
-                    blockType = getUShort(data, 2);
-                    version = getUShort(data, 4);
+                stringType = StringType.NONPRINTABLE;
+                switch (getUShort(data, 2)) {
+                    case 10: // crc of the data?
+                        // I don't know how to compute it.. and to which data it belongs..
+                        // for sure I'm not going to check these, I assume file is not broken
+                        // (why it can be?)
+                        stringType = StringType.CRC;
+                        break;
+                    case 110: // UTF-16 string
+                        stringType = StringType.STING;
+                        stringId = getUShort(data, 0);
+                        break;
+                    case 120: // image fingerprint
+                        stringId = getUShort(data, 0) + 1000;
+                        break;
+                    case 121: // imageType? always 01
+                        break;
+                    case 122: // image bytes, name is present in previous string from the block
+                        stringType = StringType.IMAGE;
+                        break;
+                    default:
+                        stringType = StringType.BLOCK;
+                        blockType = getUShort(data, 2);
+                        version = getUShort(data, 4);
+                        stringId = -1;
+                        break;
                 }
-
             } else {
-
-                if (keyH == null) {
-                    out.print(bytes + ": duplicated data block");
-                }
                 int[] decrD = decryptData(iarr(data), keyH);
                 keyH = null;
                 out.print("::");
 
                 String result = null;
-                if (stringId >= 0) {
-                    if (strings.containsKey(blockType + stringId)) {
-                        out.print("[" + strings.get(blockType + stringId) + "]");
-                    } else {
-                        out.print("[" + blockType + "." + stringId + "]");
-                    }
-                    StringBuilder str = new StringBuilder();
-                    for (int i = 0; i < decrD.length / 2; i++) {
-                        char c = (char) (decrD[2 * i] | (int) decrD[2 * i + 1] << 8);
-                        str.append(c);
-                    }
-                    result = str.toString();
-                    stringId = -1;
-                } else if (formatters.containsKey(blockType)) {
-                    result = formatters.get(blockType).format(version, barr(decrD));
+                switch (stringType) {
+                    case CRC:
+                        out.print("[crc] ");
+                        break;
+                    case IMAGE:
+                        out.print("[image " + blockType + "." + (stringId - 1000) + "]");
+                        try {
+                            result = currentFile + "." + (imageId++) + ".png";
+                            FileOutputStream file = new FileOutputStream(result);
+                            file.write(barr(decrD));
+                            file.close();
+                        } catch (IOException e) {
+                            result = "cannot create: " + e;
+                        }
+                        break;
+                    case STING:
+                        if (strings.containsKey(blockType + stringId)) {
+                            out.print("[" + strings.get(blockType + stringId) + "]");
+                        } else {
+                            out.print("[" + blockType + "." + stringId + "]");
+                        }
+                        StringBuilder str = new StringBuilder();
+                        for (int i = 0; i < decrD.length / 2; i++) {
+                            char c = (char) (decrD[2 * i] | (int) decrD[2 * i + 1] << 8);
+                            str.append(c);
+                        }
+                        result = str.toString();
+                        break;
+                    case BLOCK:
+                        if (formatters.containsKey(blockType)) {
+                            result = formatters.get(blockType).format(version, barr(decrD));
+                        }
+                        break;
                 }
                 if (result != null) {
                     out.print(" " + result);

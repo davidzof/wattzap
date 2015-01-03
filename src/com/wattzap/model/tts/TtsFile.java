@@ -27,14 +27,12 @@ public class TtsFile {
     private static int imageId;
 
     public static void main(String[] args) {
-
-        String[] files = null;
-        files = new String[]{
+        String[] files = new String[]{
+            "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\Amstel-Gold07.tts"
         };
 
         if ((files == null) || (files.length == 0)) {
-            files = new String[]{
-            };
+            files = new String[]{};
             try {
                 out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
             } catch (Exception e) {
@@ -56,76 +54,25 @@ public class TtsFile {
         }
     }
 
-    private static int[] key = {
-        0xD6, 0x9C, 0xD8, 0xBC, 0xDA, 0xA9, 0xDC, 0xB0, 0xDE, 0xB6,
-        0xE0, 0x95, 0xE2, 0xC3, 0xE4, 0x97, 0xE6, 0x92, 0xE8, 0x85,
-        0xEA, 0x8E, 0xEC, 0x9E, 0xEE, 0x91, 0xF0, 0xB1, 0xF2, 0xD2,
-        0xF4, 0xD4, 0xF6, 0xD7, 0xF8, 0xB1, 0xFA, 0x9E, 0xFC, 0xDD,
-        0xFE, 0x96, 0x00, 0x72, 0x02, 0x23, 0x04, 0x71, 0x06, 0x6F,
-        0x08, 0x6C, 0x0A, 0x2B, 0x0C, 0x7E, 0x0E, 0x4E, 0x10, 0x67,
-        0x12, 0x7A, 0x14, 0x7A, 0x16, 0x65, 0x18, 0x39, 0x1A, 0x74,
-        0x1C, 0x7B, 0x1E, 0x3F, 0x20, 0x44, 0x22, 0x75, 0x24, 0x40,
-        0x26, 0x55, 0x28, 0x50, 0x2A, 0x0B, 0x2C, 0x18, 0x2E, 0x19,
-        0x30, 0x08, 0x32, 0x0B, 0x34, 0x02, 0x36, 0x1F, 0x38, 0x10,
-        0x3A, 0x1F, 0x3C, 0x17, 0x3E, 0x17, 0x40, 0x62, 0x42, 0x65,
-        0x44, 0x65, 0x46, 0x6E, 0x48, 0x69, 0x4A, 0x25, 0x4C, 0x28,
-        0x4E, 0x2A, 0x50, 0x35, 0x52, 0x36, 0x54, 0x31, 0x56, 0x77,
-        0x58, 0x09, 0x5A, 0x29, 0x5C, 0x6D, 0x5E, 0x2B, 0x60, 0x52,
-        0x62, 0x00, 0x64, 0x31, 0x66, 0x2E, 0x68, 0x26, 0x6A, 0x25,
-        0x6C, 0x4D, 0x6E, 0x3C, 0x70, 0x28, 0x72, 0x20, 0x74, 0x21,
-        0x76, 0x32, 0x78, 0x34, 0x7A, 0x55, 0x7C, 0x37, 0x7E, 0x0A,
-        0x80, 0xF2, 0x82, 0xF7, 0x84, 0xC7, 0x86, 0xC2, 0x88, 0xDA,
-        0x8A, 0xDE, 0x8C, 0xDF, 0x8E, 0xCA, 0x90, 0xE5, 0x92, 0xFC,
-        0x94, 0xB0, 0x96, 0xC9, 0x98, 0xF4, 0x9A, 0xAF, 0x9C, 0xF6,
-        0x9E, 0xFA, 0xA0, 0xD5, 0xA2, 0xCB, 0xA4, 0xCC, 0xA6, 0xD4,
-        0xA8, 0x83, 0xAA, 0x8F, 0xAC, 0xD9, 0xAE, 0xDD, 0xB0, 0xD8,
-        0xB2, 0xDD, 0xB4, 0xD2, 0xB6, 0xDB, 0xB8, 0xE6, 0xBA, 0xE4,
-        0xBC, 0xE2, 0xBE, 0xE0, 0xC0, 0xAF, 0xC2, 0xA4, 0xC4, 0xE2,
-        0xC6, 0xA9, 0xC8, 0xBC, 0xCA, 0xAD, 0xCC, 0xAB, 0xCE, 0xEE
-    };
+    // What does it mean? Any ideas? :P
+    // Have they heard about any "more" cryptographic way for protection systems?
+    private static String key = "Kermit rules~@!! He is the sAvior of eVery 56987()$*(#& ) needed Pr0t3cTION SYSTEM.JustBESUREto%^m4kethis*$tringl____ng'nuff!";
 
-    private static int uint(byte b) {
-        if (b < 0) {
-            return (int) b + 256;
-        } else {
-            return (int) b;
-        }
-    }
-
-    private static int[] rehashKey(int[] key, int seed) {
-        int i;
-        char[] chArray1 = new char[key.length / 2];
-        for (i = 0; i < chArray1.length; i++) {
-            chArray1[i] = (char) (key[2 * i] + 256 * key[2 * i + 1]);
-        }
-
-        int num1 = 1000170181 + seed;
-        for (int num2 = 0; num2 < chArray1.length; num2++) {
-            int num4 = (int) (short) chArray1[num2];
-            int num6 = num4 & 0xff;
-            byte num10 = (byte) (num6 ^ num1);
-            int num12 = num4 >> 8;
-            int num13 = num1 + 1;
-            num1 = num13 + 1;
-            int num15 = (int) (byte) (num12 ^ num13);
-            int num16 = (int) (uint(num10) << 8 | uint((byte) num15)) & 0xffff;
-            chArray1[num2] = (char) num16;
-        }
-
-        int[] ret = new int[chArray1.length];
-        for (i = 0; i < ret.length; i++) {
-            ret[i] = (int) chArray1[i];
+    private static byte[] rehashKey(String key) {
+        byte[] ret = new byte[key.length()];
+        for (int i = 0; i < ret.length; i++) {
+            ret[i] = (byte) key.charAt(i);
         }
         return ret;
     }
 
-    private static int[] xorWithHeader(int[] data, int[] header) {
-        int[] result = new int[data.length];
+    private static byte[] xorWithHeader(byte[] data, byte[] header) {
+        byte[] result = new byte[data.length];
 
         int index1 = 0;
         int index2 = 0;
         while (index2 < data.length) {
-            result[index2] = data[index2] ^ header[index1];
+            result[index2] = (byte) (data[index2] ^ header[index1]);
             index1++;
             if (index1 >= header.length) {
                 index1 = 0;
@@ -135,24 +82,7 @@ public class TtsFile {
         return result;
     }
 
-    private static int[] iarr(byte[] a) {
-        int[] r = new int[a.length];
-        for (int i = 0; i < a.length; i++) {
-            r[i] = (int) a[i];
-        }
-        return r;
-    }
-
-    private static byte[] barr(int[] a) {
-        byte[] r = new byte[a.length];
-        for (int i = 0; i < a.length; i++) {
-            r[i] = (byte) a[i];
-        }
-        return r;
-    }
-
     private List<byte[]> content = new ArrayList<>();
-    private byte[] pre = new byte[2];
 
     public TtsFile(String fileName) {
         try {
@@ -201,7 +131,7 @@ public class TtsFile {
     }
 
     private void parseFile(String fileName) throws FileNotFoundException, IOException, IllegalArgumentException {
-        int[] key2 = rehashKey(key, 17);
+        byte[] key2 = rehashKey(key);
 
         InputStream is = new FileInputStream(fileName);
         for (;;) {
@@ -218,9 +148,9 @@ public class TtsFile {
                 int dataSize = getUInt(header, 6) * getUInt(header, 10);
                 byte[] data = new byte[dataSize];
                 if (readData(is, data)) {
-                    int[] keyH = xorWithHeader(key2, iarr(header));
-                    int[] decrD = xorWithHeader(iarr(data), keyH);
-                    content.add(barr(decrD));
+                    byte[] keyH = xorWithHeader(key2, header);
+                    byte[] decrD = xorWithHeader(data, keyH);
+                    content.add(decrD);
                 } else {
                     throw new IllegalArgumentException("Cannot read " + dataSize + "b data");
                 }

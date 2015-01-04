@@ -27,12 +27,12 @@ public class TtsFile {
     private static int imageId;
 
     public static void main(String[] args) {
-        String[] files = new String[]{
+        String[] files = new String[] {
             "C:\\Users\\jaroslawp\\Desktop\\tts\\all\\Amstel-Gold07.tts"
         };
 
         if ((files == null) || (files.length == 0)) {
-            files = new String[]{};
+            files = new String[] {};
             try {
                 out = new PrintStream("C:\\Users\\jaroslawp\\Desktop\\tts\\all\\all_tts.txt");
             } catch (Exception e) {
@@ -54,11 +54,11 @@ public class TtsFile {
         }
     }
 
-    // What does it mean? Any ideas? :P
-    // Have they heard about any "more" cryptographic way for protection systems?
-    private static String key = "Kermit rules~@!! He is the sAvior of eVery 56987()$*(#& ) needed Pr0t3cTION SYSTEM.JustBESUREto%^m4kethis*$tringl____ng'nuff!";
+    private static byte[] getTtsKey() {
+        // What does it mean? Any ideas? :P
+        // Have they heard about any "more" cryptographic way for protection systems?
+        String key = "Kermit rules~@!! He is the sAvior of eVery 56987()$*(#& ) needed Pr0t3cTION SYSTEM.JustBESUREto%^m4kethis*$tringl____ng'nuff!";
 
-    private static byte[] rehashKey(String key) {
         byte[] ret = new byte[key.length()];
         for (int i = 0; i < ret.length; i++) {
             ret[i] = (byte) key.charAt(i);
@@ -66,18 +66,10 @@ public class TtsFile {
         return ret;
     }
 
-    private static byte[] xorWithHeader(byte[] data, byte[] header) {
+    private static byte[] xorWithKey(byte[] data, byte[] key) {
         byte[] result = new byte[data.length];
-
-        int index1 = 0;
-        int index2 = 0;
-        while (index2 < data.length) {
-            result[index2] = (byte) (data[index2] ^ header[index1]);
-            index1++;
-            if (index1 >= header.length) {
-                index1 = 0;
-            }
-            index2++;
+        for (int i = 0; i < data.length; i++) {
+            result[i] = (byte) (data[i] ^ key[i % key.length]);
         }
         return result;
     }
@@ -94,7 +86,8 @@ public class TtsFile {
         }
     }
 
-    private boolean readData(InputStream is, byte[] buffer) throws IOException {
+    private boolean readData(InputStream is, byte[] buffer)
+            throws IOException {
         return is.read(buffer, 0, buffer.length) == buffer.length;
     }
 
@@ -114,8 +107,8 @@ public class TtsFile {
         return getUShort(buffer, offset) | (getUShort(buffer, offset + 2) << 16);
     }
 
+    // list of fingerprints. Are there any other (eg. 3000?)
     private static final Map<Integer, String> fingerprints = new HashMap<>();
-
     static {
         fingerprints.put(120, "embeded image");
 
@@ -130,8 +123,11 @@ public class TtsFile {
         fingerprints.put(7000, "catalyst");
     }
 
-    private void parseFile(String fileName) throws FileNotFoundException, IOException, IllegalArgumentException {
-        byte[] key2 = rehashKey(key);
+    private void parseFile(String fileName)
+            throws FileNotFoundException, IOException, IllegalArgumentException
+    {
+
+        byte[] key = getTtsKey();
 
         InputStream is = new FileInputStream(fileName);
         for (;;) {
@@ -148,8 +144,10 @@ public class TtsFile {
                 int dataSize = getUInt(header, 6) * getUInt(header, 10);
                 byte[] data = new byte[dataSize];
                 if (readData(is, data)) {
-                    byte[] keyH = xorWithHeader(key2, header);
-                    byte[] decrD = xorWithHeader(data, keyH);
+                    // nice trick was used.. Header is 14 bytes, key 125. So if
+                    // data is xored with key and header.. result differ expected
+                    byte[] keyH = xorWithKey(key, header);
+                    byte[] decrD = xorWithKey(data, keyH);
                     content.add(decrD);
                 } else {
                     throw new IllegalArgumentException("Cannot read " + dataSize + "b data");
@@ -201,7 +199,6 @@ public class TtsFile {
     }
 
     private static final Map<Integer, String> strings = new HashMap<>();
-
     static {
         strings.put(1001, "route name");
         strings.put(1002, "route description");
@@ -216,13 +213,7 @@ public class TtsFile {
         strings.put(2007, "link");
     }
 
-    private interface Formatter {
-
-        String format(int version, byte[] data);
-    }
-
     private static final Map<Integer, String> flags = new HashMap<>();
-
     static {
         // 0x001??
         flags.put(0x002, "distance"); // training type
@@ -238,10 +229,14 @@ public class TtsFile {
         flags.put(0x800, "catalyst"); // 7000 block
     }
 
-    private static final Map<Integer, Formatter> formatters = new HashMap<>();
     private static double programCorr = 1.0;
     private static double trainCorr = 100000.0;
 
+    private interface Formatter {
+        String format(int version, byte[] data);
+    }
+
+    private static final Map<Integer, Formatter> formatters = new HashMap<>();
     static {
         // general route info. Some ints are always 0.. beer for the one who
         // will guess what does it mean :) My gueses are difficulty and level.
@@ -363,12 +358,8 @@ public class TtsFile {
             }
         });
 
-        // I though that there is put road surface type (like flat asphalt, mud,
-        // pavement, wood, etc), but I was wrong. There is a kind of segment
-        // identification, where video speed is quite big (downhills). I assume,
-        // that this is used for trainers with "motor" brake for resistance correction
-        // (to "enable" helping motor, etc).
-        // But why they didn't use slope parameter for this purpose?
+        // Rest of PROGRAM data. Rolling friction left, so it is here. I don't know
+        // what is it used for (in RLV it was "usually 4", here it changes
         formatters.put(1050, new Formatter() {
             @Override
             public String format(int version, byte[] data) {
@@ -376,17 +367,18 @@ public class TtsFile {
                     return null;
                 }
                 StringBuilder b = new StringBuilder();
-                b.append("[resistance correction]");
+                b.append("[rolling friction]");
                 for (int i = 0; i < data.length / 10; i++) {
                     b.append(" [");
                     b.append((getUInt(data, i * 10 + 0) / 100000.0) + "-" + (getUInt(data, i * 10 + 4) / 100000.0));
                     // always byte 6
-                    b.append(", resistance=" + getUByte(data, i * 10 + 9));
+                    b.append("/" + getUByte(data, i * 10 + 9));
                     b.append("]");
                 }
                 return b.toString();
             }
         });
+
         // 2010 block contains some dates.. What is it for??
         formatters.put(2010, new Formatter() {
             @Override
@@ -429,7 +421,7 @@ public class TtsFile {
                 return null;
             }
         });
-        // Distance to frame mapping. But where is FPS?
+        // Distance to frame mapping
         formatters.put(5020, new Formatter() {
             @Override
             public String format(int version, byte[] data) {
@@ -477,7 +469,6 @@ public class TtsFile {
     }
 
     private enum DataType {
-
         NONPRINTABLE,
         BLOCK,
         STRING,

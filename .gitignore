@@ -1,0 +1,5 @@
+out/
+prefs/
+.idea/
+plugins/plugins.dat
+wattzap.iml

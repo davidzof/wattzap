@@ -81,10 +81,10 @@ public class Preferences extends JFrame implements ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
-        if ("Preferences".equals(command)) {
+        if (MsgBundle.getString("preferences").equals(command)) {
 			setVisible(true); // you can see me (again)!
         }
-		if ("close".equals(command)) {
+		if (MsgBundle.getString("close").equals(command)) {
 			setVisible(false); // you can't see me!
 			dispose();
 		}

@@ -52,7 +52,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
         this(panel, group, name, null);
     }
 
-    public ConfigFieldSensor(ConfigPanel panel, ButtonGroup group, String name,
+    public ConfigFieldSensor(ConfigPanel panel, ButtonGroup group, final String name,
             SourceDataEnum data) {
         this.panel = panel;
         this.group = group;

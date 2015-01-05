@@ -55,6 +55,7 @@ public class MenuBar extends JMenuBar {
 		add(appMenu);
 
 		JMenuItem prefMenuItem = new JMenuItem("Preferences");
+		prefMenuItem.setActionCommand("Preferences");
 		Preferences preferences = new Preferences();
 		prefMenuItem.addActionListener(preferences);
 		appMenu.add(prefMenuItem);

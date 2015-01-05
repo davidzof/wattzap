@@ -50,6 +50,7 @@ import com.wattzap.view.AboutPanel;
 import com.wattzap.view.MainFrame;
 import com.wattzap.view.Map;
 import com.wattzap.view.Odo;
+import com.wattzap.view.OpponentFilePicker;
 import com.wattzap.view.Profile;
 import com.wattzap.view.RouteFilePicker;
 import com.wattzap.view.VideoPlayer;
@@ -238,6 +239,14 @@ public class Main implements Runnable {
 		fileMenu.add(closeMenuItem);
 		closeMenuItem.setAccelerator(KeyStroke.getKeyStroke('C', Toolkit
 				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
+
+        JMenuItem opponentMenuItem = new JMenuItem(MsgBundle.getString("opponent"));
+		fileMenu.add(opponentMenuItem);
+		opponentMenuItem.setAccelerator(KeyStroke.getKeyStroke('A', Toolkit
+				.getDefaultToolkit().getMenuShortcutKeyMask(), false));
+		OpponentFilePicker opicker = new OpponentFilePicker(frame, popup);
+		opponentMenuItem.setActionCommand("opponent");
+		opponentMenuItem.addActionListener(opicker);
 
 		// Submenu: Training
 		JMenu trainingMenu = new JMenu(MsgBundle.getString("training"));

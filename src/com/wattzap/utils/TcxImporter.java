@@ -26,6 +26,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
 import com.wattzap.model.GPXReader;
+import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.WorkoutData;
@@ -33,7 +34,7 @@ import com.wattzap.model.power.Power;
 
 /**
  * Import TCX Format files
- * 
+ *
  * @author David George
  * @date 2nd May 2014
  */
@@ -42,25 +43,35 @@ public class TcxImporter extends DefaultHandler {
 	StringBuilder buffer;
 	protected static final String TIMESTAMP_FORMAT = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 	private final SimpleDateFormat timestampFormatter;
-	ArrayList<Telemetry> data;
-	Telemetry point;
-	double distance = 0;
+	private ArrayList<Telemetry> data = null;
+	private Telemetry point;
+	private double distance = 0;
 
-	Rolling rSpeed = new Rolling(20);
-	Rolling pAve = new Rolling(20);
-	ExponentialMovingAverage gradeAve = new ExponentialMovingAverage(0.8);
+	private Rolling rSpeed = new Rolling(20);
+	private Rolling pAve = new Rolling(20);
+	private ExponentialMovingAverage gradeAve = new ExponentialMovingAverage(0.8);
 
 	private final UserPreferences userPrefs = UserPreferences.INSTANCE;
 	private static Logger logger = LogManager.getLogger("TCX Importer");
 
-	public TcxImporter() {
+    public TcxImporter() {
 		super();
 		currentState = State.UNDEFINED;
 		timestampFormatter = new SimpleDateFormat(TIMESTAMP_FORMAT);
 		data = new ArrayList<Telemetry>();
 	}
 
-	public void startElement(String uri, String name, String qName,
+	public ArrayList<Telemetry> getData() {
+        return data;
+    }
+    /**
+     * @return distance of whole route [km]
+     */
+    public double getDistance() {
+        return distance;
+    }
+
+    public void startElement(String uri, String name, String qName,
 			Attributes atts) {
 		if (currentState == State.TRACKPOINT) {
 			// Only if we are in a TRACKPOINT state can we enter any of these
@@ -106,33 +117,25 @@ public class TcxImporter extends DefaultHandler {
 		try {
 			if (currentState == State.TRACKPOINT) {
 				// Only if we are in a TRACKPOINT state can we enter any of
-				// these
-				// states
+				// these states
 				if ("Cadence".equalsIgnoreCase(name)) {
 					int cadence = Integer.parseInt(buffer.toString().trim());
 					point.setCadence(cadence);
-					currentState = State.TRACKPOINT;
-
 				} else if ("Time".equalsIgnoreCase(name)) {
 					String tt = buffer.toString().trim();
-
 					Date d = timestampFormatter.parse(tt);
 					point.setTime(d.getTime());
-					currentState = State.TRACKPOINT;
 				} else if ("HeartRateBpm".equalsIgnoreCase(name)) {
 					int hr = Integer.parseInt(buffer.toString().trim());
 					point.setHeartRate(hr);
-					currentState = State.TRACKPOINT;
 				} else if ("DistanceMeters".equalsIgnoreCase(name)) {
 					double distance = Double.parseDouble(buffer.toString()
-							.trim());
+							.trim()) / 1000.0;
 					point.setDistance(distance);
-					currentState = State.TRACKPOINT;
 				} else if ("AltitudeMeters".equalsIgnoreCase(name)) {
 					double altitude = Double.parseDouble(buffer.toString()
 							.trim());
 					point.setElevation(altitude);
-					currentState = State.TRACKPOINT;
 				} else if ("Trackpoint".equalsIgnoreCase(name)) {
 					// finalize data
 					int current = data.size();
@@ -143,26 +146,44 @@ public class TcxImporter extends DefaultHandler {
 								last.getLatitude(), point.getLongitude(),
 								last.getLongitude(), point.getElevation(),
 								last.getElevation());
+                        // telemetry [km], d [m]
+						distance += (d / 1000.0);
+						point.setDistance(distance);
 
-						if (point.getSpeed() == -1) {
+						if (!point.isAvailable(SourceDataEnum.SPEED)) {
 							// calculate speed, s = d / t
-							double speed = rSpeed.add(d * 3600
-									/ (point.getTime() - last.getTime()));
-							point.setSpeed(speed);
-						}
-						double gradient = (point.getElevation() - last
-								.getElevation()) / d;
+							double speed = rSpeed.add(d /
+									((point.getTime() - last.getTime()) / 1000.0));
+                            // speed [m/s], in telemetry [km/h]
+							point.setSpeed(3.6 * speed);
+						} else {
+                            // cumulate speed all the time, even if given as value!
+                            rSpeed.add(point.getSpeed() / 3.6);
+                        }
 
-						if (point.getPower() == -1) {
+                        // altitude must be averaged a bit, otherwise gradient
+                        // will be very stepy, thus power will be stepy as well
+                        if (d > 0.1) {
+                            double gradient = gradeAve.average((point.getElevation() -
+                                    last.getElevation()) / d);
+                            // telemetry [%], gradient [0..1]
+                            point.setGradient(gradient * 100.0);
+                        } else if (current > 1) {
+                            point.setGradient(last.getGradient());
+                        } else {
+                            point.setGradient(0.0);
+                        }
+
+						if (!point.isAvailable(SourceDataEnum.POWER)) {
 							int p = (int) pAve.add(Power.getPower(
-									userPrefs.getTotalWeight(), gradient,
+									userPrefs.getTotalWeight(),
+                                    point.getGradient() / 100.0,
 									point.getSpeed()));
 
 							if (p > userPrefs.getMaxPower()
 									&& (p > (last.getPower() * 2.0))) {
 								// We are above FTP and power has doubled,
-								// remove power
-								// spikes
+								// remove power spikes
 								p = (int) (last.getPower() * 1.05);
 							}
 							if (p > (userPrefs.getMaxPower() * 4)) {
@@ -173,12 +194,8 @@ public class TcxImporter extends DefaultHandler {
 								point.setPower(p);
 							}
 						}
-
-						distance += d;
-						point.setDistance(distance);
-						point.setGradient((gradient) * 100);
 					} else {
-						if (point.getPower() != -1) {
+						if (point.isAvailable(SourceDataEnum.POWER)) {
 							point.setResistance(WorkoutData.POWERMETER);
 						} else {
 							point.setResistance(WorkoutData.GPS);
@@ -193,26 +210,25 @@ public class TcxImporter extends DefaultHandler {
 					int power = Integer.parseInt(buffer.toString().trim());
 					point.setPower(power);
 				} else if ("Speed".equalsIgnoreCase(name)) {
+                    // what does it represent? It doesn't match time/distance..
 					double speed = Double.parseDouble(buffer.toString().trim());
-					point.setSpeed(speed);
+					point.setSpeed(3.6 * speed);
 				} else if ("Extensions".equalsIgnoreCase(name)) {
 					currentState = State.TRACKPOINT;
 				}
 			} else if (currentState == State.POSITION) {
 				if ("LatitudeDegrees".equalsIgnoreCase(name)) {
-					double latitude = Double.parseDouble(buffer.toString()
-							.trim());
+					double latitude = Double.parseDouble(buffer.toString().trim());
 					point.setLatitude(latitude);
 				} else if ("LongitudeDegrees".equalsIgnoreCase(name)) {
-					double longitude = Double.parseDouble(buffer.toString()
-							.trim());
+					double longitude = Double.parseDouble(buffer.toString().trim());
 					point.setLongitude(longitude);
 				} else if ("Position".equalsIgnoreCase(name)) {
 					currentState = State.TRACKPOINT;
 				}
 			}
 			if ("DistanceMeters".equalsIgnoreCase(name)) {
-				distance = Double.parseDouble(buffer.toString().trim());
+				distance = Double.parseDouble(buffer.toString().trim()) / 1000.0;
 			}
 		} catch (ParseException e) {
 			// TODO Auto-generated catch block

@@ -56,6 +56,13 @@ public enum PauseMsgEnum {
     // end of training. Set by video handler, cannot be overriden
     END_OF_ROUTE(100, "end_of_route"),
 
+    // better "stop" conditions. Set after race for first, second and third
+    // opponent when finish.
+    THIRD_POSITION(101, "third_position"),
+    SECOND_POSITION(102, "second_position"),
+    FIRST_POSITION(103, "first_position"),
+    RACE_FINISHED(104, "race_finished"),
+
     // selected handler is not created (yet?). Select another options
     // and condition shall be discarded.
     WRONG_SELECTED(300, "check_selected"),

@@ -55,7 +55,7 @@ public class Odo extends JPanel implements MessageCallback {
     private boolean wheelSpeedShown = true;
 
     private static final Color[] colors = new Color[] {
-        null, Color.GRAY, Color.WHITE, Color.RED, skyBlue, Color.GRAY
+        null, Color.GRAY, Color.WHITE, Color.RED, skyBlue, Color.ORANGE
     };
     static {
         assert colors.length == TelemetryValidityEnum.values().length :
@@ -156,6 +156,7 @@ public class Odo extends JPanel implements MessageCallback {
         columns.add(new ValueCol(SourceDataEnum.SPEED));
 
         // route data
+        columns.add(new ValueCol(SourceDataEnum.OPPONENT_DIST));
         columns.add(new ValueCol(SourceDataEnum.DISTANCE) {
             @Override
             public boolean shown(Telemetry t) {

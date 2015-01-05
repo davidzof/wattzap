@@ -216,6 +216,7 @@ public class GPXReader extends RouteReader {
     @Override
 	public void close() {
         points = null;
+        super.close();
 	}
 
     @Override
@@ -254,7 +255,6 @@ public class GPXReader extends RouteReader {
 		double height = el1 - el2;
 
 		distance = Math.pow(distance, 2) + Math.pow(height, 2);
-
 		return Math.sqrt(distance);
 	}
 

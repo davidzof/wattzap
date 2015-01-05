@@ -15,6 +15,8 @@
  */
 package com.wattzap.view;
 
+import com.wattzap.PopupMessageIntf;
+import com.wattzap.model.Opponents;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -27,7 +29,6 @@ import org.apache.log4j.Logger;
 
 import com.wattzap.model.Readers;
 import com.wattzap.model.UserPreferences;
-import javax.swing.JOptionPane;
 
 /**
  * (c) 2013 David George / Wattzap.com
@@ -37,22 +38,25 @@ import javax.swing.JOptionPane;
  * @author David George
  * @date 11 June 2013
  */
-public class RouteFilePicker extends JFileChooser implements ActionListener {
+public class OpponentFilePicker extends JFileChooser implements ActionListener {
 	private static Logger logger = LogManager.getLogger("Route File Picker");
 
 	private final JFrame frame;
+    private final PopupMessageIntf popup;
 
-	public RouteFilePicker(JFrame panel) {
+	public OpponentFilePicker(JFrame panel, PopupMessageIntf popup) {
 		super();
 		this.frame = panel;
+        this.popup = popup;
 
+		// configure fileSelection panel
         setFileFilter(Readers.getExtensionFilter());
 
 		File last = new File(UserPreferences.INSTANCE.getDefaultFilename());
         if (last.exists()) {
     		setCurrentDirectory(last.getParentFile());
         } else {
-            setCurrentDirectory(new File(UserPreferences.INSTANCE.getRouteDir()));
+            setCurrentDirectory(new File(UserPreferences.INSTANCE.getTrainingDir()));
         }
 	}
 
@@ -61,19 +65,18 @@ public class RouteFilePicker extends JFileChooser implements ActionListener {
 	 */
 	@Override
 	public final void actionPerformed(ActionEvent e) {
+		String command = e.getActionCommand();
+		if ("opponent".equals(command)) {
+			Opponents.removeOpponents();
+        }
 		int retVal = showOpenDialog(frame);
         if (retVal == JFileChooser.APPROVE_OPTION) {
-    		File file = getSelectedFile();
-            String msg = Readers.loadTraining(file.getAbsolutePath());
-            // if proper file.. store path as new "default" training. Otherwise
-            // current training stays still loaded.
-            if (msg == null) {
-                UserPreferences.LAST_FILENAME.setString(file.getAbsolutePath());
+    		String file = getSelectedFile().getAbsolutePath();
+            int id = Opponents.addOpponent(Readers.createReader(file, popup));
+            if (id == 0) {
+                logger.warn("Cannot create opponent, " + file);
             } else {
-                logger.error("Cannot open " + file.getAbsolutePath() + ":: " + msg);
-                JOptionPane.showMessageDialog(frame,
-                        msg + " " + file.getAbsolutePath(),
-                        "Error", JOptionPane.ERROR_MESSAGE);
+                // UserPreferences.LAST_FILENAME.setString(file);
             }
         } else {
             logger.info("Open command user returned " + retVal);

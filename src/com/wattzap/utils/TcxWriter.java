@@ -168,7 +168,7 @@ public class TcxWriter /* implements TrackWriter */{
 		pw.print(t.getPower());
 		pw.print("</Watts>");
 		pw.print("<Speed>");
-		pw.print(t.getSpeed());
+		pw.print(t.getSpeed() / 3.6);
 		pw.print("</Speed>");
 		pw.println("</TPX></Extensions>");
 		pw.println("        </Trackpoint>");

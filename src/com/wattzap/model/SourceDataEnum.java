@@ -63,7 +63,12 @@ public enum SourceDataEnum {
     TARGET_POWER("targetpower", 0.0, 0, "%"), // of FTP
     TARGET_CADENCE("targetcadence", 0.0, 0, "rpm"),
     TARGET_HR("targethr", 0.0, 0, "bpm"),
-    VIDEO_RATE("video_rate", 1.0, -5, "%");
+
+    // video rate, to see what was the real speed
+    VIDEO_RATE("video_rate", 1.0, -5, "%"),
+
+    // "ghost" distance
+    OPPONENT_DIST("opponent_distance", 0.0, 3, "km", "M", Constants.KMTOMILES);
 
     // formating stuff
     private static final char digits[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};

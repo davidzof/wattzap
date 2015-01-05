@@ -72,6 +72,10 @@ public enum Messages {
     GPXLOAD,
     CLOSE,
 
+    // Opponents data to be shown in opponents panel, on the map..
+    // data: OpponentData[]
+    OPPONENTS,
+
     // Application is going to be closed, modules shall handle their
     // own jobs.
     // data: nothing

@@ -15,6 +15,7 @@
 */
 package com.wattzap.model;
 
+import com.wattzap.PopupMessageIntf;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
@@ -27,6 +28,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.wattzap.utils.ReflexiveClassLoader;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 /**
  * Load all available route readers, this lets us add Route Readers dynamically.
@@ -47,14 +49,25 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
         return object;
     }
 
-    public static String[] getExtensions() {
-		List<String> ext = new ArrayList<>();
+
+    public static FileNameExtensionFilter getExtensionFilter() {
+		List<String> exts = new ArrayList<>();
+		StringBuffer fileTypes = new StringBuffer();
+        fileTypes.append("Supported file types (");
+        String s = "";
 		for (RouteReader reader : getObject().getReaders()) {
             if (reader.getExtension() != null) {
-    			ext.add(reader.getExtension());
+                fileTypes.append(s);
+    			fileTypes.append(reader.getExtension());
+                exts.add(reader.getExtension());
+                s = ", ";
             }
 		}
-        return ext.toArray(new String[ext.size()]);
+        fileTypes.append(")");
+
+        return new FileNameExtensionFilter(
+				fileTypes.toString(),
+				exts.toArray(new String[exts.size()]));
     }
 
     public static RouteReader getTraining() {
@@ -63,6 +76,41 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
 
     public static String loadTraining(String fileName) {
         return getObject().load(fileName);
+    }
+
+    // Create new reader for given file. After use it shall be closed (to
+    // garbage all the internal data).
+    public static RouteReader createReader(String filename, PopupMessageIntf popup) {
+        String ext = FileName.getExtension(filename);
+		for (RouteReader r : getObject().getReaders()) {
+			if (ext.equals(r.getExtension())) {
+                try {
+                    RouteReader reader = (RouteReader) r.getClass().newInstance();
+                    // reader doesn't receive any configChanged callbacks. It
+                    // only uses input file (read at start).
+                    reader.configChanged(UserPreferences.INSTANCE);
+                    reader.sendingMessages(false);
+                    // readers do not have to be initialized.
+                    String report = reader.load(filename);
+                    if (report != null) {
+                        logger.error("Cannot read " + filename + ":: " + report);
+                        if (popup != null) {
+                            popup.showWarning("Opponents", report);
+                        }
+                        return null;
+                    }
+                    return reader;
+                } catch (InstantiationException | IllegalAccessException ex) {
+                    // hm.. It is impossible, at least one reader already created
+                    logger.error("Create instance, " + ex.getLocalizedMessage(), ex);
+                    return null;
+                }
+			}
+		}
+        // in "normal" usage standard component shall be used, and the list of
+        // of extensions is ok then. Otherwise.. warning in the log is ok
+        logger.warn(filename + ":: extension '" + ext + "' not handled");
+		return null;
     }
 
 
@@ -155,7 +203,6 @@ public class Readers implements SourceDataHandlerIntf, MessageCallback {
         }
         return lastMessage;
     }
-
 
     /*
      * Telemetry handler interface

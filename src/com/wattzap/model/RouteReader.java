@@ -47,6 +47,8 @@ public abstract class RouteReader extends SourceDataHandler {
     protected double minSlope = 0.0;
     protected double routeLen = 0.0;
 
+    protected boolean sendingMessages = true;
+
     // extension for this routeReader
     public abstract String getExtension();
 
@@ -75,6 +77,9 @@ public abstract class RouteReader extends SourceDataHandler {
         return series;
     }
 
+    public void sendingMessages(boolean val) {
+        sendingMessages = val;
+    }
 
     // load training file and set all data.. Don't check any config flag
     // to load file, just read file and process contained data!

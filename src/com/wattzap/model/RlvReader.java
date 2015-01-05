@@ -441,9 +441,11 @@ public class RlvReader extends RouteReader {
 
         setPause(PauseMsgEnum.RUNNING);
 
-        AxisPointInterest iPoint = iPoints.get(dist);
-        if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {
-            MessageBus.INSTANCE.send(Messages.ROUTE_MSG, iPoint.getMessage());
+        if (sendingMessages) {
+            AxisPointInterest iPoint = iPoints.get(dist);
+            if ((iPoint != null) && (iPoints.isChanged()) && (iPoint.isUsable())) {
+                MessageBus.INSTANCE.send(Messages.ROUTE_MSG, iPoint.getMessage());
+            }
         }
     }
 

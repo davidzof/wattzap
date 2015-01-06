@@ -20,9 +20,6 @@ import com.wattzap.model.dto.AxisPointVideo;
 import com.wattzap.model.dto.AxisPointInterest;
 import com.wattzap.model.dto.AxisPointAlt;
 import com.gpxcreator.gpxpanel.GPXFile;
-import com.gpxcreator.gpxpanel.Track;
-import com.gpxcreator.gpxpanel.Waypoint;
-import com.gpxcreator.gpxpanel.WaypointGroup;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.Messages;
 import com.wattzap.model.dto.AxisPointSlope;
@@ -30,12 +27,10 @@ import com.wattzap.model.dto.AxisPointsList;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 import com.wattzap.utils.Rolling;
-import java.awt.Color;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Date;
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
@@ -53,6 +48,7 @@ public class CycleOpsReader extends RouteReader {
 
     private double totalWeight = 85.0;
     private boolean metric = true;
+    private boolean slope = false;
     private Power power = null;
 
     private AxisPointsList<AxisPointAlt> altPoints = null;
@@ -377,54 +373,15 @@ public class CycleOpsReader extends RouteReader {
     @Override
     public XYSeries createProfile() {
         // profile depends on settings: metric or imperial
-        double distConv = 1000.0;
-        double altConv = 1.0;
-        String format = "distance_km,altitude_m";
-        if (!metric) {
-            distConv *= Constants.KMTOMILES;
-            altConv *= Constants.MTOFEET;
-            format = "distance_mi,altitude_feet";
+        if (slope) {
+            return ReaderUtil.createSlopeProfile(slopePoints, metric, routeLen);
+        } else {
+            return ReaderUtil.createAltitudeProfile(altPoints, metric, routeLen);
         }
-        // create altitude profile, just over points
-        XYSeries series = new XYSeries(format);
-        for (AxisPointAlt point : altPoints) {
-            if (point.getDistance() > routeLen) {
-                double alt = altPoints.interpolate(routeLen,
-                        altPoints.get(routeLen).getAltitude(),
-                        // TODO NPE???
-                        altPoints.getNext().getAltitude());
-				series.add(routeLen / distConv, alt / altConv);
-                break;
-            }
-            series.add(point.getDistance() / distConv,
-                    point.getAltitude() / altConv);
-        }
-        return series;
     }
 
     public GPXFile createGpx() {
-        // create GPX file to be shown on the map
-        if (!altPoints.get(0).hasLatLon()) {
-            return null;
-        }
-        int points = 0;
-        Track track = new Track(Color.GREEN);
-        track.setName(nameTag);
-        WaypointGroup path = track.addTrackseg();
-        path.setColor(Color.RED);
-        path.setVisible(true);
-        path.setWptsVisible(true);
-        for (AxisPointAlt altPoint : altPoints) {
-            Waypoint waypoint = new Waypoint(altPoint.getLat(), altPoint.getLon());
-            waypoint.setEle(altPoint.getAltitude());
-            waypoint.setTime(new Date((++points) * 1000));
-            path.addWaypoint(waypoint);
-        }
-
-        GPXFile gpxFile = new GPXFile();
-        gpxFile.getTracks().add(track);
-        gpxFile.updateAllProperties();
-        return gpxFile;
+        return ReaderUtil.createGpx(nameTag, altPoints);
     }
 
     @Override
@@ -514,8 +471,12 @@ public class CycleOpsReader extends RouteReader {
         // it can be updated every configChanged without checking the property..
         totalWeight = pref.getTotalWeight();
 
-        if ((pref == UserPreferences.INSTANCE) || (pref == UserPreferences.METRIC)) {
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.METRIC) ||
+            (pref == UserPreferences.SHOW_SLOPE))
+        {
             metric = pref.isMetric();
+            slope = pref.slopeShown();
             // rebuild Profile panel
             rebuildProfile();
         }

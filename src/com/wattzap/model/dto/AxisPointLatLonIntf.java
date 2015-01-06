@@ -17,33 +17,14 @@
 package com.wattzap.model.dto;
 
 /**
+ * Simple interface to get the latLon position
  *
  * @author Jarek
  */
-public class AxisPointSlope extends AxisPoint implements AxisPointSlopeIntf {
-    private final double slope;
-
-    public AxisPointSlope(double dist, double slope) {
-        super(dist);
-        this.slope = slope;
-    }
-
-    // return point slope
-    @Override
-    public double getSlope() {
-        return slope;
-    }
-
-
-    @Override
-    public String checkData(AxisPointIntf nextPoint) {
-        return null;
-    }
-
-    @Override
-    public String toString() {
-        return "[SlopePoint(" + getDistance() + ")" +
-                " slope=" + slope +
-                "]";
-    }
+public interface AxisPointLatLonIntf extends AxisPointIntf {
+    boolean hasPosition();
+	double getLatitude();
+	double getLongitude();
+    double getElevation();
+	long getTime();
 }

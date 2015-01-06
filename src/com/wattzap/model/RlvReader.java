@@ -49,6 +49,7 @@ public class RlvReader extends RouteReader {
     private double totalWeight = 85.0;
     private boolean metric = true;
     private Power power = null;
+    private boolean slope = true;
 
     private AxisPointsList<AxisPointAlt> altPoints = null;
     private AxisPointsList<AxisPointVideo> videoPoints = null;
@@ -169,7 +170,7 @@ public class RlvReader extends RouteReader {
                     AxisPointInterest iPoint = new AxisPointInterest(length +
                             (message.getFrame() - previousFrame) * previousDist);
                     String pointMsg = message.getMessage();
-                    if (pointMsg.indexOf('<') >= 0) {
+                    if ((pointMsg != null) && (pointMsg.indexOf('<') >= 0)) {
                         iPoint.setHtml(pointMsg);
                     } else {
                         iPoint.setMessage(pointMsg);
@@ -287,46 +288,12 @@ public class RlvReader extends RouteReader {
 
     @Override
     public XYSeries createProfile() {
-        if (slopeType) {
-            // profile depends on settings: metric or imperial
-            double distConv = 1000.0;
-            double altConv = 1.0;
-            String format = "distance_km,altitude_m";
-            if (!metric) {
-                distConv *= Constants.KMTOMILES;
-                altConv *= Constants.MTOFEET;
-                format = "distance_mi,altitude_feet";
-            }
-            // create altitude profile, just over points
-            XYSeries series = new XYSeries(format);
-            for (AxisPointAlt point : altPoints) {
-                if (point.getDistance() > routeLen) {
-                    double alt = altPoints.interpolate(routeLen,
-                            altPoints.get(routeLen).getAltitude(),
-                            // TODO NPE???
-                            altPoints.getNext().getAltitude());
-                    series.add(routeLen / distConv, alt / altConv);
-                    break;
-                }
-                series.add(point.getDistance() / distConv,
-                        point.getAltitude() / altConv);
-            }
-            return series;
+        if (slopeType && slope) {
+            return ReaderUtil.createSlopeProfile(slopePoints, metric, routeLen);
+        } else if (slopeType) {
+            return ReaderUtil.createAltitudeProfile(altPoints, metric, routeLen);
         } else {
-            String format = "time_min,power";
-            // create power profile, just over points. Slope means power..
-            XYSeries series = new XYSeries(format);
-            for (int i = 0; i < slopePoints.size(); i++) {
-                AxisPointSlope item = slopePoints.get(i);
-                series.add(item.getDistance() / 60.0, item.getSlope());
-                if (i == slopePoints.size() - 1) {
-                    series.add(routeLen / 60.0, item.getSlope());
-                } else {
-                    series.add(slopePoints.get(i + 1).getDistance() / 60.0,
-                            item.getSlope());
-                }
-            }
-            return series;
+            return ReaderUtil.createPowerProfile(slopePoints, metric, routeLen);
         }
     }
 
@@ -457,8 +424,12 @@ public class RlvReader extends RouteReader {
         // it can be updated every configChanged without checking the property..
         totalWeight = pref.getTotalWeight();
 
-        if ((pref == UserPreferences.INSTANCE) || (pref == UserPreferences.METRIC)) {
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.METRIC) ||
+            (pref == UserPreferences.SHOW_SLOPE))
+        {
             metric = pref.isMetric();
+            slope = pref.slopeShown();
             // rebuild Profile panel
             rebuildProfile();
         }

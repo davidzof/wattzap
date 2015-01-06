@@ -42,6 +42,8 @@ import com.wattzap.utils.Rolling;
 public class GPXReader extends RouteReader {
     private double totalWeight = 85.0;
     private Power power = null;
+    private boolean metric = true;
+    private boolean slope = true;
 
     private String gpxName;
 
@@ -67,9 +69,7 @@ public class GPXReader extends RouteReader {
     /**
 	 * Load GPX data from file
 	 *
-	 * @param filename
-	 *            name of file to load
-	 *
+	 * @param file file to load
 	 */
     @Override
 	public String load(File file) {
@@ -81,7 +81,7 @@ public class GPXReader extends RouteReader {
         gpxName = gpxFile.getName();
 
 		List<Track> routes = gpxFile.getTracks();
-		if (routes.size() == 0) {
+		if (routes.isEmpty()) {
 			return "No tracks in file";
 		}
         // TODO what if file contains multiple routes?
@@ -221,11 +221,12 @@ public class GPXReader extends RouteReader {
 
     @Override
     public XYSeries createProfile() {
-        XYSeries series = new XYSeries("distance_km,altitude_m");
-        for (Point point : points) {
-            series.add(point.getDistance() / 1000.0, point.getElevation());
+        // profile depends on settings: metric or imperial
+        if (slope) {
+            return ReaderUtil.createSlopeProfile(points, metric, routeLen);
+        } else {
+            return ReaderUtil.createAltitudeProfile(points, metric, routeLen);
         }
-        return series;
     }
 
 
@@ -330,5 +331,15 @@ public class GPXReader extends RouteReader {
         }
         // it can be updated every configChanged without checking the property..
         totalWeight = pref.getTotalWeight();
+
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.METRIC) ||
+            (pref == UserPreferences.SHOW_SLOPE))
+        {
+            metric = pref.isMetric();
+            slope = pref.slopeShown();
+            // rebuild Profile panel
+            rebuildProfile();
+        }
     }
 }

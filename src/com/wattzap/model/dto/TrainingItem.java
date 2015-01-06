@@ -136,7 +136,7 @@ public class TrainingItem extends AxisPoint {
         }
     }
     @Override
-    public String checkData(AxisPoint next) {
+    public String checkData(AxisPointIntf next) {
         interval = (int) (next.getDistance() - getDistance());
         if (interval < 1) {
             return "Segment too short";

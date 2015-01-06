@@ -16,13 +16,11 @@
  */
 package com.wattzap.model.dto;
 
-import com.wattzap.model.dto.AxisPoint;
-
 /**
  *
  * @author Jarek
  */
-public class AxisPointAlt extends AxisPoint {
+public class AxisPointAlt extends AxisPoint implements AxisPointAltitudeIntf, AxisPointLatLonIntf {
     private final double alt;
     private final double lat;
     private final double lon;
@@ -58,7 +56,7 @@ public class AxisPointAlt extends AxisPoint {
     }
 
     @Override
-    public String checkData(AxisPoint nextPoint) {
+    public String checkData(AxisPointIntf nextPoint) {
         AxisPointAlt next = (AxisPointAlt) nextPoint;
         if (hasLatLon() != next.hasLatLon()) {
             return "Point doesn't have LatLon";
@@ -73,5 +71,30 @@ public class AxisPointAlt extends AxisPoint {
                 " latitude=" + lat + (latLon ? "" : "*") +
                 " longitud=" + lon + (latLon ? "" : "*") +
                 "]";
+    }
+
+    @Override
+    public boolean hasPosition() {
+        return hasLatLon();
+    }
+
+    @Override
+    public double getLatitude() {
+        return getLat();
+    }
+
+    @Override
+    public double getLongitude() {
+        return getLon();
+    }
+
+    @Override
+    public double getElevation() {
+        return getAltitude();
+    }
+
+    @Override
+    public long getTime() {
+        return (long) (getDistance() * 1000.0);
     }
 }

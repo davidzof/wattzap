@@ -17,33 +17,13 @@
 package com.wattzap.model.dto;
 
 /**
+ * Simple interface with distance
  *
  * @author Jarek
  */
-public class AxisPointSlope extends AxisPoint implements AxisPointSlopeIntf {
-    private final double slope;
+public interface AxisPointIntf {
+    double getDistance();
 
-    public AxisPointSlope(double dist, double slope) {
-        super(dist);
-        this.slope = slope;
-    }
-
-    // return point slope
-    @Override
-    public double getSlope() {
-        return slope;
-    }
-
-
-    @Override
-    public String checkData(AxisPointIntf nextPoint) {
-        return null;
-    }
-
-    @Override
-    public String toString() {
-        return "[SlopePoint(" + getDistance() + ")" +
-                " slope=" + slope +
-                "]";
-    }
+    String checkData(AxisPointIntf next);
+    void normalize(double ratio);
 }

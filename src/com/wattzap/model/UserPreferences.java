@@ -98,6 +98,8 @@ public enum UserPreferences {
     ODO_VISIBLE("odo_visible", false, -1),
 
     MANUAL_PAUSE("manual_pause", false),
+    SHOW_SLOPE("show_slope", false),
+    MARKER_VISIBLE("marker_visible", false),
 
     // "backward" compability, cannot be get/set, general value for all settings
 	INSTANCE;
@@ -486,6 +488,12 @@ public enum UserPreferences {
         return AUTO_START.getBool();
     }
 
+    public boolean slopeShown() {
+        return SHOW_SLOPE.getBool();
+    }
+    public boolean markerVisible() {
+        return MARKER_VISIBLE.getBool();
+    }
 
     public boolean autosave() {
         return AUTO_SAVE.getBool();

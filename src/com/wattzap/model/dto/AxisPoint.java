@@ -20,7 +20,7 @@ package com.wattzap.model.dto;
  * General distance point representation
  * @author Jarek
  */
-public class AxisPoint {
+public class AxisPoint implements AxisPointIntf {
     private double dist;
 
     public AxisPoint(double dist) {
@@ -36,7 +36,7 @@ public class AxisPoint {
      * @param next
      * @return null if next point is ok, otherwise error message
      */
-    public String checkData(AxisPoint next) {
+    public String checkData(AxisPointIntf next) {
         return null;
     }
 

@@ -21,17 +21,12 @@ import java.io.File;
 import org.jfree.data.xy.XYSeries;
 
 import com.gpxcreator.gpxpanel.GPXFile;
-import com.gpxcreator.gpxpanel.Track;
-import com.gpxcreator.gpxpanel.Waypoint;
-import com.gpxcreator.gpxpanel.WaypointGroup;
 import com.wattzap.model.dto.Point;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.power.Power;
 import com.wattzap.utils.TcxImporter;
-import java.awt.Color;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Date;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.XMLReader;
@@ -39,16 +34,16 @@ import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 /*
- * Wrapper class for GPX Track. Performs some analysis such as calculating
- * instantaneous speed, average gradient etc.
+ * Wrapper class for TCX file.
  *
- * @author David George (c) Copyright 2013
- * @date 11 June 2013
+ * @author Jarek
  */
 @RouteAnnotation
 public class TcxReader extends RouteReader {
     private double totalWeight = 85.0;
     private Power power = null;
+    private boolean metric = true;
+    private boolean slope = true;
 
 	private AxisPointsList<Point> points = null;
 
@@ -123,36 +118,17 @@ public class TcxReader extends RouteReader {
 	}
 
     public GPXFile createGpx() {
-        // create GPX file to be shown on the map
-        if (!points.get(0).hasPosition()) {
-            return null;
-        }
-        Track track = new Track(Color.GREEN);
-        track.setName(getName());
-        WaypointGroup path = track.addTrackseg();
-        path.setColor(Color.RED);
-        path.setVisible(true);
-        path.setWptsVisible(true);
-        for (Point p : points) {
-            Waypoint waypoint = new Waypoint(p.getLatitude(), p.getLongitude());
-            waypoint.setEle(p.getElevation());
-            waypoint.setTime(new Date(p.getTime()));
-            path.addWaypoint(waypoint);
-        }
-
-        GPXFile gpxFile = new GPXFile();
-        gpxFile.getTracks().add(track);
-        gpxFile.updateAllProperties();
-        return gpxFile;
+        return ReaderUtil.createGpx(getName(), points);
     }
 
     @Override
     public XYSeries createProfile() {
-        XYSeries series = new XYSeries("distance_km,altitude_m");
-        for (Point point : points) {
-            series.add(point.getDistance(), point.getElevation());
+        // profile depends on settings: metric or imperial
+        if (slope) {
+            return ReaderUtil.createSlopeProfile(points, metric, routeLen);
+        } else {
+            return ReaderUtil.createAltitudeProfile(points, metric, routeLen);
         }
-        return series;
     }
 
     @Override
@@ -220,5 +196,15 @@ public class TcxReader extends RouteReader {
         }
         // it can be updated every configChanged without checking the property..
         totalWeight = pref.getTotalWeight();
+
+        if ((pref == UserPreferences.INSTANCE) ||
+            (pref == UserPreferences.METRIC) ||
+            (pref == UserPreferences.SHOW_SLOPE))
+        {
+            metric = pref.isMetric();
+            slope = pref.slopeShown();
+            // rebuild Profile panel
+            rebuildProfile();
+        }
     }
 }

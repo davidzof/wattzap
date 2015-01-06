@@ -25,7 +25,7 @@ import java.util.Comparator;
  * @author Jarek
  * @param <P>
  */
-public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
+public class AxisPointsList<P extends AxisPointIntf> extends ArrayList<P> {
     private final Comparator<P> comp =
             new Comparator<P>() {
                 @Override
@@ -77,7 +77,7 @@ public class AxisPointsList<P extends AxisPoint> extends ArrayList<P> {
             System.err.println(get(0).getClass().getSimpleName() +
                     ":: normalization ratio " + ratio);
         }
-        for (AxisPoint p : this) {
+        for (P p : this) {
             p.normalize(ratio);
         }
     }

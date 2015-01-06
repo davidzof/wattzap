@@ -24,7 +24,9 @@ import com.wattzap.model.SourceDataEnum;
  * @author David George (c) Copyright 2013
  * @date 19 June 2013
  */
-public class Point extends AxisPoint {
+public class Point extends AxisPoint
+        implements AxisPointSlopeIntf, AxisPointAltitudeIntf, AxisPointLatLonIntf
+{
     private boolean hasPosition = false;
 	private double latitude = -91.0;
 	private double longitude = -181.0;
@@ -71,6 +73,12 @@ public class Point extends AxisPoint {
 		return gradient;
 	}
 
+    // alias?? Or gradient*100?
+    @Override
+    public double getSlope() {
+        return getGradient();
+    }
+
 	public void setGradient(double gradient) {
 		this.gradient = gradient;
 	}
@@ -100,6 +108,11 @@ public class Point extends AxisPoint {
 	public double getElevation() {
 		return elevation;
 	}
+
+    @Override
+    public double getAltitude() {
+        return getElevation();
+    }
 
 	public void setElevation(double elevation) {
 		this.elevation = elevation;

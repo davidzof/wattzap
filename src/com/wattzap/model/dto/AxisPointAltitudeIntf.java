@@ -17,33 +17,10 @@
 package com.wattzap.model.dto;
 
 /**
+ * Simple interface to get the slope
  *
  * @author Jarek
  */
-public class AxisPointSlope extends AxisPoint implements AxisPointSlopeIntf {
-    private final double slope;
-
-    public AxisPointSlope(double dist, double slope) {
-        super(dist);
-        this.slope = slope;
-    }
-
-    // return point slope
-    @Override
-    public double getSlope() {
-        return slope;
-    }
-
-
-    @Override
-    public String checkData(AxisPointIntf nextPoint) {
-        return null;
-    }
-
-    @Override
-    public String toString() {
-        return "[SlopePoint(" + getDistance() + ")" +
-                " slope=" + slope +
-                "]";
-    }
+public interface AxisPointAltitudeIntf extends AxisPointIntf {
+    double getAltitude();
 }

@@ -34,6 +34,7 @@ public class UserPanel extends ConfigPanel {
         add(new ConfigFieldInt(this, UserPreferences.MAX_POWER, "ftp"));
 
         add(new ConfigFieldCheck(this, UserPreferences.METRIC, "metric"));
+        add(new ConfigFieldCheck(this, UserPreferences.SHOW_SLOPE, "show_slope"));
 
         add(new ConfigFieldCheck(this, UserPreferences.LOAD_LAST, "load_last"));
         add(new ConfigFieldCheck(this, UserPreferences.AUTO_START, "autostart"));

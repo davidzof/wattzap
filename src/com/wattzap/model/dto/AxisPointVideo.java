@@ -49,7 +49,7 @@ public class AxisPointVideo extends AxisPoint {
     }
 
     @Override
-    public String checkData(AxisPoint nextPoint) {
+    public String checkData(AxisPointIntf nextPoint) {
         AxisPointVideo next = (AxisPointVideo) nextPoint;
         if (time > next.getTime()) {
             return "Time moves back, delta " + (time - next.getTime());

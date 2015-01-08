@@ -43,7 +43,7 @@ public enum UserPreferences {
     HR_SOURCE("hr_source", "hrm"),
     POWER_SOURCE("power_source", "sandc"),
 
-    DEBUG("debug", false),
+    DEBUG("debug", true),
     MAX_POWER("maxpower", 250),
     HR_MAX("maxhr", 180),
 

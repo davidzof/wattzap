@@ -47,7 +47,7 @@ public class AxisPointsList<P extends AxisPointIntf> extends ArrayList<P> {
      * @return error message
      */
     public String checkData() {
-        sort(comp);
+        //sort(comp);
         P prev = null;
         int p = 0;
         for (P point : this) {

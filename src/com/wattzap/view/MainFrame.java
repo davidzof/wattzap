@@ -160,15 +160,16 @@ public class MainFrame extends JFrame
     }
 
     public void rebuildForm() {
-        String whole = "1-99.5";
-        String upperY = whole;
-        String lowerY = whole;
+        String wholeY = "1-99.5";
+        String upperY = wholeY;
+        String lowerY = wholeY;
         if ((train.getBool() || map.getBool()) && (prof.getBool())) {
             upperY = "1-60.5";
             lowerY = "61-99.5";
         }
-        String leftX = whole;
-        String rightX = whole;
+        String wholeX = "0.5-99.5";
+        String leftX = wholeX;
+        String rightX = wholeX;
         if (train.getBool() && map.getBool()) {
             leftX = "0.5-60.5";
             rightX = "61-99.5";
@@ -181,7 +182,7 @@ public class MainFrame extends JFrame
 
         place(train, lpane, leftX + "/" + upperY);
         place(map, lpane, rightX + "/" + upperY);
-        place(prof, lpane, whole + "/" + lowerY);
+        place(prof, lpane, wholeX + "/" + lowerY);
         place(info, lpane, "west+2/north+2");
         place(pause, lpane, "30-70/25-45");
         // ODO is under main pane, not on layeredPane

@@ -17,7 +17,7 @@
 package com.wattzap.model.dto;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 
 /**
  * List which handles some distance-related data
@@ -26,13 +26,6 @@ import java.util.Comparator;
  * @param <P>
  */
 public class AxisPointsList<P extends AxisPointIntf> extends ArrayList<P> {
-    private final Comparator<P> comp =
-            new Comparator<P>() {
-                @Override
-                public int compare(P o1, P o2) {
-                    return Double.compare(o1.getDistance(), o2.getDistance());
-                }
-            };
     private int current = -1;
     private int last = -1;
 
@@ -47,7 +40,7 @@ public class AxisPointsList<P extends AxisPointIntf> extends ArrayList<P> {
      * @return error message
      */
     public String checkData() {
-        //sort(comp);
+        Collections.sort(this);
         P prev = null;
         int p = 0;
         for (P point : this) {

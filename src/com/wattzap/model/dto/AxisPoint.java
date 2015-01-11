@@ -27,6 +27,7 @@ public class AxisPoint implements AxisPointIntf {
         this.dist = dist;
     }
 
+    @Override
     public double getDistance() {
         return dist;
     }
@@ -36,11 +37,21 @@ public class AxisPoint implements AxisPointIntf {
      * @param next
      * @return null if next point is ok, otherwise error message
      */
+    @Override
     public String checkData(AxisPointIntf next) {
         return null;
     }
 
+    @Override
     public void normalize(double ratio) {
         this.dist *= ratio;
+    }
+
+    @Override
+    public int compareTo(Object o) {
+        if (o instanceof AxisPointIntf) {
+            return Double.compare(getDistance(), ((AxisPointIntf) o).getDistance());
+        }
+        throw new IllegalArgumentException("Cannot compare point with " + o.getClass().getSimpleName());
     }
 }

@@ -21,7 +21,7 @@ package com.wattzap.model.dto;
  *
  * @author Jarek
  */
-public interface AxisPointIntf {
+public interface AxisPointIntf extends Comparable {
     double getDistance();
 
     String checkData(AxisPointIntf next);

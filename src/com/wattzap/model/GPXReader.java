@@ -169,12 +169,10 @@ public class GPXReader extends RouteReader {
 			int j = 0;
 			Rolling gradient = new Rolling(10);
 			for (Point p : segment) {
-				if (p.getDistanceFromStart() > segment[i]
-						.getDistanceFromStart() + gradientDistance) {
+				if (p.getDistanceFromStart() > segment[i].getDistanceFromStart() + gradientDistance) {
 					double slope = 100
 							* (p.getElevation() - segment[i].getElevation())
-							/ (p.getDistanceFromStart() - segment[i]
-									.getDistanceFromStart());
+							/ (p.getDistanceFromStart() - segment[i].getDistanceFromStart());
 					gradient.add(slope);
 					if (slope > maxSlope) {
 						maxSlope = slope;
@@ -188,12 +186,14 @@ public class GPXReader extends RouteReader {
 			}
 
 			while (i < j - 1) {
-				double slope = 100
-						* (segment[j - 1].getElevation() - segment[i]
-								.getElevation())
-						/ (segment[j - 1].getDistanceFromStart() - segment[i]
-								.getDistanceFromStart());
-				gradient.add(slope);
+                // distance doesn't have to advance.. And why gradient is computed
+                // once again??
+                if (segment[j - 1].getDistanceFromStart() > segment[i].getDistanceFromStart()) {
+    				double slope = 100
+                            * (segment[j - 1].getElevation() - segment[i].getElevation())
+                            / (segment[j - 1].getDistanceFromStart() - segment[i].getDistanceFromStart());
+                    gradient.add(slope);
+                }
 				segment[i++].setGradient(gradient.getAverage());
 			}
 			segment[i++].setGradient(gradient.getAverage());

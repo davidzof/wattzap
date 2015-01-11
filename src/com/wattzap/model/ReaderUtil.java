@@ -75,15 +75,16 @@ public class ReaderUtil {
         double lastDist = -1.0;
         for (AxisPointSlopeIntf point : points) {
             if (lastDist < 0.0) {
-                lastDist = point.getDistance();
+                lastDist = point.getDistance() / distConv;
                 segment = point.getSlope();
             } else if (point.getDistance() > routeLen) {
-                series.add(lastDist / distConv, segment);
+                series.add(lastDist, segment);
                 series.add(routeLen / distConv, segment);
                 break;
             } else {
-                series.add(lastDist / distConv, segment);
-                series.add(point.getDistance() / distConv, segment);
+                series.add(lastDist, segment);
+                lastDist = point.getDistance() / distConv;
+                series.add(lastDist, segment);
                 segment = point.getSlope();
             }
         }

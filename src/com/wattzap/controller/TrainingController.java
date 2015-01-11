@@ -162,8 +162,15 @@ public class TrainingController implements ActionListener, MessageCallback {
             return;
         }
 
+        // current time is start time in case of first update
+        if (startTime == 0) {
+            startTime = System.currentTimeMillis();
+        }
+
         // in data (and journal as well) time starts from startTime (when
-        // session was started for the first time), so time must be corrected
+        // session was started for the first time), so time must be corrected.
+        // Pauses are not include in the data, only slow-downs are recorded
+        // (but is impossible to check how long training was paused).
         long time = t.getTime() + startTime;
 
         // don't add telemetry too often..

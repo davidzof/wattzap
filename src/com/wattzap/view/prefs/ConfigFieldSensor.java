@@ -68,7 +68,7 @@ public class ConfigFieldSensor implements ConfigFieldIntf, MessageCallback {
             public void run() {
                 for (SourceDataHandlerIntf handler : TelemetryProvider.INSTANCE.getHandlers()) {
                     if ((handler instanceof SensorIntf) &&
-                            (name.equals(handler.getPrettyName()))) {
+                            (ConfigFieldSensor.this.name.equals(handler.getPrettyName()))) {
                         sensor = (SensorIntf) handler;
                         updateSensor();
                         break;

@@ -23,24 +23,30 @@ package com.wattzap.model.power;
 @PowerAnnotation
 public class EliteInOut extends Power {
 	private final double[] params = {
-        /* L1 */ 3.4137, 6.0147,
-        /* L2 */ 6.8164, 20.772,
-        /* L3 */ 10.100, 36.083,
-        /* L4 */ 13.345, 49.634,
-        /* L5 */ 16.679, 63.066,
-        /* L6 */ 20.704, 88.255
+        /* power = xx * v - yy; speed in km/h */
+        // such values are used by "oryginal" InOut computer. These
+        // are way incorrect at very low speed. I have to check correct
+        // values with power meter..
+        /* L1 */ 3.4137, 6.0147, // min 1.76km/h
+        /* L2 */ 6.8164, 20.772, // min 3.04km/h
+        /* L3 */ 10.100, 36.083, // min 3.57km/h
+        /* L4 */ 13.345, 49.634, // min 3.72km/h
+        /* L5 */ 16.679, 63.066, // min 3.78km/h
+        /* L6 */ 20.704, 88.255  // min 4.26km/h
     };
 
+    @Override
 	public int getPower(double speed, int level) {
-		double power = params[2 * level - 2] * speed + params[2 * level - 1];
+		double power = params[2 * level - 2] * speed - params[2 * level - 1];
 		if (power < 0) {
 			return 0;
 		}
 		return (int) power;
 	}
 
+    @Override
 	public double getSpeed(int power, int level) {
-		double speed = (power - params[2 * level - 1]) / params[2 * level - 2];
+		double speed = (power + params[2 * level - 1]) / params[2 * level - 2];
 		if (speed < 0) {
 			return 0.0;
 		}
@@ -52,6 +58,7 @@ public class EliteInOut extends Power {
 		return params.length / 2;
 	}
 
+    @Override
 	public String description() {
 		return "Elite Crono InOut Elastogel";
 	}

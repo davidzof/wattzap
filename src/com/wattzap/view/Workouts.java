@@ -57,6 +57,7 @@ import com.wattzap.controller.DistributionAccessor;
 import com.wattzap.controller.MessageBus;
 import com.wattzap.controller.MessageCallback;
 import com.wattzap.controller.Messages;
+import com.wattzap.model.SourceDataEnum;
 import com.wattzap.model.UserPreferences;
 import com.wattzap.model.dto.Telemetry;
 import com.wattzap.model.dto.TrainingItem;
@@ -66,6 +67,8 @@ import com.wattzap.view.graphs.GenericScatterGraph;
 import com.wattzap.view.graphs.DistributionGraph;
 import com.wattzap.view.graphs.MMPGraph;
 import com.wattzap.view.graphs.SCHRGraph;
+import com.wattzap.view.graphs.ShadeGraph;
+import java.awt.Color;
 
 /**
  * List of workouts stored in the system
@@ -306,12 +309,23 @@ public class Workouts extends JPanel implements ActionListener, MessageCallback 
         }
     }
 
+    private ShadeGraph graph = null;
 	public void actionPerformed(ActionEvent e) {
 		String command = e.getActionCommand();
 
 		if (scGraph.equals(command)) {
 			CSScatterPlot();
 		} else if (hrWattsGraph.equals(command)) {
+            if (graph == null) {
+                graph = new ShadeGraph(
+                        SourceDataEnum.POWER, 1.0,
+                        SourceDataEnum.HEART_RATE, 1.0);
+                graph.createPixmap(100, 500, 100, 200);
+            }
+            if ((telemetry != null) && (telemetry.length != 0) && (telemetry[0] != null)) {
+                graph.fillWith(telemetry[0], -1, -1);
+                graph.createXpm(256, Color.white, "c:\\temp\\conconi.xpm");
+            }
 			HRWattsScatterPlot();
 		} else if (mmpGraph.equals(command)) {
 			mmpGraph();

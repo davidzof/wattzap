@@ -1,0 +1,14 @@
+out/
+prefs/
+.idea/
+plugins/plugins.dat
+wattzap.iml
+*.swp
+/nbproject/
+/build/
+/dist/
+/bin
+/derby.log
+/manifest.mf
+/nbbuild.xml
+/dist-ce

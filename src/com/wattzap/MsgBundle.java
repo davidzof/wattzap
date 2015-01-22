@@ -30,8 +30,6 @@ public class MsgBundle {
 	private static final Logger logger = LogManager.getLogger("MsgBundle");
 	private static ResourceBundle messages = null;
 
-    // TODO add "anonymous" configChanged listener
-
     public static String getString(String key) {
         if (messages == null) {
     		messages = ResourceBundle.getBundle("MessageBundle",

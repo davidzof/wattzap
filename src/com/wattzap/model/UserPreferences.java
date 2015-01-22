@@ -44,8 +44,8 @@ public enum UserPreferences {
     POWER_SOURCE("power_source", "sandc"),
 
     DEBUG("debug", true),
-    MAX_POWER("maxpower", 250),
-    HR_MAX("maxhr", 180),
+    MAX_POWER("maxpower", 250), // FTP..
+    HR_MAX("maxhr", 180), // FTHR
 
     // robot power/speed.
     ROBOT_POWER("robot_power", 210),
@@ -57,7 +57,7 @@ public enum UserPreferences {
     BIKE_WEIGHT("bikeweight", 10.0, 0.1),
     WEIGHT("weight", 75.0, 0.1),
 
-    LANG("lang", "EN"),
+    LANG("lang", "en-gb"),
 
     EVAL_TIME("evalTime", 240),
     SERIAL("ssn", ""),
@@ -117,8 +117,6 @@ public enum UserPreferences {
         MANUAL_PAUSE.keptInDB = false;
     }
 
-	// why it must be always specified?? Are there system settings
-    // and user settings? Hmm. serial? evalTime? What else?
     private static String user = System.getProperty("user.name");
 
     // property values
@@ -276,8 +274,40 @@ public enum UserPreferences {
     }
 
 
-
-
+    // method to be called prior other operations. In general it is intended to
+    // change userName and set some settings in DB when no editor is available
+    // (like language settings)
+    public static void setDBValue(String key, String val) {
+        // set current userName
+        if ("user".equals(key)) {
+            if (val.isEmpty()) {
+                throw new IllegalArgumentException("Username must be given");
+            }
+            user = val;
+            return;
+        }
+        // set value in DB
+        for (UserPreferences pref : values()) {
+            if (key.equals(pref.name)) {
+                if (pref.initialized) {
+                    throw new IllegalArgumentException("Property " + key + " already set");
+                }
+                if (!pref.keptInDB) {
+                    throw new IllegalArgumentException("Property " + key + " cannot be set");
+                }
+                if (val.isEmpty()) {
+                    INSTANCE.getDS().deleteProp(user, key);
+                } else {
+            		String v = INSTANCE.getDS().getProp(user, key);
+                    if (!val.equals(v)) {
+                        INSTANCE.getDS().insertProp(user, key, val);
+                    }
+                }
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Property " + key + " doesn't exist");
+    }
 
 
 	// These functions are called only by GUI

@@ -86,7 +86,18 @@ public class Main implements Runnable {
             BorderFactory.createEmptyBorder(5, 5, 5, 5));
 
     public static void main(String[] args) {
-		// Debug
+        // set configuration args (user, lang). Whole "list" available in
+        // UserPreferences
+        for (String arg : args) {
+            int i = arg.indexOf('=');
+            if (i > 0) {
+                String key = arg.substring(0, i);
+                String val = arg.substring(i + 1);
+                UserPreferences.setDBValue(key, val);
+            }
+        }
+
+        // Debug
 		Level level = setLogLevel();
 		NativeLibrary.addSearchPath("libvlc", "C:/usr/vlc-2.0.6/");
 		// configure the appender
